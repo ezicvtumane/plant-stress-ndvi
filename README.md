@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://konkurs.sochisirius.ru/">
-  <img src="docs/images/sirius_project_banner.png" width="100%" alt="Сириус: Большие вызовы — Агропромышленные и биотехнологии" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0, 164, 153, 0.25);" />
+  <img src="docs/images/sirius_project_banner.png" width="100%" alt="Сириус: Большие вызовы — Агропромышленные и биотехнологии" style="border-radius: 16px; border: 1px solid rgba(0, 164, 153, 0.15); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);" />
 </a>
 
 <br><br>
