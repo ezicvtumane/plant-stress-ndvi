@@ -693,6 +693,66 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             all_r = list(csv.reader(f))
             if len(all_r) > 1:
                 rows = all_r[1:]
+    # Экспресс-статистика когорт для левого блока
+    cnt_ctrl, cnt_drought, cnt_salt = 0, 0, 0
+    ndvis_ctrl, ndvis_drought, ndvis_salt = [], [], []
+
+    for r in rows:
+        if len(r) > 2:
+            grp_l = r[2].strip().lower()
+            ndvi_val = None
+            try:
+                if len(r) >= 24 and r[11]:
+                    ndvi_val = float(r[11])
+                elif len(r) >= 20 and r[7]:
+                    ndvi_val = float(r[7])
+                elif len(r) >= 10 and r[6]:
+                    ndvi_val = float(r[6])
+            except (ValueError, TypeError):
+                pass
+
+            if 'контр' in grp_l or 'control' in grp_l:
+                cnt_ctrl += 1
+                if ndvi_val is not None: ndvis_ctrl.append(ndvi_val)
+            elif 'засух' in grp_l or 'drought' in grp_l:
+                cnt_drought += 1
+                if ndvi_val is not None: ndvis_drought.append(ndvi_val)
+            elif 'сол' in grp_l or 'salin' in grp_l:
+                cnt_salt += 1
+                if ndvi_val is not None: ndvis_salt.append(ndvi_val)
+
+    m_ctrl = f"{sum(ndvis_ctrl)/len(ndvis_ctrl):.3f}" if ndvis_ctrl else "--"
+    m_drought = f"{sum(ndvis_drought)/len(ndvis_drought):.3f}" if ndvis_drought else "--"
+    m_salt = f"{sum(ndvis_salt)/len(ndvis_salt):.3f}" if ndvis_salt else "--"
+
+    summary_card = f'''
+        <div class="card" style="margin-top: 2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:6px; margin-bottom:10px;">
+                <h2 style="margin:0; font-size:15px; border:none; padding:0; color:#38bdf8;">📊 Экспресс-сводка серии</h2>
+                <span style="background:#0b1120; border:1px solid #38bdf8; color:#38bdf8; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px; text-align:center;">
+                <div style="background:rgba(6, 78, 59, 0.25); border:1px solid #059669; border-radius:8px; padding:6px 2px;">
+                    <div style="font-size:11px; color:#34d399; font-weight:bold;">🌱 Контроль</div>
+                    <div style="font-size:17px; font-weight:bold; color:#fff; margin:2px 0;">{cnt_ctrl}</div>
+                    <div style="font-size:10px; color:#94a3b8;">ср: <b style="color:#34d399;">{m_ctrl}</b></div>
+                </div>
+                <div style="background:rgba(120, 53, 15, 0.25); border:1px solid #d97706; border-radius:8px; padding:6px 2px;">
+                    <div style="font-size:11px; color:#fde68a; font-weight:bold;">🍂 Засуха</div>
+                    <div style="font-size:17px; font-weight:bold; color:#fff; margin:2px 0;">{cnt_drought}</div>
+                    <div style="font-size:10px; color:#94a3b8;">ср: <b style="color:#fbbf24;">{m_drought}</b></div>
+                </div>
+                <div style="background:rgba(76, 29, 149, 0.25); border:1px solid #7c3aed; border-radius:8px; padding:6px 2px;">
+                    <div style="font-size:11px; color:#c4b5fd; font-weight:bold;">🧂 Соль</div>
+                    <div style="font-size:17px; font-weight:bold; color:#fff; margin:2px 0;">{cnt_salt}</div>
+                    <div style="font-size:10px; color:#94a3b8;">ср: <b style="color:#c4b5fd;">{m_salt}</b></div>
+                </div>
+            </div>
+            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:10px; box-sizing:border-box; background:#0b1120; border:1px solid #38bdf8; border-radius:8px; color:#38bdf8; text-decoration:none; font-size:12px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#0b1120';this.style.color='#38bdf8';">
+                📥 Экспорт всей базы данных (.CSV)
+            </a>
+        </div>
+    '''
 
     table_html = ''
     for r in reversed(rows):
@@ -763,22 +823,22 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
     <meta charset="UTF-8">
     <title>Оптико-электронный комплекс</title>
     <style>
-        body {{ font-family: system-ui, -apple-system, sans-serif; background: #0b1120; color: #f8fafc; margin: 0; padding: 15px; }}
-        .container {{ max-width: 1440px; margin: 0 auto; }}
-        .header {{ text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 15px; }}
+        body {{ font-family: system-ui, -apple-system, sans-serif; background: #0b1120; color: #f8fafc; margin: 0; padding: 20px; min-height: 100vh; box-sizing: border-box; }}
+        .container {{ width: 100%; max-width: 1400px; margin: 0 auto; }}
+        .header {{ text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; }}
         .header h1 {{ color: #38bdf8; margin: 0 0 5px 0; font-size: 22px; }}
-        .climate-bar {{ background: #1e293b; border: 1px solid #38bdf8; border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; display: flex; justify-content: space-around; font-size: 13px; align-items: center; }}
-        .grid {{ display: grid; grid-template-columns: 430px 1fr; gap: 15px; }}
-        .card {{ background: #1e293b; border-radius: 12px; padding: 16px; border: 1px solid #334155; }}
-        .card h2 {{ color: #38bdf8; margin-top: 0; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 6px; }}
+        .climate-bar {{ background: #1e293b; border: 1px solid #38bdf8; border-radius: 10px; padding: 10px 18px; margin-bottom: 16px; display: flex; justify-content: space-around; font-size: 13px; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }}
+        .grid-top {{ display: grid; grid-template-columns: 420px 1fr; gap: 16px; align-items: stretch; margin-bottom: 16px; }}
+        .card {{ background: #1e293b; border-radius: 12px; padding: 16px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }}
+        .card h2 {{ color: #38bdf8; margin-top: 0; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 12px; }}
         label {{ display: block; margin-top: 10px; font-weight: bold; color: #cbd5e1; font-size: 13px; }}
-        select, input[type="text"] {{ width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #0b1120; color: white; margin-top: 4px; box-sizing: border-box; font-size: 14px; }}
+        select, input[type="text"] {{ width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #475569; background: #0b1120; color: white; margin-top: 4px; box-sizing: border-box; font-size: 14px; }}
         .channels {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }}
-        .ch-box {{ background: #0b1120; padding: 6px; border-radius: 6px; border: 1px solid #334155; text-align: center; }}
-        .preview-img {{ width: 100%; height: 175px; border-radius: 4px; border: 1px solid #475569; background: #000; object-fit: contain; }}
+        .ch-box {{ background: #0b1120; padding: 8px; border-radius: 8px; border: 1px solid #334155; text-align: center; }}
+        .preview-img {{ width: 100%; height: 185px; border-radius: 6px; border: 1px solid #475569; background: #000; object-fit: contain; }}
         table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }}
-        th {{ background: #0f172a; color: #94a3b8; padding: 10px 6px; font-weight: 600; border-bottom: 2px solid #334155; white-space: nowrap; text-align: center; font-size: 11px; position: sticky; top: 0; z-index: 10; letter-spacing: 0.3px; }}
-        td {{ padding: 8px 6px; border-bottom: 1px solid #1e293b; vertical-align: middle; text-align: center; }}
+        th {{ background: #0f172a; color: #94a3b8; padding: 10px 8px; font-weight: 600; border-bottom: 2px solid #334155; white-space: nowrap; text-align: center; font-size: 11px; position: sticky; top: 0; z-index: 10; letter-spacing: 0.3px; }}
+        td {{ padding: 8px 8px; border-bottom: 1px solid #1e293b; vertical-align: middle; text-align: center; }}
         tr:nth-child(even) td {{ background: rgba(255, 255, 255, 0.018); }}
         tr:hover td {{ background: rgba(56, 189, 248, 0.07); }}
     </style>
@@ -804,69 +864,75 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
     {status_banner}
 
-    <div class="grid">
-        <div>
+    <!-- ВЕРХНИЙ БЛОК: Слева Управление + Сводка | Справа Мультиспектральная матрица -->
+    <div class="grid-top">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
             <!-- WIZARD ШАГ 1 ИЛИ ШАГ 2 -->
             {wizard_card}
 
-            <div style="margin-top: 15px; text-align: center;">
-                <a href="/download/csv" style="color: #38bdf8; text-decoration: none; font-size: 13px; font-weight: bold;">
-                    📥 Скачать таблицу базы данных (.CSV)
-                </a>
-            </div>
+            <!-- ЭКСПРЕСС-СВОДКА (Заполняет нижний левый угол) -->
+            {summary_card}
         </div>
 
-        <div class="card">
-            <h2>Мультиспектральная матрица</h2>
-            <div class="channels">
-                <div class="ch-box">
-                    <div style="color:#f87171;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 1: 660 нм (Red)</div>
-                    <img src="/static/last_red.jpg?t={t_now}" class="preview-img">
-                </div>
-                <div class="ch-box">
-                    <div style="color:#818cf8;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 2: 850 нм (NIR)</div>
-                    <img src="/static/last_nir.jpg?t={t_now}" class="preview-img">
-                </div>
-                <div class="ch-box">
-                    <div style="color:#34d399;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 3: Карта NDVI (Сетка 3х3)</div>
-                    <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img">
-                </div>
-                <div class="ch-box">
-                    <div style="color:#fbbf24;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 4: Термограмма (UTi120S)</div>
-                    <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img">
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h2>Мультиспектральная матрица</h2>
+                <div class="channels">
+                    <div class="ch-box">
+                        <div style="color:#f87171;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 1: 660 нм (Red)</div>
+                        <img src="/static/last_red.jpg?t={t_now}" class="preview-img">
+                    </div>
+                    <div class="ch-box">
+                        <div style="color:#818cf8;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 2: 850 нм (NIR)</div>
+                        <img src="/static/last_nir.jpg?t={t_now}" class="preview-img">
+                    </div>
+                    <div class="ch-box">
+                        <div style="color:#34d399;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 3: Карта NDVI (Сетка 3х3)</div>
+                        <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img">
+                    </div>
+                    <div class="ch-box">
+                        <div style="color:#fbbf24;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 4: Термограмма (UTi120S)</div>
+                        <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img">
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; margin-bottom:8px;">
-                <h2 style="margin:0; font-size:16px;">Журнал физиологических замеров</h2>
-                <div style="display:flex; gap:6px;">
-                    <span style="background:#064e3b; color:#34d399; padding:2px 7px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #059669;">🌱 Контроль</span>
-                    <span style="background:#78350f; color:#fde68a; padding:2px 7px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #d97706;">🍂 Засуха</span>
-                    <span style="background:#4c1d95; color:#c4b5fd; padding:2px 7px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #7c3aed;">🧂 Соль (NaCl)</span>
-                </div>
+    <!-- НИЖНИЙ БЛОК: ЖУРНАЛ ИЗМЕРЕНИЙ НА ВСЮ ШИРИНУ -->
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <h2 style="margin:0; font-size:16px; border:none; padding:0; color:#38bdf8;">📋 Журнал физиологических замеров</h2>
+                <span style="font-size:12px; color:#94a3b8; background:#0b1120; border:1px solid #334155; padding:2px 8px; border-radius:10px;">Записей в базе: <b>{len(rows)}</b></span>
             </div>
-            <div style="max-height: 220px; overflow-y: auto; border: 1px solid #334155; border-radius: 6px;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:38px;">№</th>
-                            <th style="width:120px;">Дата и время</th>
-                            <th style="width:105px;">Когорта</th>
-                            <th style="width:70px;">Масса</th>
-                            <th style="width:110px;">T возд / RH</th>
-                            <th style="width:75px;">T листа</th>
-                            <th style="width:130px;">ΔT (Стресс)</th>
-                            <th style="width:85px;">NDVI</th>
-                            <th style="width:55px;">Почва</th>
-                            <th style="width:100px;">Тепловизор</th>
-                            <th style="width:32px;" title="Удалить запись">✕</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {table_html}
-                    </tbody>
-                </table>
+            <div style="display:flex; gap:6px;">
+                <span style="background:#064e3b; color:#34d399; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; border:1px solid #059669;">🌱 Контроль</span>
+                <span style="background:#78350f; color:#fde68a; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; border:1px solid #d97706;">🍂 Засуха</span>
+                <span style="background:#4c1d95; color:#c4b5fd; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; border:1px solid #7c3aed;">🧂 Соль (NaCl)</span>
             </div>
+        </div>
+        <div style="max-height: 280px; overflow-y: auto; border: 1px solid #334155; border-radius: 8px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:45px;">№</th>
+                        <th style="width:130px;">Дата и время</th>
+                        <th style="width:115px;">Когорта</th>
+                        <th style="width:75px;">Масса</th>
+                        <th style="width:120px;">T возд / RH</th>
+                        <th style="width:80px;">T листа</th>
+                        <th style="width:145px;">ΔT (Стресс)</th>
+                        <th style="width:95px;">NDVI</th>
+                        <th style="width:65px;">Почва</th>
+                        <th style="width:110px;">Тепловизор</th>
+                        <th style="width:38px;" title="Удалить запись">✕</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_html}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
