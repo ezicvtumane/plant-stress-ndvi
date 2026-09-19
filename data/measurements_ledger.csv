@@ -210,3 +210,4 @@ day,sample_id,group,ndvi_mean,soil_moisture_a0_pct,delta_t_celsius,visual_wiltin
 7,Salinity_09,Salinity,0.4589,76.98,1.5,True
 7,Salinity_10,Salinity,0.4331,78.11,1.5,True
 20260919_114808,test_sample_01,Drought,55.17,1.95,20.69,2.45,0,0.0,0.0,0.0,0.0,0.0,0.0,1.054,20260919_114808_Drought_test_sample_01_ndvi_heatmap.png
+20260919_140125,test_pi_01,Control,55.17,1.95,20.69,2.45,0,0.0,0.0,0.0,0.0,0.0,0.0,1.054,20260919_140125_Control_test_pi_01_ndvi_heatmap.png
