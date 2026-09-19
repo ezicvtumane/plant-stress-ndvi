@@ -109,6 +109,32 @@ def format_ru_datetime(val) -> str:
             pass
     return val_str
 
+def format_ru_date_and_time(val):
+    """Возвращает кортеж (дата, время) для аккуратного двухстрочного отображения."""
+    if not val:
+        return ('--', '')
+    if isinstance(val, (int, float)):
+        try:
+            val = datetime.fromtimestamp(val)
+        except Exception:
+            return (str(val), '')
+    if isinstance(val, datetime):
+        m_name = RU_MONTHS[val.month - 1]
+        return (f"{val.day} {m_name} {val.year}", val.strftime('%H:%M:%S'))
+    
+    val_str = str(val).strip()
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y%m%d_%H%M%S'):
+        try:
+            dt = datetime.strptime(val_str, fmt)
+            m_name = RU_MONTHS[dt.month - 1]
+            return (f"{dt.day} {m_name} {dt.year}", dt.strftime('%H:%M:%S'))
+        except ValueError:
+            pass
+    if ',' in val_str:
+        parts = val_str.split(',', 1)
+        return (parts[0].strip(), parts[1].strip())
+    return (val_str, '')
+
 def format_group_badge(grp_name: str) -> str:
     """Форматирует название группы в яркий отличительный бейдж."""
     if not grp_name:
@@ -608,7 +634,10 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         if len(r) >= 24:
             m_id, ts, grp = r[0], r[1], r[2]
             wt = f"{r[3]} г" if r[3] else "--"
-            t_air_str = f"{r[4]}°C / {r[5]}%" if (r[4] and r[5]) else "--"
+            if r[4] and r[5]:
+                t_air_str = f'<span style="white-space:nowrap;font-size:11px;">{r[4]}°C <span style="color:#64748b;">·</span> <span style="color:#34d399;">{r[5]}%</span></span>'
+            else:
+                t_air_str = '<span style="color:#64748b;">--</span>'
             pct = f"{r[7]}%" if r[7] else "--"
             t_show = f"{r[8]} °C" if r[8] else "--"
             delta_str = f"{r[9]}°C" if r[9] else "--"
@@ -619,39 +648,48 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 try:
                     dt_val = float(r[9])
                     if dt_val <= -0.5:
-                        stress_badge = f'<span style="background:#065f46;color:#34d399;padding:2px 6px;border-radius:4px;font-size:11px;">{delta_str} (Норма)</span>'
+                        stress_badge = f'<span style="background:#065f46;color:#34d399;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;">{delta_str} (Норма)</span>'
                     elif dt_val <= 0.5:
-                        stress_badge = f'<span style="background:#78350f;color:#fbbf24;padding:2px 6px;border-radius:4px;font-size:11px;">{delta_str} (Нач. стресс)</span>'
+                        stress_badge = f'<span style="background:#78350f;color:#fbbf24;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;">{delta_str} (Нач. стресс)</span>'
                     else:
-                        stress_badge = f'<span style="background:#7f1d1d;color:#f87171;padding:2px 6px;border-radius:4px;font-size:11px;">{delta_str} (ВОДНЫЙ ШОК)</span>'
+                        stress_badge = f'<span style="background:#7f1d1d;color:#f87171;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;">{delta_str} (ВОДНЫЙ ШОК)</span>'
                 except Exception:
-                    stress_badge = delta_str
+                    stress_badge = f'<span style="white-space:nowrap;">{delta_str}</span>'
             else:
                 stress_badge = '<span style="color:#64748b;">--</span>'
 
         elif len(r) >= 20:
             m_id, ts, grp = r[0], r[1], r[2]
             wt = f"{r[3]} г" if r[3] else "--"
-            t_air_str = "--"
+            t_air_str = '<span style="color:#64748b;">--</span>'
             pct = f"{r[5]}%" if r[5] else "--"
             t_show = f"{r[6]} °C" if r[6] else "--"
-            stress_badge = "--"
+            stress_badge = '<span style="color:#64748b;">--</span>'
             ndvi_txt = f"{r[7]}±{r[8]}" if len(r)>8 else "--"
             th_name = r[10] if len(r)>10 else ""
         else:
             m_id, ts, grp = r[0], r[1], r[2]
             wt = "--"
-            t_air_str = "--"
+            t_air_str = '<span style="color:#64748b;">--</span>'
             pct = f"{r[4]}%" if len(r)>4 else "--"
             t_show = f"{r[5]} °C" if len(r)>5 else "--"
-            stress_badge = "--"
+            stress_badge = '<span style="color:#64748b;">--</span>'
             ndvi_txt = f"{r[6]}±{r[7]}" if len(r)>7 else "--"
             th_name = r[9] if len(r)>9 else ""
 
-        th_stat = f'<span style="color:#10b981;font-weight:bold;">✓ {th_name}</span>' if th_name else '<span style="color:#f59e0b;">⏳ Ожидает</span>'
-        ts_ru = format_ru_datetime(ts)
+        if th_name:
+            m_th = re.search(r'(IMG[_\s]\d+)', th_name)
+            clean_th = m_th.group(1) if m_th else th_name
+            th_stat = f'<span style="color:#10b981;font-weight:bold;font-size:11px;white-space:nowrap;">✓ {clean_th}</span>'
+        else:
+            th_stat = '<span style="color:#f59e0b;font-size:11px;white-space:nowrap;">⏳ Ожидает</span>'
+
+        d_str, t_str = format_ru_date_and_time(ts)
+        time_cell = f'<div style="white-space:nowrap;font-size:11px;font-weight:600;color:#f1f5f9;">{d_str}</div><div style="font-size:10px;color:#94a3b8;white-space:nowrap;">{t_str}</div>'
         grp_badge = format_group_badge(grp)
-        table_html += f'<tr><td><b>#{m_id}</b></td><td>{ts_ru}</td><td>{grp_badge}</td><td><b style="color:#38bdf8;">{wt}</b></td><td>{t_air_str}</td><td><b style="color:#fbbf24;">{t_show}</b></td><td>{stress_badge}</td><td>{ndvi_txt}</td><td>{pct}</td><td>{th_stat}</td></tr>'
+        t_leaf_html = f'<b style="color:#fbbf24;white-space:nowrap;">{t_show}</b>' if t_show != '--' else '<span style="color:#64748b;">--</span>'
+
+        table_html += f'<tr><td><b style="color:#94a3b8;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#38bdf8;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td><span style="white-space:nowrap;font-family:monospace;font-size:11px;">{ndvi_txt}</span></td><td><span style="white-space:nowrap;">{pct}</span></td><td>{th_stat}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
@@ -672,9 +710,11 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         .channels {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }}
         .ch-box {{ background: #0b1120; padding: 6px; border-radius: 6px; border: 1px solid #334155; text-align: center; }}
         .preview-img {{ width: 100%; height: 175px; border-radius: 4px; border: 1px solid #475569; background: #000; object-fit: contain; }}
-        table {{ width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }}
-        th, td {{ padding: 6px 8px; border-bottom: 1px solid #334155; }}
-        th {{ background: #0b1120; color: #94a3b8; }}
+        table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }}
+        th {{ background: #0f172a; color: #94a3b8; padding: 10px 6px; font-weight: 600; border-bottom: 2px solid #334155; white-space: nowrap; text-align: center; font-size: 11px; position: sticky; top: 0; z-index: 10; letter-spacing: 0.3px; }}
+        td {{ padding: 8px 6px; border-bottom: 1px solid #1e293b; vertical-align: middle; text-align: center; }}
+        tr:nth-child(even) td {{ background: rgba(255, 255, 255, 0.018); }}
+        tr:hover td {{ background: rgba(56, 189, 248, 0.07); }}
     </style>
 </head>
 <body>
@@ -743,7 +783,16 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th><th>Время</th><th>Группа</th><th>Масса (г)</th><th>T_возд / RH</th><th>T_лист</th><th>ΔT (Стресс)</th><th>NDVI</th><th>Почва</th><th>Термограмма</th>
+                            <th style="width:40px;">№</th>
+                            <th style="width:125px;">Дата и время</th>
+                            <th style="width:110px;">Когорта</th>
+                            <th style="width:75px;">Масса</th>
+                            <th style="width:115px;">T возд / RH</th>
+                            <th style="width:80px;">T листа</th>
+                            <th style="width:140px;">ΔT (Стресс)</th>
+                            <th style="width:90px;">NDVI</th>
+                            <th style="width:60px;">Почва</th>
+                            <th style="width:105px;">Тепловизор</th>
                         </tr>
                     </thead>
                     <tbody>
