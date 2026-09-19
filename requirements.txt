@@ -1,0 +1,15 @@
+# Plant Stress Active Phenotyping System
+# Core requirements for Orange Pi / Linux / Development
+
+numpy>=1.22.0
+scipy>=1.9.0
+opencv-python>=4.5.0
+matplotlib>=3.5.0
+pandas>=1.4.0
+
+# Hardware control on Linux / Orange Pi / Raspberry Pi
+Adafruit-Blinka>=8.0.0
+adafruit-circuitpython-ads1x15>=2.2.0
+
+# Optional testing and utilities
+pytest>=7.0.0
