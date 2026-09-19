@@ -65,3 +65,44 @@ def test_statistical_significance_computation():
     # On Day 4, stress is pronounced and statistically significant
     assert p_ndvi < 0.01
     assert p_dt < 0.01
+
+def test_bayer_demultiplexing_3channel():
+    """Verify physical Bayer demultiplexing extracts pure Red channel and averaged NIR."""
+    from src.ndvi_processor import NDVIProcessor
+    proc = NDVIProcessor(k_factor=1.0)
+    
+    # 3-channel frame: BGR
+    # Ambient: B=5, G=5, R=5
+    ambient = np.full((10, 10, 3), 5, dtype=np.uint8)
+    
+    # NIR flash: B=105, G=105, R=105 -> Mean=105 -> Net NIR = 100
+    nir_flash = np.full((10, 10, 3), 105, dtype=np.uint8)
+    
+    # Red flash (660nm): B=5, G=5, R=105 -> Pure R=105 -> Net Red = 100
+    red_flash = np.zeros((10, 10, 3), dtype=np.uint8)
+    red_flash[:, :, 0] = 5   # Blue
+    red_flash[:, :, 1] = 5   # Green
+    red_flash[:, :, 2] = 105 # Red
+    
+    k = proc.compute_k_factor_from_gray_card(ambient, nir_flash, red_flash)
+    # Net Red (100) / Net NIR (100) = 1.0
+    assert k == pytest.approx(1.0, abs=1e-3)
+
+def test_cwsi_calculation():
+    """Verify Crop Water Stress Index boundaries and normalization."""
+    from src.thermal_integration import ThermalAnalyzer
+    analyzer = ThermalAnalyzer()
+
+    t_air = 22.0
+    t_wet = 18.8  # Transpiring baseline (-3.2 C)
+    t_dry = 24.0  # Non-transpiring baseline (+2.0 C)
+
+    # Optimum hydration: T_leaf = T_wet -> CWSI = 0.0
+    assert analyzer.compute_cwsi(18.8, t_air, t_wet, t_dry) == pytest.approx(0.0, abs=1e-3)
+
+    # Severe stress: T_leaf = T_dry -> CWSI = 1.0
+    assert analyzer.compute_cwsi(24.0, t_air, t_wet, t_dry) == pytest.approx(1.0, abs=1e-3)
+
+    # Moderate stress: T_leaf = 21.4 (midpoint) -> CWSI = 0.5
+    assert analyzer.compute_cwsi(21.4, t_air, t_wet, t_dry) == pytest.approx(0.5, abs=1e-2)
+
