@@ -1,0 +1,14 @@
+[Unit]
+Description=Plant Stress NDVI and Thermal Station
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/plant-stress-ndvi
+ExecStart=/usr/bin/python3 /home/pi/plant-stress-ndvi/web_station.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
