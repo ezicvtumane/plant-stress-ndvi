@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="230mm" height="240mm" viewBox="0 0 230 240" version="1.1">
+<style>
+    .cut { stroke: #ff0000; stroke-width: 0.1; fill: none; } /* Красный: Резка */
+    .engrave { stroke: #0000ff; stroke-width: 0.1; fill: #0000ff; } /* Синий: Гравировка */
+    .engrave_line { stroke: #0000ff; stroke-width: 0.2; fill: none; }
+    .text_engrave { font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; fill: #0000ff; text-anchor: middle; }
+    .text_note { font-family: monospace; font-size: 3.8px; fill: #555555; }
+</style>
+<rect x="15" y="15" width="200.0" height="208.0" rx="2" class="cut"/>
+<text x="30" y="25" class="text_note">4. БОКОВАЯ СТЕНКА ПРАВАЯ 200x208мм</text>
+<rect x="23" y="19" width="4.5" height="200.0" rx="1" class="cut"/>
+<rect x="60" y="188.0" width="95" height="3" rx="1" class="cut"/>
+<rect x="60" y="195.0" width="95" height="3" rx="1" class="cut"/>
+<rect x="60" y="202.0" width="95" height="3" rx="1" class="cut"/>
+
+</svg>
