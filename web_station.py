@@ -146,13 +146,13 @@ def format_group_badge(grp_name: str) -> str:
         return '--'
     grp_lower = grp_name.strip().lower()
     if 'контр' in grp_lower or 'control' in grp_lower:
-        return f'<span style="background:#064e3b; color:#34d399; padding:3px 9px; border-radius:6px; font-weight:bold; border:1px solid #059669; font-size:11px; white-space:nowrap;">🌱 {grp_name}</span>'
+        return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 {grp_name}</span>'
     elif 'засух' in grp_lower or 'drought' in grp_lower:
-        return f'<span style="background:#78350f; color:#fde68a; padding:3px 9px; border-radius:6px; font-weight:bold; border:1px solid #d97706; font-size:11px; white-space:nowrap;">🍂 {grp_name}</span>'
+        return f'<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">🍂 {grp_name}</span>'
     elif 'сол' in grp_lower or 'salin' in grp_lower:
-        return f'<span style="background:#4c1d95; color:#c4b5fd; padding:3px 9px; border-radius:6px; font-weight:bold; border:1px solid #7c3aed; font-size:11px; white-space:nowrap;">🧂 {grp_name}</span>'
+        return f'<span style="background:#f5f3ff; color:#5b21b6; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #ddd6fe; font-size:11px; white-space:nowrap;">🧂 {grp_name}</span>'
     else:
-        return f'<span style="background:#334155; color:#e2e8f0; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+        return f'<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #e2e8f0; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
 def init_csv():
     if not os.path.exists(CSV_LOG):
@@ -612,23 +612,23 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             '''
 
         wizard_card = f'''
-            <div class="card" style="border: 2px solid var(--sirius-teal); background: rgba(13, 23, 40, 0.95);">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 164, 153, 0.25); padding-bottom:8px; margin-bottom:10px;">
-                    <h2 style="margin:0; color:var(--sirius-teal-light); font-size:16px;">Шаг 2: Подтверждение замера #{s['id']}</h2>
-                    <span style="background:var(--sirius-teal); color:white; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:bold;">{s['group']}</span>
+            <div class="card" style="border: 2px solid var(--sirius-teal); background: #ffffff;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
+                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">Шаг 2: Подтверждение замера #{s['id']}</h2>
+                    <span style="background:var(--sirius-teal); color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">{s['group']}</span>
                 </div>
 
-                <div style="background:#1e293b; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#cbd5e1;">
+                <div style="background:#f0fdfa; border:1px solid #ccfbf1; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#0f766e;">
                     ✓ <b>Спектральный замер выполнен.</b> Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.
                 </div>
 
                 <form action="/api/save_final_measurement" method="post">
                     <!-- СНИМОК ТЕПЛОВИЗОРА -->
-                    <div style="background:#0b1120; border:1px solid #334155; border-radius:8px; padding:10px; text-align:center;">
-                        <span style="font-size:12px; color:#94a3b8; display:block; margin-bottom:4px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; text-align:center;">
+                        <span style="font-size:12px; color:#475569; display:block; margin-bottom:4px;">
                             Тепловизор: <b>{fn_show}</b> ({dt_show})
                         </span>
-                        <img src="{thumb_url}?t={t_now}" style="height:140px; border-radius:6px; object-fit:contain; border:1px solid #475569;">
+                        <img src="{thumb_url}?t={t_now}" style="height:140px; border-radius:6px; object-fit:contain; border:1px solid #cbd5e1; background:#0b1120;">
                         {nav_buttons}
                     </div>
 
@@ -639,7 +639,7 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
                         <div>
                             <label>⚖️ Масса кассеты, г:</label>
-                            <input type="text" name="weight_g" autofocus placeholder="с весов, напр. 415.0" required style="border: 2px solid #38bdf8;">
+                            <input type="text" name="weight_g" autofocus placeholder="с весов, напр. 415.0" required style="border: 2px solid var(--sirius-teal);">
                         </div>
                         <div>
                             <label>🌡️ T листа (OCR / курок):</label>
@@ -647,18 +647,18 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                         </div>
                     </div>
 
-                    <div style="margin-top:10px; padding:8px 12px; background:#1e293b; border-radius:6px; font-size:12px; display:flex; justify-content:space-between;">
-                        <span>T возд: <b>{s['t_air']} °C</b> (Xiaomi)</span>
-                        <span>NDVI: <b>{s['mean_ndvi']}</b></span>
-                        <span>VPD: <b>{s['vpd']} кПа</b></span>
+                    <div style="margin-top:10px; padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; color:#334155;">
+                        <span>T возд: <b style="color:#0284c7;">{s['t_air']} °C</b> (Xiaomi)</span>
+                        <span>NDVI: <b style="color:#059669;">{s['mean_ndvi']}</b></span>
+                        <span>VPD: <b style="color:#d97706;">{s['vpd']} кПа</b></span>
                     </div>
 
-                    <button type="submit" class="btn-confirm" style="width:100%; padding:14px; background:#10b981; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:12px;">
+                    <button type="submit" class="btn-confirm" style="width:100%; padding:14px; background:linear-gradient(135deg, #059669, #00a499); color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:12px; box-shadow:0 4px 12px rgba(0,164,153,0.3);">
                         ✅ ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ В ЖУРНАЛ
                     </button>
 
                     <div style="margin-top:10px; text-align:center;">
-                        <a href="/api/cancel_session" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Отменить этот замер</a>
+                        <a href="/api/cancel_session" style="color:#64748b; font-size:12px; text-decoration:none;">❌ Отменить этот замер</a>
                     </div>
                 </form>
             </div>
@@ -668,7 +668,7 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         wizard_card = f'''
             <div class="card">
                 <h2>1. Старт замера кассеты в боксе</h2>
-                <p style="font-size: 12px; color: #94a3b8; margin: 4px 0 10px 0;">
+                <p style="font-size: 12px; color: #64748b; margin: 4px 0 10px 0;">
                     Поставьте кассету в бокс. Держите тепловизор в руках (без кабеля).
                 </p>
                 <form action="/api/start_spectral" method="post">
@@ -679,12 +679,12 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                         <option value="Соль" {'selected' if next_group_default=='Соль' else ''}>Кассета 3: СОЛЬ (NaCl 1.5%)</option>
                     </select>
 
-                    <button type="submit" class="btn-run" style="width:100%; padding:16px; background:#10b981; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:15px;">
+                    <button type="submit" class="btn-run">
                         📸 1. НАЧАТЬ ЗАМЕР В БОКСЕ (ВСПЫШКА)
                     </button>
                 </form>
 
-                <div style="margin-top:15px; padding:10px; background:#0b1120; border-radius:8px; border:1px solid #334155; font-size:11px; color:#94a3b8; line-height:1.4;">
+                <div style="margin-top:15px; padding:12px; background:#f0fdfa; border-radius:8px; border:1px solid #ccfbf1; font-size:11px; color:#0f766e; line-height:1.5;">
                     <b>Регламент цикла:</b><br>
                     1. Нажмите зеленую кнопку выше (NoIR вспышка);<br>
                     2. Сделайте снимок курком тепловизора UTi120S;<br>
@@ -734,31 +734,31 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
     summary_card = f'''
         <div class="card" style="margin-top: 2px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 164, 153, 0.2); padding-bottom:6px; margin-bottom:10px;">
-                <h2 style="margin:0; font-size:15px; border:none; padding:0; color:var(--sirius-teal-light);">📊 Экспресс-сводка серии</h2>
-                <span style="background:#080e1a; border:1px solid var(--sirius-teal); color:var(--sirius-teal-light); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:8px; margin-bottom:12px;">
+                <h2 style="margin:0; font-size:15px; border:none; padding:0; color:var(--sirius-teal-dark);">📊 Экспресс-сводка серии</h2>
+                <span style="background:#f0fdfa; border:1px solid var(--sirius-teal); color:var(--sirius-teal-dark); padding:2px 10px; border-radius:12px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
             </div>
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px; text-align:center;">
-                <div style="background:rgba(6, 78, 59, 0.25); border:1px solid #059669; border-radius:8px; padding:6px 2px;">
-                    <div style="font-size:11px; color:#34d399; font-weight:bold;">🌱 Контроль</div>
-                    <div style="font-size:17px; font-weight:bold; color:#fff; margin:2px 0;">{cnt_ctrl}</div>
-                    <div style="font-size:10px; color:#94a3b8;">ср: <b style="color:#34d399;">{m_ctrl}</b></div>
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:8px 4px;">
+                    <div style="font-size:11px; color:#065f46; font-weight:bold;">🌱 Контроль</div>
+                    <div style="font-size:18px; font-weight:bold; color:#047857; margin:2px 0;">{cnt_ctrl}</div>
+                    <div style="font-size:10px; color:#475569;">ср: <b style="color:#059669;">{m_ctrl}</b></div>
                 </div>
-                <div style="background:rgba(120, 53, 15, 0.25); border:1px solid #d97706; border-radius:8px; padding:6px 2px;">
-                    <div style="font-size:11px; color:#fde68a; font-weight:bold;">🍂 Засуха</div>
-                    <div style="font-size:17px; font-weight:bold; color:#fff; margin:2px 0;">{cnt_drought}</div>
-                    <div style="font-size:10px; color:#94a3b8;">ср: <b style="color:#fbbf24;">{m_drought}</b></div>
+                <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 4px;">
+                    <div style="font-size:11px; color:#92400e; font-weight:bold;">🍂 Засуха</div>
+                    <div style="font-size:18px; font-weight:bold; color:#b45309; margin:2px 0;">{cnt_drought}</div>
+                    <div style="font-size:10px; color:#475569;">ср: <b style="color:#d97706;">{m_drought}</b></div>
                 </div>
-                <div style="background:rgba(76, 29, 149, 0.25); border:1px solid #7c3aed; border-radius:8px; padding:6px 2px;">
-                    <div style="font-size:11px; color:#c4b5fd; font-weight:bold;">🧂 Соль</div>
-                    <div style="font-size:17px; font-weight:bold; color:#fff; margin:2px 0;">{cnt_salt}</div>
-                    <div style="font-size:10px; color:#94a3b8;">ср: <b style="color:#c4b5fd;">{m_salt}</b></div>
+                <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:8px 4px;">
+                    <div style="font-size:11px; color:#5b21b6; font-weight:bold;">🧂 Соль</div>
+                    <div style="font-size:18px; font-weight:bold; color:#6d28d9; margin:2px 0;">{cnt_salt}</div>
+                    <div style="font-size:10px; color:#475569;">ср: <b style="color:#7c3aed;">{m_salt}</b></div>
                 </div>
             </div>
-            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:rgba(0,164,153,0.1); border:1px solid var(--sirius-teal); border-radius:8px; color:var(--sirius-teal-light); text-decoration:none; font-size:12px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';" onmouseout="this.style.background='rgba(0,164,153,0.1)';this.style.color='var(--sirius-teal-light)';">
+            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:12px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
                 📥 Экспорт базы данных (.CSV)
             </a>
-            <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:linear-gradient(135deg, #059669, #00a499); border:1px solid var(--sirius-teal-light); border-radius:8px; color:#fff; text-decoration:none; font-size:12px; font-weight:bold; margin-top:8px; transition:all 0.2s;" onmouseover="this.style.filter='brightness(1.15)';" onmouseout="this.style.filter='brightness(1.0)';">
+            <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:linear-gradient(135deg, #00a499, #0d9488); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:12px; font-weight:bold; margin-top:8px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(0,164,153,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
                 📄 Научно-технический отчет (.PDF)
             </a>
         </div>
@@ -770,9 +770,9 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             m_id, ts, grp = r[0], r[1], r[2]
             wt = f"{r[3]} г" if r[3] else "--"
             if r[4] and r[5]:
-                t_air_str = f'<span style="white-space:nowrap;font-size:11px;">{r[4]}°C <span style="color:#64748b;">·</span> <span style="color:#34d399;">{r[5]}%</span></span>'
+                t_air_str = f'<span style="white-space:nowrap;font-size:11px;color:#334155;">{r[4]}°C <span style="color:#cbd5e1;">·</span> <span style="color:#059669;font-weight:600;">{r[5]}%</span></span>'
             else:
-                t_air_str = '<span style="color:#64748b;">--</span>'
+                t_air_str = '<span style="color:#94a3b8;">--</span>'
             pct = f"{r[7]}%" if r[7] else "--"
             t_show = f"{r[8]} °C" if r[8] else "--"
             delta_str = f"{r[9]}°C" if r[9] else "--"
@@ -783,49 +783,49 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 try:
                     dt_val = float(r[9])
                     if dt_val <= -0.5:
-                        stress_badge = f'<span style="background:#065f46;color:#34d399;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;">{delta_str} (Норма)</span>'
+                        stress_badge = f'<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Норма)</span>'
                     elif dt_val <= 0.5:
-                        stress_badge = f'<span style="background:#78350f;color:#fbbf24;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;">{delta_str} (Нач. стресс)</span>'
+                        stress_badge = f'<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Нач. стресс)</span>'
                     else:
-                        stress_badge = f'<span style="background:#7f1d1d;color:#f87171;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;">{delta_str} (ВОДНЫЙ ШОК)</span>'
+                        stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ВОДНЫЙ ШОК)</span>'
                 except Exception:
-                    stress_badge = f'<span style="white-space:nowrap;">{delta_str}</span>'
+                    stress_badge = f'<span style="white-space:nowrap;font-weight:600;">{delta_str}</span>'
             else:
-                stress_badge = '<span style="color:#64748b;">--</span>'
+                stress_badge = '<span style="color:#94a3b8;">--</span>'
 
         elif len(r) >= 20:
             m_id, ts, grp = r[0], r[1], r[2]
             wt = f"{r[3]} г" if r[3] else "--"
-            t_air_str = '<span style="color:#64748b;">--</span>'
+            t_air_str = '<span style="color:#94a3b8;">--</span>'
             pct = f"{r[5]}%" if r[5] else "--"
             t_show = f"{r[6]} °C" if r[6] else "--"
-            stress_badge = '<span style="color:#64748b;">--</span>'
+            stress_badge = '<span style="color:#94a3b8;">--</span>'
             ndvi_txt = f"{r[7]}±{r[8]}" if len(r)>8 else "--"
             th_name = r[10] if len(r)>10 else ""
         else:
             m_id, ts, grp = r[0], r[1], r[2]
             wt = "--"
-            t_air_str = '<span style="color:#64748b;">--</span>'
+            t_air_str = '<span style="color:#94a3b8;">--</span>'
             pct = f"{r[4]}%" if len(r)>4 else "--"
             t_show = f"{r[5]} °C" if len(r)>5 else "--"
-            stress_badge = '<span style="color:#64748b;">--</span>'
+            stress_badge = '<span style="color:#94a3b8;">--</span>'
             ndvi_txt = f"{r[6]}±{r[7]}" if len(r)>7 else "--"
             th_name = r[9] if len(r)>9 else ""
 
         if th_name:
             m_th = re.search(r'(IMG[_\s]\d+)', th_name)
             clean_th = m_th.group(1) if m_th else th_name
-            th_stat = f'<span style="color:#10b981;font-weight:bold;font-size:11px;white-space:nowrap;">✓ {clean_th}</span>'
+            th_stat = f'<span style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;">✓ {clean_th}</span>'
         else:
-            th_stat = '<span style="color:#f59e0b;font-size:11px;white-space:nowrap;">⏳ Ожидает</span>'
+            th_stat = '<span style="color:#d97706;font-size:11px;white-space:nowrap;font-weight:600;">⏳ Ожидает</span>'
 
         d_str, t_str = format_ru_date_and_time(ts)
-        time_cell = f'<div style="white-space:nowrap;font-size:11px;font-weight:600;color:#f1f5f9;">{d_str}</div><div style="font-size:10px;color:#94a3b8;white-space:nowrap;">{t_str}</div>'
+        time_cell = f'<div style="white-space:nowrap;font-size:11px;font-weight:600;color:#0f172a;">{d_str}</div><div style="font-size:10px;color:#64748b;white-space:nowrap;">{t_str}</div>'
         grp_badge = format_group_badge(grp)
-        t_leaf_html = f'<b style="color:#fbbf24;white-space:nowrap;">{t_show}</b>' if t_show != '--' else '<span style="color:#64748b;">--</span>'
-        del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id}?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#ef4444';this.style.color='#fff';" onmouseout="this.style.background='rgba(239,68,68,0.12)';this.style.color='#f87171';">✕</button></form>'''
+        t_leaf_html = f'<b style="color:#d97706;white-space:nowrap;">{t_show}</b>' if t_show != '--' else '<span style="color:#94a3b8;">--</span>'
+        del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id}?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">✕</button></form>'''
 
-        table_html += f'<tr><td><b style="color:#94a3b8;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#38bdf8;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td><span style="white-space:nowrap;font-family:monospace;font-size:11px;">{ndvi_txt}</span></td><td><span style="white-space:nowrap;">{pct}</span></td><td>{th_stat}</td><td>{del_btn}</td></tr>'
+        table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td><span style="white-space:nowrap;font-family:monospace;font-size:11px;color:#334155;">{ndvi_txt}</span></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td>{del_btn}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
@@ -836,21 +836,21 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
     <style>
         :root {{
             --sirius-teal: #00a499;
+            --sirius-teal-dark: #008276;
             --sirius-teal-light: #2dd4bf;
-            --sirius-teal-dark: #064e3b;
             --sirius-purple: #7c3aed;
-            --sirius-purple-light: #c4b5fd;
             --sirius-indigo: #4338ca;
-            --bg-main: #060a12;
-            --card-bg: rgba(13, 23, 40, 0.92);
-            --card-border: rgba(0, 164, 153, 0.28);
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
+            --bg-main: #f0fdfa;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --card-shadow: 0 4px 20px rgba(0, 164, 153, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
         }}
         body {{
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            background-color: #042f2e;
-            background-image: linear-gradient(180deg, rgba(6, 16, 26, 0.82) 0%, rgba(6, 16, 26, 0.90) 100%), url('/static/logos/sirius_bg.png');
+            background-color: #f0fdfa;
+            background-image: linear-gradient(180deg, rgba(240, 253, 250, 0.94) 0%, rgba(248, 250, 252, 0.97) 260px, rgba(241, 245, 249, 0.99) 100%), url('/static/logos/sirius_bg.png');
             background-size: cover;
             background-position: center top;
             background-attachment: fixed;
@@ -861,23 +861,20 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             min-height: 100vh;
             box-sizing: border-box;
         }}
-        .header, .card, .climate-bar {{
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }}
         .container {{
             width: 100%;
             max-width: 1440px;
             margin: 0 auto;
         }}
-        /* ХЕДЕР В СТИЛЕ СИРИУС */
+        /* ХЕДЕР В ОФИЦИАЛЬНОМ СТИЛЕ СИРИУС (БИРЮЗОВЫЙ С БЕЛЫМИ АКЦЕНТАМИ) */
         .header {{
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 14px;
-            padding: 14px 20px;
+            background: linear-gradient(135deg, #00a499 0%, #008b80 100%);
+            border: 1px solid rgba(0, 164, 153, 0.3);
+            border-radius: 16px;
+            padding: 14px 22px;
             margin-bottom: 14px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 8px 24px rgba(0, 164, 153, 0.25);
+            color: #ffffff;
         }}
         .header-inner {{
             display: flex;
@@ -889,10 +886,10 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             display: flex;
             align-items: center;
             gap: 12px;
-            background: rgba(255, 255, 255, 0.04);
-            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.18);
+            padding: 4px 10px;
             border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }}
         .header-titles {{
             flex: 1;
@@ -913,33 +910,33 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             flex-wrap: wrap;
         }}
         .badge-sirius {{
-            background: linear-gradient(135deg, #4338ca, #6366f1);
+            background: rgba(255, 255, 255, 0.2);
             color: #ffffff;
             font-size: 11px;
             font-weight: bold;
             padding: 3px 10px;
             border-radius: 20px;
             letter-spacing: 0.5px;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.35);
         }}
         .badge-track {{
-            background: linear-gradient(135deg, #065f46, var(--sirius-teal));
-            color: #ffffff;
+            background: #ffffff;
+            color: #008276;
             font-size: 11px;
             font-weight: bold;
-            padding: 3px 10px;
+            padding: 3px 12px;
             border-radius: 20px;
             letter-spacing: 0.5px;
-            box-shadow: 0 2px 8px rgba(0, 164, 153, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }}
         .badge-author {{
-            background: rgba(30, 41, 59, 0.8);
-            color: #cbd5e1;
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
             font-size: 11px;
             font-weight: 500;
             padding: 3px 10px;
             border-radius: 20px;
-            border: 1px solid #475569;
+            border: 1px solid rgba(255, 255, 255, 0.25);
         }}
         .header-status {{
             text-align: right;
@@ -949,13 +946,14 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid #10b981;
-            color: #34d399;
-            padding: 4px 10px;
+            background: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            color: #047857;
+            padding: 4px 12px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
         }}
         .pulsing-dot {{
             width: 8px;
@@ -966,30 +964,30 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         }}
         .station-hw {{
             font-size: 10px;
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.9);
             margin-top: 4px;
             font-family: monospace;
         }}
         .header-subnote {{
             margin-top: 10px;
             padding-top: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid rgba(255, 255, 255, 0.18);
             font-size: 11px;
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.9);
             text-align: center;
         }}
 
         /* КЛИМАТИЧЕСКАЯ ПАНЕЛЬ */
         .climate-bar {{
-            background: var(--card-bg);
+            background: #ffffff;
             border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 10px 18px;
+            border-radius: 14px;
+            padding: 12px 20px;
             margin-bottom: 14px;
             display: flex;
             justify-content: space-around;
             align-items: center;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: var(--card-shadow);
         }}
         .clim-item {{
             display: flex;
@@ -998,27 +996,27 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             gap: 2px;
         }}
         .clim-label {{
-            font-size: 10px;
-            font-weight: bold;
-            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
             letter-spacing: 0.6px;
             text-transform: uppercase;
         }}
         .clim-val {{
-            font-size: 15px;
-            font-weight: bold;
+            font-size: 16px;
+            font-weight: 700;
             font-family: 'Segoe UI', monospace;
         }}
         .clim-divider {{
             width: 1px;
-            height: 28px;
-            background: rgba(255, 255, 255, 0.1);
+            height: 32px;
+            background: #e2e8f0;
         }}
-        .val-purple {{ color: #c4b5fd; }}
-        .val-cyan {{ color: #38bdf8; }}
-        .val-teal {{ color: #2dd4bf; }}
-        .val-amber {{ color: #fbbf24; }}
-        .val-slate {{ color: #cbd5e1; }}
+        .val-purple {{ color: #7c3aed; }}
+        .val-cyan {{ color: #0284c7; }}
+        .val-teal {{ color: #0d9488; }}
+        .val-amber {{ color: #d97706; }}
+        .val-slate {{ color: #475569; }}
 
         /* СЕТКА И КАРТОЧКИ */
         .grid-top {{
@@ -1029,19 +1027,20 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             margin-bottom: 16px;
         }}
         .card {{
-            background: var(--card-bg);
-            border-radius: 14px;
-            padding: 16px;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 18px;
             border: 1px solid var(--card-border);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            box-shadow: var(--card-shadow);
         }}
         .card h2 {{
-            color: var(--sirius-teal-light);
+            color: var(--sirius-teal-dark);
             margin-top: 0;
             font-size: 16px;
-            border-bottom: 1px solid rgba(0, 164, 153, 0.2);
-            padding-bottom: 8px;
-            margin-bottom: 12px;
+            font-weight: 700;
+            border-bottom: 1.5px solid #f1f5f9;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -1049,49 +1048,51 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         label {{
             display: block;
             margin-top: 10px;
-            font-weight: bold;
-            color: #cbd5e1;
+            font-weight: 600;
+            color: #334155;
             font-size: 12px;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
         }}
         select, input[type="text"] {{
             width: 100%;
-            padding: 9px 12px;
+            padding: 10px 12px;
             border-radius: 8px;
-            border: 1px solid rgba(0, 164, 153, 0.35);
-            background: #080e1a;
-            color: white;
+            border: 1.5px solid #cbd5e1;
+            background: #f8fafc;
+            color: #0f172a;
             margin-top: 4px;
             box-sizing: border-box;
             font-size: 13px;
+            font-weight: 500;
             outline: none;
             transition: all 0.2s;
         }}
         select:focus, input[type="text"]:focus {{
             border-color: var(--sirius-teal);
-            box-shadow: 0 0 10px rgba(0, 164, 153, 0.4);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(0, 164, 153, 0.15);
         }}
 
         /* КНОПКА ЗАПУСКА СИРИУС-ГРАДИЕНТ */
         .btn-run {{
             width: 100%;
             padding: 15px;
-            background: linear-gradient(135deg, #059669 0%, #00a499 50%, #0284c7 100%);
+            background: linear-gradient(135deg, #00a499 0%, #0d9488 50%, #059669 100%);
             color: #ffffff;
             border: none;
             border-radius: 10px;
             font-size: 15px;
-            font-weight: bold;
+            font-weight: 700;
             cursor: pointer;
             margin-top: 15px;
-            box-shadow: 0 4px 18px rgba(0, 164, 153, 0.4);
+            box-shadow: 0 4px 14px rgba(0, 164, 153, 0.35);
             transition: all 0.2s ease;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.4px;
         }}
         .btn-run:hover {{
             transform: translateY(-2px);
-            box-shadow: 0 6px 24px rgba(0, 164, 153, 0.6);
-            filter: brightness(1.08);
+            box-shadow: 0 6px 20px rgba(0, 164, 153, 0.5);
+            filter: brightness(1.05);
         }}
         .btn-run:active {{
             transform: translateY(1px);
@@ -1104,22 +1105,23 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             gap: 12px;
         }}
         .ch-box {{
-            background: #080e1a;
-            padding: 8px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
             text-align: center;
-            transition: border 0.2s;
+            transition: all 0.2s;
         }}
         .ch-box:hover {{
             border-color: var(--sirius-teal);
+            box-shadow: 0 4px 12px rgba(0, 164, 153, 0.12);
         }}
         .preview-img {{
             width: 100%;
             height: 185px;
-            border-radius: 6px;
-            border: 1px solid #1e293b;
-            background: #000;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #0b1120;
             object-fit: contain;
         }}
 
@@ -1131,30 +1133,32 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             font-size: 12px;
         }}
         th {{
-            background: #0a1120;
-            color: #94a3b8;
-            padding: 10px 8px;
-            font-weight: 600;
-            border-bottom: 2px solid rgba(0, 164, 153, 0.3);
+            background: #f1f5f9;
+            color: #475569;
+            padding: 11px 8px;
+            font-weight: 700;
+            border-bottom: 2px solid var(--sirius-teal);
             white-space: nowrap;
             text-align: center;
             font-size: 11px;
             position: sticky;
             top: 0;
             z-index: 10;
-            letter-spacing: 0.4px;
+            letter-spacing: 0.3px;
         }}
         td {{
-            padding: 8px 8px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 9px 8px;
+            border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
             text-align: center;
+            color: #1e293b;
+            background: #ffffff;
         }}
         tr:nth-child(even) td {{
-            background: rgba(255, 255, 255, 0.015);
+            background: #f8fafc;
         }}
         tr:hover td {{
-            background: rgba(0, 164, 153, 0.08);
+            background: #e6fffa;
         }}
     </style>
 </head>
@@ -1163,9 +1167,9 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
     <!-- ОФИЦИАЛЬНЫЙ БРЕНДИРОВАННЫЙ ХЕДЕР СИРИУС -->
     <div class="header">
         <div class="header-inner">
-            <div class="header-logos" style="padding: 4px 8px; background: rgba(0, 164, 153, 0.12); border: 1px solid rgba(0, 164, 153, 0.3); border-radius: 10px;">
-                <img src="/static/logos/bv_logo_badge.png" style="height: 42px; border-radius: 4px; object-fit: contain; box-shadow: 0 2px 8px rgba(0,0,0,0.35);" alt="Большие вызовы">
-                <div style="width: 1px; height: 34px; background: rgba(255,255,255,0.18);"></div>
+            <div class="header-logos">
+                <img src="/static/logos/bv_logo_badge.png" style="height: 42px; border-radius: 4px; object-fit: contain; box-shadow: 0 2px 8px rgba(0,0,0,0.2);" alt="Большие вызовы">
+                <div style="width: 1px; height: 34px; background: rgba(255,255,255,0.3);"></div>
                 <img src="/static/logos/agrobiotech_track_logo.png" style="height: 40px; object-fit: contain;" alt="Агропромышленные и биотехнологии">
             </div>
             <div class="header-titles">
@@ -1231,19 +1235,19 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 <h2>🔬 Мультиспектральная матрица исследования</h2>
                 <div class="channels">
                     <div class="ch-box">
-                        <div style="color:#ef4444; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:0.3px;">Канал 1: 660 нм (Deep Red)</div>
+                        <div style="color:#dc2626; font-size:11px; font-weight:700; margin-bottom:4px; letter-spacing:0.3px;">Канал 1: 660 нм (Deep Red)</div>
                         <img src="/static/last_red.jpg?t={t_now}" class="preview-img">
                     </div>
                     <div class="ch-box">
-                        <div style="color:#818cf8; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:0.3px;">Канал 2: 850 нм (NIR Инфракрасный)</div>
+                        <div style="color:#4f46e5; font-size:11px; font-weight:700; margin-bottom:4px; letter-spacing:0.3px;">Канал 2: 850 нм (NIR Инфракрасный)</div>
                         <img src="/static/last_nir.jpg?t={t_now}" class="preview-img">
                     </div>
                     <div class="ch-box">
-                        <div style="color:#2dd4bf; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:0.3px;">Канал 3: Карта NDVI (Сетка 3×3)</div>
+                        <div style="color:#0d9488; font-size:11px; font-weight:700; margin-bottom:4px; letter-spacing:0.3px;">Канал 3: Карта NDVI (Сетка 3×3)</div>
                         <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img">
                     </div>
                     <div class="ch-box">
-                        <div style="color:#fbbf24; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:0.3px;">Канал 4: Термограмма (UNI-T UTi120S)</div>
+                        <div style="color:#d97706; font-size:11px; font-weight:700; margin-bottom:4px; letter-spacing:0.3px;">Канал 4: Термограмма (UNI-T UTi120S)</div>
                         <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img">
                     </div>
                 </div>
@@ -1253,18 +1257,18 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
     <!-- НИЖНИЙ БЛОК: ЖУРНАЛ ИЗМЕРЕНИЙ НА ВСЮ ШИРИНУ -->
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 164, 153, 0.2); padding-bottom:8px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:8px; margin-bottom:12px;">
             <div style="display:flex; align-items:center; gap:12px;">
-                <h2 style="margin:0; font-size:16px; border:none; padding:0; color:var(--sirius-teal-light);">📋 Журнал физиологических замеров</h2>
-                <span style="font-size:11px; color:#94a3b8; background:#080e1a; border:1px solid rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px;">Записей в базе: <b style="color:var(--sirius-teal-light);">{len(rows)}</b></span>
+                <h2 style="margin:0; font-size:16px; border:none; padding:0; color:var(--sirius-teal-dark);">📋 Журнал физиологических замеров</h2>
+                <span style="font-size:11px; color:#475569; background:#f0fdfa; border:1px solid #ccfbf1; padding:2px 10px; border-radius:10px;">Записей в базе: <b style="color:var(--sirius-teal-dark);">{len(rows)}</b></span>
             </div>
             <div style="display:flex; gap:6px;">
-                <span style="background:#064e3b; color:#34d399; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; border:1px solid #059669;">🌱 Контроль</span>
-                <span style="background:#78350f; color:#fde68a; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; border:1px solid #d97706;">🍂 Засуха</span>
-                <span style="background:#4c1d95; color:#c4b5fd; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; border:1px solid #7c3aed;">🧂 Соль (NaCl)</span>
+                <span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #a7f3d0;">🌱 Контроль</span>
+                <span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #fde68a;">🍂 Засуха</span>
+                <span style="background:#f5f3ff; color:#5b21b6; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #ddd6fe;">🧂 Соль (NaCl)</span>
             </div>
         </div>
-        <div style="max-height: 280px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;">
+        <div style="max-height: 320px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; background:#ffffff;">
             <table>
                 <thead>
                     <tr>
