@@ -1,18 +1,35 @@
 <div align="center">
 
-<img src="docs/images/bv_logo_badge.png" width="280" alt="Большие вызовы" />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<img src="docs/images/agrobiotech_track_logo.png" width="260" alt="Агропромышленные и биотехнологии" />
+<a href="https://konkurs.sochisirius.ru/">
+  <img src="docs/images/sirius_project_banner.png" width="100%" alt="Сириус: Большие вызовы — Агропромышленные и биотехнологии" style="border-radius: 14px; box-shadow: 0 8px 30px rgba(0, 164, 153, 0.25);" />
+</a>
+
+<br><br>
 
 # Оптико-электронный комплекс активной двухволновой спектрофотометрии и термографии для ранней индикации стресса растений
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
-[![Sirius Big Challenges](https://img.shields.io/badge/Конкурс-Большие%20вызовы%20%C2%ABСириус%C2%BB-orange.svg)](https://konkurs.sochisirius.ru/)
-[![Hardware](https://img.shields.io/badge/Hardware-Orange%20Pi%20%7C%20ADS1115%20%7C%20NoIR%20%7C%20UTi120S-brightgreen.svg)]()
-[![Enclosure](https://img.shields.io/badge/Enclosure-Laser%20Cut%204mm%20Cube-blueviolet.svg)](hardware/laser/)
+[![Sirius Big Challenges](https://img.shields.io/badge/Сириус-Большие%20вызовы%202025%2F2026-00a499.svg?style=for-the-badge&logo=target&logoColor=white)](https://konkurs.sochisirius.ru/)
+[![Track](https://img.shields.io/badge/Трек-Агропромышленные%20и%20биотехнологии-008276.svg?style=for-the-badge&logo=leaf&logoColor=white)](https://konkurs.sochisirius.ru/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-059669.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-4338ca.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Hardware](https://img.shields.io/badge/Hardware-Orange%20Pi%20%7C%20ADS1115%20%7C%20NoIR%20%7C%20UTi120S-0d9488.svg?style=for-the-badge&logo=raspberrypi&logoColor=white)]()
+[![Enclosure](https://img.shields.io/badge/Корпус-Лазерный%20бокс%204мм%20фанера-7c3aed.svg?style=for-the-badge)](hardware/laser/)
 
 </div>
+
+---
+
+### 📊 Проект в цифрах (в формате Всероссийского конкурса «Большие вызовы»)
+
+| Показатель | Значение | Научно-технологическое обоснование |
+| :--- | :---: | :--- |
+| **Опережение макросимптомов** | **36–54 ч** | Фиксация дегидратации мезофилла и спада транспирации до видимого увядания |
+| **Спектральный тракт** | **660 / 850 нм** | Поглощение хлорофилла *a/b* (660 нм) и плато клеточного рассеяния NIR (850 нм) |
+| **Термометрия листа** | **UNI-T UTi120S** | $120 \times 90$ пикс, $\text{NETD} < 60$ мК, детекция $\Delta T = T_{\text{leaf}} - T_{\text{air}}$ (транспирационный стресс) |
+| **Достоверность стресса** | **$p < 0.01$** | Статистическая достоверность корреляции индекса NDVI с дефицитом массы кассеты |
+| **Конкурсный лимит текста (п. 2.10)** | **15 295 знаков** | Строго $\le 20\,000$ знаков без пробелов (76.5% официального лимита Сириуса) |
+| **Конкурсная презентация** | **15 слайдов** | Ровно 15 слайдов 16:9 (100% лимита регламента Приказа Фонда № 349-ОД) |
+| **Раскрой лазерного бокса** | **$760 \times 760$ мм** | 4 мм берёзовая фанера, 6 заготовок $240 \times 240$ мм под Acmer S1 Pro 20W |
 
 > **Разработка аппаратно-программного комплекса активной стробоскопической двухволновой спектрофотометрии ($\lambda_1 = 660$ нм, $\lambda_2 = 850$ нм) и инфракрасной термографии для неинвазивной детекции водного и осмотического стресса сельскохозяйственных культур на 36–54 часа раньше проявления визуальных макросимптомов.**
 
