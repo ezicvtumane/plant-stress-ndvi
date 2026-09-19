@@ -1,0 +1,1 @@
+SUBSYSTEM=="gpio", KERNEL=="gpiochip*", MODE="0666"
