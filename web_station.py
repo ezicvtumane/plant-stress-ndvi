@@ -1120,8 +1120,8 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             width: 100%;
             height: 185px;
             border-radius: 8px;
-            border: 1px solid #cbd5e1;
-            background: #0b1120;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
             object-fit: contain;
         }}
 
