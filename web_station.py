@@ -3,13 +3,12 @@
 Автор: Ковалева Алиса, 10 класс, ГБОУ СОШ №282 Кировского района Санкт-Петербурга
 Конкурс: Всероссийский конкурс научно-технологических проектов «Большие вызовы» (Сириус)
 
-ПРИМЕЧАНИЕ ПО АРХИТЕКТУРЕ (СТАДИЯ ИСПЫТАТЕЛЬНОГО ПРОТОТИПА):
-Текущая схемотехническая и программная конфигурация (стробирование галогенной лампы,
-демультиплексирование каналов Red/NIR на матрице NoIR, полуавтоматическая привязка
-термограмм UTi120S с OCR-распознаванием, удержание GPIO-реле и автоматический локальный
-опрос метеосенсора микроклимата Sensirion SHT30 по протоколу UDP/Zigbee) является 
-действующей исследовательской схемой для сбора валидационных серий данных. 
-Комплекс будет аппаратно модифицирован после поступления узкополосных излучателей 660/850 нм.
+ПОШАГОВЫЙ СЦЕНАРИЙ ЗАМЕРА (WIZARD):
+1. Кассета в боксе -> Спектральная съемка NoIR со стробированием (Red/NIR/NDVI).
+2. Снимок тепловизором в руках (курок UTi120S).
+3. Кассета на весы, тепловизор кабелем в Orange Pi.
+4. Экран верификации: авто-подтягивание последнего снимка + OCR, ввод массы с весов, расчет Delta_T.
+5. Подтверждение и сохранение в базу.
 """
 
 import os
@@ -47,17 +46,16 @@ os.makedirs(TH_CACHE_DIR, exist_ok=True)
 
 CSV_LOG = os.path.join(DATA_DIR, 'measurements.csv')
 
-# Настройки локального шлюза Xiaomi Gateway для датчика SHT30
+# Настройки шлюза Xiaomi Gateway для SHT30
 XIAOMI_GATEWAY_IP = '192.168.0.9'
 XIAOMI_GATEWAY_PORT = 9898
 XIAOMI_SENSOR_SID = '158d0001576282'
 
+# Текущая активная сессия замера до подтверждения оператором
+PENDING_SESSION = None
+
 def read_xiaomi_climate():
-    """
-    Автоматический опрос датчика климата Xiaomi (Sensirion SHT30)
-    по локальной сети через шлюз Xiaomi Gateway (порт UDP 9898)
-    без использования внешнего интернета и облака.
-    """
+    """Автоматический опрос Sensirion SHT30 по локальному UDP протоколу."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(0.7)
@@ -71,8 +69,7 @@ def read_xiaomi_climate():
         rh = round(float(raw_data.get('humidity', 6500)) / 100.0, 1)
         v_bat = round(float(raw_data.get('voltage', 3200)) / 1000.0, 2)
         return t, rh, v_bat
-    except Exception as e:
-        # Резервные значения при кратковременном сетевом таймауте
+    except Exception:
         return 24.8, 65.5, 3.21
 
 def calc_vpd(t_c: float, rh_pct: float) -> float:
@@ -82,7 +79,7 @@ def calc_vpd(t_c: float, rh_pct: float) -> float:
         ea = es * (rh_pct / 100.0)
         return round(float(es - ea), 2)
     except Exception:
-        return 0.6
+        return 0.60
 
 def init_csv():
     if not os.path.exists(CSV_LOG):
@@ -112,7 +109,7 @@ def init_relay():
             )
             RELAY_REQ.set_value(4, Value.INACTIVE)
             RELAY_REQ.set_value(7, Value.INACTIVE)
-            print('[GPIO] Relay successfully initialized in OFF state on Pin 7 (PL4) & Pin 10 (PL7)')
+            print('[GPIO] Relay hold initialized on Pin 7 (PL4) & Pin 10 (PL7)')
         except Exception as e:
             print('[GPIO] Relay init error:', e)
 
@@ -154,10 +151,11 @@ def extract_temperature_from_thermal(img_path: str) -> float:
     return 23.5
 
 def auto_mount_uti():
+    """Монтирование USB накопителя тепловизора UTi120S."""
     if os.path.exists(UTI_DIR):
         try:
             if len(os.listdir(UTI_DIR)) > 0:
-                return
+                return True
         except Exception:
             pass
 
@@ -166,42 +164,71 @@ def auto_mount_uti():
             os.makedirs('/media/uti120s', exist_ok=True)
             res = os.system(f'mount -o ro {dev} /media/uti120s 2>/dev/null')
             if res == 0 and os.path.exists(UTI_DIR):
-                print(f'[UTi120S] Successfully mounted {dev}')
-                return
+                return True
+    return False
 
-def get_available_uti_files():
+def get_uti_sorted_files():
+    """Возвращает файлы тепловизора, отсортированные от самых свежих к старым."""
     auto_mount_uti()
     if not os.path.exists(UTI_DIR):
         return []
     
     files = glob.glob(os.path.join(UTI_DIR, '*.bmp')) + glob.glob(os.path.join(UTI_DIR, '*.BMP'))
-    res = []
-    for fp in files:
+    if not files:
+        return []
+
+    def sort_key(fp):
         fname = os.path.basename(fp)
-        base = os.path.splitext(fname)[0]
+        m = re.search(r'(\d+)', fname)
+        num = int(m.group(1)) if m else -1
         mtime = os.path.getmtime(fp)
-        dt_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+        return (num, mtime)
 
-        thumb_jpg = f'{int(mtime)}_{fname}.jpg'
-        thumb_path = os.path.join(TH_CACHE_DIR, thumb_jpg)
-        if not os.path.exists(thumb_path):
-            try:
-                im = Image.open(fp)
-                im.save(thumb_path)
-            except Exception:
-                pass
+    files.sort(key=sort_key, reverse=True)
+    return files
 
-        res.append({
-            'filename': fname,
-            'base': base,
-            'thumb_url': f'/static/uti_cache/{thumb_jpg}',
-            'dt_str': dt_str,
-            'mtime': mtime
-        })
-    res.sort(key=lambda x: x['mtime'], reverse=True)
-    return res
+def get_file_info_at_index(index: int = 0):
+    """Получает информацию о снимке тепловизора по индексу (0 - самый свежий)."""
+    files = get_uti_sorted_files()
+    if not files or index >= len(files):
+        return None
+    
+    fp = files[index]
+    fname = os.path.basename(fp)
+    base = os.path.splitext(fname)[0]
+    mtime = os.path.getmtime(fp)
+    dt_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
 
-def do_hardware_capture(group_name: str, weight_g: str = '', t_air_in: str = '', rh_air_in: str = ''):
+    thumb_jpg = f'{int(mtime)}_{fname}.jpg'
+    thumb_path = os.path.join(TH_CACHE_DIR, thumb_jpg)
+    if not os.path.exists(thumb_path):
+        try:
+            im = Image.open(fp)
+            im.save(thumb_path)
+        except Exception:
+            pass
+
+    # Быстрое OCR-распознавание
+    t_ocr = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else 23.5
+
+    return {
+        'index': index,
+        'total': len(files),
+        'filename': fname,
+        'base': base,
+        'full_path': fp,
+        'thumb_url': f'/static/uti_cache/{thumb_jpg}',
+        'thumb_path': thumb_path,
+        'dt_str': dt_str,
+        't_ocr': t_ocr
+    }
+
+def do_hardware_spectral_capture(group_name: str):
+    """
+    Шаг 1: Оптический спектральный замер NoIR камеры со стробированием.
+    Возвращает словарь данных сессии.
+    """
+    global PENDING_SESSION
     meas_id = get_next_id()
     ts_now = datetime.now()
     ts_str = ts_now.strftime('%Y%m%d_%H%M%S')
@@ -287,103 +314,239 @@ def do_hardware_capture(group_name: str, weight_g: str = '', t_air_in: str = '',
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_ndvi.jpg'), annotated_ndvi)
 
     v_soil, pct_soil = read_moisture_mock()
-    weight_val = weight_g.strip().replace(',', '.') if weight_g else ''
-
-    # Опрос климата (Xiaomi SHT30)
     live_t, live_rh, _ = read_xiaomi_climate()
-    t_air_val = t_air_in.strip().replace(',', '.') if t_air_in.strip() else str(live_t)
-    rh_air_val = rh_air_in.strip().replace(',', '.') if rh_air_in.strip() else str(live_rh)
+    cur_vpd = calc_vpd(live_t, live_rh)
 
+    PENDING_SESSION = {
+        'id': meas_id,
+        'timestamp': ts_display,
+        'group': group_name,
+        't_air': live_t,
+        'rh_air': live_rh,
+        'vpd': cur_vpd,
+        'v_soil': v_soil,
+        'pct_soil': pct_soil,
+        'mean_ndvi': mean_ndvi,
+        'std_ndvi': std_ndvi,
+        'opt_file': opt_filename,
+        'cell_ndvis': cell_ndvis
+    }
+    return PENDING_SESSION
+
+@app.post('/api/start_spectral')
+def handle_start_spectral(group_name: str = Form('Контроль')):
+    """Старт 1-го этапа: спектроскопия в боксе."""
     try:
-        cur_vpd = str(calc_vpd(float(t_air_val), float(rh_air_val)))
-    except Exception:
-        cur_vpd = '0.6'
+        do_hardware_spectral_capture(group_name)
+        return RedirectResponse(url='/?stage=review&offset=0', status_code=303)
+    except Exception as e:
+        print('[Start Spectral Error]:', e)
+        return RedirectResponse(url='/?msg=err_camera', status_code=303)
+
+@app.post('/api/save_final_measurement')
+def handle_save_final(
+    weight_g: str = Form(''),
+    t_leaf: str = Form(''),
+    thermal_filename: str = Form(''),
+    thermal_thumb: str = Form('')
+):
+    """
+    Шаг 4: Окончательное подтверждение замера оператором.
+    Сохранение в базу данных и переход к следующей кассете.
+    """
+    global PENDING_SESSION
+    if not PENDING_SESSION:
+        return RedirectResponse(url='/?msg=err_no_session', status_code=303)
+
+    s = PENDING_SESSION
+    meas_id = s['id']
+    ts_display = s['timestamp']
+    group_name = s['group']
+
+    weight_val = weight_g.strip().replace(',', '.') if weight_g else ''
+    t_leaf_val = t_leaf.strip().replace(',', '.') if t_leaf else ''
+
+    # Расчет Delta_T
+    delta_t_val = ''
+    if t_leaf_val:
+        try:
+            dt = round(float(t_leaf_val) - float(s['t_air']), 1)
+            delta_t_val = str(dt)
+        except Exception:
+            pass
+
+    # Копирование термограммы в постоянное хранилище
+    jpg_stored_name = ''
+    if thermal_thumb and os.path.exists(os.path.join(STATIC_DIR, 'uti_cache', os.path.basename(thermal_thumb))):
+        src_thumb = os.path.join(STATIC_DIR, 'uti_cache', os.path.basename(thermal_thumb))
+        jpg_stored_name = f'therm_{meas_id}_{thermal_filename}.jpg'
+        dst_path = os.path.join(STATIC_DIR, jpg_stored_name)
+        shutil.copyfile(src_thumb, dst_path)
+        shutil.copyfile(dst_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
 
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow([
-            meas_id, ts_display, group_name, weight_val, t_air_val, rh_air_val,
-            v_soil, pct_soil, '', '', cur_vpd, mean_ndvi, std_ndvi,
-            opt_filename, '', *cell_ndvis
+            meas_id, ts_display, group_name, weight_val,
+            s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+            t_leaf_val, delta_t_val, s['vpd'],
+            s['mean_ndvi'], s['std_ndvi'],
+            s['opt_file'], jpg_stored_name,
+            *s['cell_ndvis']
         ])
-    return meas_id
 
-@app.post('/do_measure_form')
-def handle_form_measure(
-    group_name: str = Form('Контроль'),
-    weight_g: str = Form(''),
-    t_air: str = Form(''),
-    rh_air: str = Form('')
-):
-    try:
-        do_hardware_capture(group_name, weight_g, t_air, rh_air)
-    except Exception as e:
-        print('Error:', e)
-    return RedirectResponse(url='/?msg=done', status_code=303)
+    PENDING_SESSION = None
+    return RedirectResponse(url=f'/?msg=saved&last_grp={group_name}', status_code=303)
 
-@app.post('/do_manual_link')
-def handle_manual_link(
-    meas_id: str = Form(...),
-    selected_bmp: str = Form(...),
-    custom_temp: str = Form('')
-):
-    try:
-        auto_mount_uti()
-        bmp_path = os.path.join(UTI_DIR, selected_bmp)
-        if not os.path.exists(bmp_path):
-            return RedirectResponse(url='/?msg=err_file_missing', status_code=303)
-
-        base_name = os.path.splitext(selected_bmp)[0]
-        jpg_name = f'therm_{meas_id}_{base_name}.jpg'
-        jpg_path = os.path.join(STATIC_DIR, jpg_name)
-
-        im = Image.open(bmp_path)
-        im.save(jpg_path)
-        shutil.copyfile(jpg_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
-
-        if custom_temp.strip():
-            final_t = custom_temp.strip().replace(',', '.')
-        else:
-            final_t = str(extract_temperature_from_thermal(jpg_path))
-
-        with open(CSV_LOG, 'r', encoding='utf-8') as f:
-            rows = list(csv.reader(f))
-            
-        for i in range(1, len(rows)):
-            if str(rows[i][0]) == str(meas_id):
-                if len(rows[i]) >= 24:
-                    # Новый формат с T_Air и Delta_T
-                    rows[i][8] = final_t
-                    rows[i][14] = jpg_name
-                    try:
-                        t_air = float(rows[i][4])
-                        delta_t = round(float(final_t) - t_air, 1)
-                        rows[i][9] = str(delta_t)
-                    except Exception:
-                        pass
-                elif len(rows[i]) >= 20:
-                    rows[i][6] = final_t
-                    rows[i][10] = jpg_name
-                else:
-                    rows[i][5] = final_t
-                    rows[i][9] = jpg_name
-                break
-
-        with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerows(rows)
-
-        return RedirectResponse(url='/?msg=linked', status_code=303)
-    except Exception as e:
-        print('Error link:', e)
-        return RedirectResponse(url='/?msg=err_unknown', status_code=303)
+@app.get('/api/cancel_session')
+def handle_cancel_session():
+    """Сброс текущего замера."""
+    global PENDING_SESSION
+    PENDING_SESSION = None
+    return RedirectResponse(url='/?msg=cancelled', status_code=303)
 
 @app.get('/', response_class=HTMLResponse)
-def index(msg: str = ''):
-    # Текущие живые показания датчика микроклимата
+def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = ''):
+    global PENDING_SESSION
+
     cur_t, cur_rh, cur_v = read_xiaomi_climate()
     cur_vpd = calc_vpd(cur_t, cur_rh)
+    t_now = int(time.time())
 
+    # Определение следующей группы по очереди
+    next_group_default = 'Контроль'
+    if last_grp == 'Контроль':
+        next_group_default = 'Засуха'
+    elif last_grp == 'Засуха':
+        next_group_default = 'Соль'
+    elif last_grp == 'Соль':
+        next_group_default = 'Контроль'
+
+    # Уведомления статуса
+    status_banner = ''
+    if msg == 'saved':
+        status_banner = '<div style="background:#10b981;padding:12px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">✅ Замер сохранен в базу! Переставьте следующую кассету.</div>'
+    elif msg == 'cancelled':
+        status_banner = '<div style="background:#64748b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">Замер сброшен. Готов к новому старту.</div>'
+    elif msg == 'err_camera':
+        status_banner = '<div style="background:#ef4444;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">❌ Ошибка камеры /dev/video0. Проверьте USB подключение.</div>'
+
+    # ------------------ ЛОГИКА ЭТАПОВ (WIZARD) ------------------
+    if stage == 'review' and PENDING_SESSION:
+        # ЭТАП 2: ВЕРИФИКАЦИЯ И ПОДТВЕРЖДЕНИЕ
+        s = PENDING_SESSION
+        uti_info = get_file_info_at_index(offset)
+
+        if uti_info:
+            uti_detected = True
+            thumb_url = uti_info['thumb_url']
+            thumb_name = os.path.basename(uti_info['thumb_path'])
+            fn_show = uti_info['filename']
+            dt_show = uti_info['dt_str']
+            t_leaf_init = str(uti_info['t_ocr'])
+            nav_buttons = f'''
+                <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                    <a href="/?stage=review&offset={offset+1}" style="color:#38bdf8; font-size:12px; text-decoration:none; font-weight:bold;">◀️ Взять предыдущий снимок</a>
+                    <span style="color:#94a3b8; font-size:11px;">Снимок {offset+1} из {uti_info['total']}</span>
+                    {f'<a href="/?stage=review&offset={max(0, offset-1)}" style="color:#38bdf8; font-size:12px; text-decoration:none; font-weight:bold;">Следующий ▶️</a>' if offset > 0 else '<span></span>'}
+                </div>
+            '''
+        else:
+            uti_detected = False
+            thumb_url = '/static/last_ndvi.jpg'
+            thumb_name = ''
+            fn_show = 'Тепловизор еще не подключен'
+            dt_show = '--'
+            t_leaf_init = '23.5'
+            nav_buttons = '''
+                <div style="margin-top:8px; text-align:center;">
+                    <a href="/?stage=review&offset=0" style="padding:6px 12px; background:#0284c7; color:white; border-radius:6px; text-decoration:none; font-size:12px; font-weight:bold;">🔄 Найти снимок на тепловизоре</a>
+                </div>
+            '''
+
+        wizard_card = f'''
+            <div class="card" style="border: 2px solid #38bdf8; background: #0f172a;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:10px;">
+                    <h2 style="margin:0; color:#38bdf8; font-size:17px;">Шаг 2: Подтверждение замера #{s['id']}</h2>
+                    <span style="background:#0284c7; color:white; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">{s['group']}</span>
+                </div>
+
+                <div style="background:#1e293b; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#cbd5e1;">
+                    ✓ <b>Спектральный замер выполнен.</b> Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.
+                </div>
+
+                <form action="/api/save_final_measurement" method="post">
+                    <!-- СНИМОК ТЕПЛОВИЗОРА -->
+                    <div style="background:#0b1120; border:1px solid #334155; border-radius:8px; padding:10px; text-align:center;">
+                        <span style="font-size:12px; color:#94a3b8; display:block; margin-bottom:4px;">
+                            Тепловизор: <b>{fn_show}</b> ({dt_show})
+                        </span>
+                        <img src="{thumb_url}?t={t_now}" style="height:140px; border-radius:6px; object-fit:contain; border:1px solid #475569;">
+                        {nav_buttons}
+                    </div>
+
+                    <input type="hidden" name="thermal_filename" value="{fn_show}">
+                    <input type="hidden" name="thermal_thumb" value="{thumb_name}">
+
+                    <!-- ПОЛЯ ВВОДА -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                        <div>
+                            <label>⚖️ Масса кассеты, г:</label>
+                            <input type="text" name="weight_g" autofocus placeholder="с весов, напр. 415.0" required style="border: 2px solid #38bdf8;">
+                        </div>
+                        <div>
+                            <label>🌡️ T листа (OCR / курок):</label>
+                            <input type="text" name="t_leaf" value="{t_leaf_init}" required>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:10px; padding:8px 12px; background:#1e293b; border-radius:6px; font-size:12px; display:flex; justify-content:space-between;">
+                        <span>T возд: <b>{s['t_air']} °C</b> (Xiaomi)</span>
+                        <span>NDVI: <b>{s['mean_ndvi']}</b></span>
+                        <span>VPD: <b>{s['vpd']} кПа</b></span>
+                    </div>
+
+                    <button type="submit" class="btn-confirm" style="width:100%; padding:14px; background:#10b981; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:12px;">
+                        ✅ ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ В ЖУРНАЛ
+                    </button>
+
+                    <div style="margin-top:10px; text-align:center;">
+                        <a href="/api/cancel_session" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Отменить этот замер</a>
+                    </div>
+                </form>
+            </div>
+        '''
+    else:
+        # ЭТАП 1: ОЖИДАНИЕ СТАРТА НОВОГО ЗАМЕРА
+        wizard_card = f'''
+            <div class="card">
+                <h2>1. Старт замера кассеты в боксе</h2>
+                <p style="font-size: 12px; color: #94a3b8; margin: 4px 0 10px 0;">
+                    Поставьте кассету в бокс. Держите тепловизор в руках (без кабеля).
+                </p>
+                <form action="/api/start_spectral" method="post">
+                    <label>Исследуемая кассета:</label>
+                    <select name="group_name">
+                        <option value="Контроль" {'selected' if next_group_default=='Контроль' else ''}>Кассета 1: КОНТРОЛЬ (Норма)</option>
+                        <option value="Засуха" {'selected' if next_group_default=='Засуха' else ''}>Кассета 2: ЗАСУХА (Дефицит)</option>
+                        <option value="Соль" {'selected' if next_group_default=='Соль' else ''}>Кассета 3: СОЛЬ (NaCl 1.5%)</option>
+                    </select>
+
+                    <button type="submit" class="btn-run" style="width:100%; padding:16px; background:#10b981; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:15px;">
+                        📸 1. НАЧАТЬ ЗАМЕР В БОКСЕ (ВСПЫШКА)
+                    </button>
+                </form>
+
+                <div style="margin-top:15px; padding:10px; background:#0b1120; border-radius:8px; border:1px solid #334155; font-size:11px; color:#94a3b8; line-height:1.4;">
+                    <b>Регламент цикла:</b><br>
+                    1. Нажмите зеленую кнопку выше (NoIR вспышка);<br>
+                    2. Сделайте снимок курком тепловизора UTi120S;<br>
+                    3. Поставьте кассету на весы и воткните кабель тепловизора в плату.
+                </div>
+            </div>
+        '''
+
+    # ТАБЛИЦА ЖУРНАЛА
     rows = []
     if os.path.exists(CSV_LOG):
         with open(CSV_LOG, 'r', encoding='utf-8') as f:
@@ -391,22 +554,18 @@ def index(msg: str = ''):
             if len(all_r) > 1:
                 rows = all_r[1:]
 
-    meas_options = ''
     table_html = ''
     for r in reversed(rows):
         if len(r) >= 24:
-            m_id = r[0]
-            ts = r[1]
-            grp = r[2]
+            m_id, ts, grp = r[0], r[1], r[2]
             wt = f"{r[3]} г" if r[3] else "--"
             t_air_str = f"{r[4]}°C / {r[5]}%" if (r[4] and r[5]) else "--"
             pct = f"{r[7]}%" if r[7] else "--"
-            t_show = r[8] if r[8] else "--"
+            t_show = f"{r[8]} °C" if r[8] else "--"
             delta_str = f"{r[9]}°C" if r[9] else "--"
             ndvi_txt = f"{r[11]}±{r[12]}" if len(r)>12 else "--"
             th_name = r[14] if len(r)>14 else ""
 
-            # Оценка стресса по разности Delta_T
             if r[9]:
                 try:
                     dt_val = float(r[9])
@@ -422,53 +581,26 @@ def index(msg: str = ''):
                 stress_badge = '<span style="color:#64748b;">--</span>'
 
         elif len(r) >= 20:
-            m_id = r[0]
-            ts = r[1]
-            grp = r[2]
+            m_id, ts, grp = r[0], r[1], r[2]
             wt = f"{r[3]} г" if r[3] else "--"
             t_air_str = "--"
             pct = f"{r[5]}%" if r[5] else "--"
-            t_show = r[6] if r[6] else "--"
+            t_show = f"{r[6]} °C" if r[6] else "--"
             stress_badge = "--"
             ndvi_txt = f"{r[7]}±{r[8]}" if len(r)>8 else "--"
             th_name = r[10] if len(r)>10 else ""
         else:
-            m_id = r[0]
-            ts = r[1]
-            grp = r[2]
+            m_id, ts, grp = r[0], r[1], r[2]
             wt = "--"
             t_air_str = "--"
             pct = f"{r[4]}%" if len(r)>4 else "--"
-            t_show = r[5] if len(r)>5 else "--"
+            t_show = f"{r[5]} °C" if len(r)>5 else "--"
             stress_badge = "--"
             ndvi_txt = f"{r[6]}±{r[7]}" if len(r)>7 else "--"
             th_name = r[9] if len(r)>9 else ""
 
-        th_stat = f'<span style="color:#10b981;font-weight:bold;">✓ {th_name}</span>' if th_name else '<span style="color:#f59e0b;">⏳ Ожидает файл</span>'
-        table_html += f'<tr><td><b>#{m_id}</b></td><td>{ts}</td><td>{grp}</td><td><b style="color:#38bdf8;">{wt}</b></td><td>{t_air_str}</td><td><b style="color:#fbbf24;">{t_show} °C</b></td><td>{stress_badge}</td><td>{ndvi_txt}</td><td>{pct}</td><td>{th_stat}</td></tr>'
-        meas_options += f'<option value="{m_id}">Замер #{m_id} | {grp} [{ts}]</option>'
-
-    uti_files = get_available_uti_files()
-    file_options_list = []
-    first_thumb = ''
-    if uti_files:
-        first_thumb = uti_files[0]['thumb_url']
-        for uf in uti_files:
-            fn = uf['filename']
-            tu = uf['thumb_url']
-            dt = uf['dt_str']
-            file_options_list.append(f'<option value="{fn}" data-thumb="{tu}">{fn} ({dt})</option>')
-    file_options = '\n'.join(file_options_list)
-
-    t_now = int(time.time())
-
-    status_banner = ''
-    if msg == 'done':
-        status_banner = '<div style="background:#10b981;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:12px;text-align:center;">✅ Оптический замер и климат сохранены! Сделайте снимок тепловизором.</div>'
-    elif msg == 'linked':
-        status_banner = '<div style="background:#0284c7;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:12px;text-align:center;">⚡ Выбранная термограмма привязана! Рассчитана разность температур ΔT и статус стресса.</div>'
-    elif msg == 'err_file_missing':
-        status_banner = '<div style="background:#ef4444;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:12px;text-align:center;">❌ Файл на тепловизоре не найден. Проверьте подключение кабеля.</div>'
+        th_stat = f'<span style="color:#10b981;font-weight:bold;">✓ {th_name}</span>' if th_name else '<span style="color:#f59e0b;">⏳ Ожидает</span>'
+        table_html += f'<tr><td><b>#{m_id}</b></td><td>{ts}</td><td>{grp}</td><td><b style="color:#38bdf8;">{wt}</b></td><td>{t_air_str}</td><td><b style="color:#fbbf24;">{t_show}</b></td><td>{stress_badge}</td><td>{ndvi_txt}</td><td>{pct}</td><td>{th_stat}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
@@ -481,30 +613,24 @@ def index(msg: str = ''):
         .header {{ text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 15px; }}
         .header h1 {{ color: #38bdf8; margin: 0 0 5px 0; font-size: 22px; }}
         .climate-bar {{ background: #1e293b; border: 1px solid #38bdf8; border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; display: flex; justify-content: space-around; font-size: 13px; align-items: center; }}
-        .grid {{ display: grid; grid-template-columns: 410px 1fr; gap: 15px; }}
+        .grid {{ display: grid; grid-template-columns: 430px 1fr; gap: 15px; }}
         .card {{ background: #1e293b; border-radius: 12px; padding: 16px; border: 1px solid #334155; }}
         .card h2 {{ color: #38bdf8; margin-top: 0; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 6px; }}
         label {{ display: block; margin-top: 10px; font-weight: bold; color: #cbd5e1; font-size: 13px; }}
         select, input[type="text"] {{ width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #0b1120; color: white; margin-top: 4px; box-sizing: border-box; font-size: 14px; }}
-        .btn-run {{ width: 100%; padding: 14px; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 12px; }}
-        .btn-run:hover {{ background: #059669; }}
-        .btn-link {{ width: 100%; padding: 14px; background: #0284c7; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 12px; }}
-        .btn-link:hover {{ background: #0369a1; }}
         .channels {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }}
         .ch-box {{ background: #0b1120; padding: 6px; border-radius: 6px; border: 1px solid #334155; text-align: center; }}
         .preview-img {{ width: 100%; height: 175px; border-radius: 4px; border: 1px solid #475569; background: #000; object-fit: contain; }}
         table {{ width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }}
         th, td {{ padding: 6px 8px; border-bottom: 1px solid #334155; }}
         th {{ background: #0b1120; color: #94a3b8; }}
-        .thumb-preview-box {{ text-align: center; margin-top: 10px; background: #0b1120; border-radius: 6px; padding: 8px; border: 1px solid #334155; }}
-        .thumb-img {{ height: 120px; border-radius: 4px; object-fit: contain; }}
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
         <h1>Оптико-электронный комплекс: Сессионный пульт</h1>
-        <p style="margin-bottom: 6px;">Интерактивная привязка снимков с тепловизора UTi120S | Алиса Ковалева</p>
+        <p style="margin-bottom: 6px;">Пошаговый конвейер измерений | Алиса Ковалева, 10 класс</p>
         <div style="display: inline-block; padding: 4px 12px; background: #1e293b; border: 1px solid #475569; border-radius: 20px; font-size: 11px; color: #94a3b8;">
             ⚠️ <b>Временная испытательная схема</b> (лабораторный прототип до поступления специализированных узкополосных излучателей 660/850 нм)
         </div>
@@ -512,9 +638,9 @@ def index(msg: str = ''):
 
     <!-- МЕТЕОРОЛОГИЧЕСКАЯ ПАНЕЛЬ МИКРОКЛИМАТА -->
     <div class="climate-bar">
-        <span>📡 <b>Сенсор климата:</b> <span style="color:#a78bfa;">Xiaomi Sensirion SHT30 (UDP LAN)</span></span>
+        <span>📡 <b>Сенсор климата:</b> <span style="color:#a78bfa;">Xiaomi Sensirion SHT30</span></span>
         <span>🌡️ <b>T возд.:</b> <span style="color:#38bdf8; font-weight:bold;">{cur_t} °C</span></span>
-        <span>💧 <b>Влажность RH:</b> <span style="color:#34d399; font-weight:bold;">{cur_rh}%</span></span>
+        <span>💧 <b>Влажность:</b> <span style="color:#34d399; font-weight:bold;">{cur_rh}%</span></span>
         <span>🌬️ <b>VPD воздуха:</b> <span style="color:#fbbf24; font-weight:bold;">{cur_vpd} кПа</span></span>
         <span>🔋 <b>Батарейка:</b> <span style="color:#94a3b8;">{cur_v} В</span></span>
     </div>
@@ -523,67 +649,8 @@ def index(msg: str = ''):
 
     <div class="grid">
         <div>
-            <!-- ШАГ 1: ЗАМЕР -->
-            <div class="card" style="margin-bottom: 15px;">
-                <h2>1. Замер кассеты в боксе</h2>
-                <form action="/do_measure_form" method="post">
-                    <label>Исследуемая кассета:</label>
-                    <select name="group_name">
-                        <option value="Контроль">Кассета 1: КОНТРОЛЬ (Норма)</option>
-                        <option value="Засуха">Кассета 2: ЗАСУХА (Дефицит)</option>
-                        <option value="Соль">Кассета 3: СОЛЬ (NaCl)</option>
-                    </select>
-
-                    <label>⚖️ Масса кассеты, г (гравиметрия):</label>
-                    <input type="text" name="weight_g" placeholder="например, 412.5 (или оставьте пустым)">
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div>
-                            <label>🌡️ T возд., °C (авто):</label>
-                            <input type="text" name="t_air" value="{cur_t}">
-                        </div>
-                        <div>
-                            <label>💧 RH, % (авто):</label>
-                            <input type="text" name="rh_air" value="{cur_rh}">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn-run">
-                        📸 СДЕЛАТЬ ЗАМЕР (ВСПЫШКА)
-                    </button>
-                </form>
-            </div>
-
-            <!-- ШАГ 2: ВЫБОР ФАЙЛА ИЗ ПАМЯТИ ТЕПЛОВИЗОРА -->
-            <div class="card">
-                <h2>2. Выбор термограммы из памяти прибора</h2>
-                <p style="font-size: 12px; color: #94a3b8; margin: 4px 0;">
-                    Тепловизор воткнут в USB платы. Выберите нужный снимок из списка файлов:
-                </p>
-                <form action="/do_manual_link" method="post">
-                    <label>К какому замеру привязать:</label>
-                    <select name="meas_id">
-                        {meas_options}
-                    </select>
-
-                    <label>Выберите снимок на тепловизоре:</label>
-                    <select name="selected_bmp" id="fileSelector" onchange="updateThumb()">
-                        {file_options}
-                    </select>
-
-                    <div class="thumb-preview-box">
-                        <span style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Предпросмотр выбранного снимка:</span>
-                        <img id="thumbImg" src="{first_thumb}" class="thumb-img" alt="[Выберите файл выше]">
-                    </div>
-
-                    <label>Температура листа (°C, опционально, OCR считает сам):</label>
-                    <input type="text" name="custom_temp" placeholder="Оставьте пустым для авто-OCR">
-
-                    <button type="submit" class="btn-link">
-                        🔗 ПРИВЯЗАТЬ ТЕРМОГРАММУ (РАСЧЕТ ΔT)
-                    </button>
-                </form>
-            </div>
+            <!-- WIZARD ШАГ 1 ИЛИ ШАГ 2 -->
+            {wizard_card}
 
             <div style="margin-top: 15px; text-align: center;">
                 <a href="/download/csv" style="color: #38bdf8; text-decoration: none; font-size: 13px; font-weight: bold;">
@@ -629,18 +696,6 @@ def index(msg: str = ''):
         </div>
     </div>
 </div>
-
-<script>
-    function updateThumb() {{
-        const sel = document.getElementById('fileSelector');
-        const opt = sel.options[sel.selectedIndex];
-        const thumb = opt.getAttribute('data-thumb');
-        const img = document.getElementById('thumbImg');
-        if (thumb) {{
-            img.src = thumb;
-        }}
-    }}
-</script>
 </body>
 </html>'''
     return html
