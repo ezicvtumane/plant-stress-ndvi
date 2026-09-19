@@ -151,20 +151,27 @@ def extract_temperature_from_thermal(img_path: str) -> float:
     return 23.5
 
 def auto_mount_uti():
-    """Монтирование USB накопителя тепловизора UTi120S."""
-    if os.path.exists(UTI_DIR):
-        try:
-            if len(os.listdir(UTI_DIR)) > 0:
-                return True
-        except Exception:
-            pass
+    """Монтирование USB накопителя тепловизора UTi120S по аппаратному ID."""
+    try:
+        if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
+            return True
+    except Exception:
+        os.system('sudo umount -l /media/uti120s 2>/dev/null')
 
-    for dev in ['/dev/sda1', '/dev/sdb1', '/dev/sdc1', '/dev/sda', '/dev/sdb']:
+    uti_devs = glob.glob('/dev/disk/by-id/usb-STM_UTi120S_*-part1')
+    candidate_devs = uti_devs + ['/dev/sdb1', '/dev/sda1', '/dev/sdc1', '/dev/sdd1']
+
+    for dev in candidate_devs:
         if os.path.exists(dev):
             os.makedirs('/media/uti120s', exist_ok=True)
-            res = os.system(f'mount -o ro {dev} /media/uti120s 2>/dev/null')
-            if res == 0 and os.path.exists(UTI_DIR):
-                return True
+            os.system('sudo umount -l /media/uti120s 2>/dev/null')
+            os.system(f'sudo mount -o ro {dev} /media/uti120s 2>/dev/null')
+            try:
+                if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
+                    print(f'[UTi120S] Successfully mounted {dev}, images: {len(os.listdir(UTI_DIR))}')
+                    return True
+            except Exception:
+                pass
     return False
 
 def get_uti_sorted_files():
