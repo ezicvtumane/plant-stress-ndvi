@@ -187,7 +187,18 @@ def get_next_id():
     if not os.path.exists(CSV_LOG): return 1
     with open(CSV_LOG, 'r', encoding='utf-8') as f:
         rows = list(csv.reader(f))
-        return len(rows)
+        if len(rows) <= 1:
+            return 1
+        max_id = 0
+        for r in rows[1:]:
+            if r and r[0]:
+                try:
+                    val = int(r[0])
+                    if val > max_id:
+                        max_id = val
+                except ValueError:
+                    pass
+        return max_id + 1
 
 def read_moisture_mock():
     try:
@@ -480,8 +491,57 @@ def handle_cancel_session():
     PENDING_SESSION = None
     return RedirectResponse(url='/?msg=cancelled', status_code=303)
 
+def do_delete_measurement(meas_id: str):
+    """Удаление некорректного замера по ID из CSV базы данных."""
+    meas_id = str(meas_id).strip()
+    if not os.path.exists(CSV_LOG) or not meas_id:
+        return RedirectResponse(url='/?msg=err_not_found', status_code=303)
+    
+    with open(CSV_LOG, 'r', encoding='utf-8') as f:
+        rows = list(csv.reader(f))
+    
+    if not rows or len(rows) <= 1:
+        return RedirectResponse(url='/', status_code=303)
+        
+    header = rows[0]
+    data_rows = rows[1:]
+    
+    new_data = []
+    found = False
+    for r in data_rows:
+        if r and str(r[0]).strip() == meas_id:
+            found = True
+            try:
+                if len(r) > 13 and r[13]:
+                    opt_p = os.path.join(STATIC_DIR, r[13])
+                    if os.path.exists(opt_p): os.remove(opt_p)
+                if len(r) > 14 and r[14]:
+                    th_p = os.path.join(STATIC_DIR, r[14])
+                    if os.path.exists(th_p): os.remove(th_p)
+            except Exception:
+                pass
+        else:
+            new_data.append(r)
+            
+    if found:
+        with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            writer.writerows(new_data)
+        return RedirectResponse(url=f'/?msg=deleted&del_id={meas_id}', status_code=303)
+    else:
+        return RedirectResponse(url='/?msg=err_not_found', status_code=303)
+
+@app.post('/api/delete_measurement')
+def delete_measurement_post(meas_id: str = Form(...)):
+    return do_delete_measurement(meas_id)
+
+@app.get('/api/delete_measurement/{meas_id}')
+def delete_measurement_get(meas_id: str):
+    return do_delete_measurement(meas_id)
+
 @app.get('/', response_class=HTMLResponse)
-def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = ''):
+def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '', del_id: str = ''):
     global PENDING_SESSION
 
     cur_t, cur_rh, cur_v = read_xiaomi_climate()
@@ -503,6 +563,11 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         status_banner = '<div style="background:#10b981;padding:12px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">✅ Замер сохранен в базу! Переставьте следующую кассету.</div>'
     elif msg == 'cancelled':
         status_banner = '<div style="background:#64748b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">Замер сброшен. Готов к новому старту.</div>'
+    elif msg == 'deleted':
+        d_lbl = f' #{del_id}' if del_id else ''
+        status_banner = f'<div style="background:#dc2626;padding:11px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">🗑️ Исследование{d_lbl} успешно удалено из журнала.</div>'
+    elif msg == 'err_not_found':
+        status_banner = '<div style="background:#f59e0b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">⚠️ Исследование не найдено в базе данных.</div>'
     elif msg == 'err_camera':
         status_banner = '<div style="background:#ef4444;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">❌ Ошибка камеры /dev/video0. Проверьте USB подключение.</div>'
 
@@ -688,8 +753,9 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         time_cell = f'<div style="white-space:nowrap;font-size:11px;font-weight:600;color:#f1f5f9;">{d_str}</div><div style="font-size:10px;color:#94a3b8;white-space:nowrap;">{t_str}</div>'
         grp_badge = format_group_badge(grp)
         t_leaf_html = f'<b style="color:#fbbf24;white-space:nowrap;">{t_show}</b>' if t_show != '--' else '<span style="color:#64748b;">--</span>'
+        del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id}?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#ef4444';this.style.color='#fff';" onmouseout="this.style.background='rgba(239,68,68,0.12)';this.style.color='#f87171';">✕</button></form>'''
 
-        table_html += f'<tr><td><b style="color:#94a3b8;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#38bdf8;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td><span style="white-space:nowrap;font-family:monospace;font-size:11px;">{ndvi_txt}</span></td><td><span style="white-space:nowrap;">{pct}</span></td><td>{th_stat}</td></tr>'
+        table_html += f'<tr><td><b style="color:#94a3b8;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#38bdf8;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td><span style="white-space:nowrap;font-family:monospace;font-size:11px;">{ndvi_txt}</span></td><td><span style="white-space:nowrap;">{pct}</span></td><td>{th_stat}</td><td>{del_btn}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
@@ -783,16 +849,17 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:40px;">№</th>
-                            <th style="width:125px;">Дата и время</th>
-                            <th style="width:110px;">Когорта</th>
-                            <th style="width:75px;">Масса</th>
-                            <th style="width:115px;">T возд / RH</th>
-                            <th style="width:80px;">T листа</th>
-                            <th style="width:140px;">ΔT (Стресс)</th>
-                            <th style="width:90px;">NDVI</th>
-                            <th style="width:60px;">Почва</th>
-                            <th style="width:105px;">Тепловизор</th>
+                            <th style="width:38px;">№</th>
+                            <th style="width:120px;">Дата и время</th>
+                            <th style="width:105px;">Когорта</th>
+                            <th style="width:70px;">Масса</th>
+                            <th style="width:110px;">T возд / RH</th>
+                            <th style="width:75px;">T листа</th>
+                            <th style="width:130px;">ΔT (Стресс)</th>
+                            <th style="width:85px;">NDVI</th>
+                            <th style="width:55px;">Почва</th>
+                            <th style="width:100px;">Тепловизор</th>
+                            <th style="width:32px;" title="Удалить запись">✕</th>
                         </tr>
                     </thead>
                     <tbody>
