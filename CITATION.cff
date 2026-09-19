@@ -5,6 +5,7 @@ abstract: "An integrated hardware-software complex for active strobed dual-wavel
 authors:
   - family-names: "Kovaleva"
     given-names: "Alisa"
+    affiliation: "School No. 282 of Kirovsky District, Saint Petersburg, Russia"
     email: "ezicvtumane@gmail.com"
     role: "Lead Researcher & Developer"
 version: "1.0.0"
