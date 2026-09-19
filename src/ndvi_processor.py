@@ -20,6 +20,26 @@ class NDVIProcessor:
     def __init__(self, k_factor: float = config.DEFAULT_K_COEFFICIENT):
         self.k_factor = float(k_factor)
 
+    def _extract_band(self, frame: np.ndarray, band: str) -> np.ndarray:
+        """
+        Physical Bayer CFA Demultiplexing:
+        - For 'red' (660 nm): Extract pure Red channel (frame[:, :, 2] in BGR) to prevent
+          attenuation by standard green/blue luma weights (0.587G, 0.114B).
+        - For 'nir' (850 nm): Silicon is transparent to Bayer dye filters in NIR, so
+          averaging all 3 channels maximizes Signal-to-Noise Ratio (SNR).
+        """
+        f = frame.astype(np.float32)
+        if len(f.shape) == 3 and f.shape[2] == 3:
+            if band == "red":
+                return f[:, :, 2]  # Pure Red channel
+            elif band == "nir":
+                return np.mean(f, axis=2)  # Average of R, G, B for maximum NIR SNR
+            else:
+                return np.mean(f, axis=2)
+        elif len(f.shape) == 3 and f.shape[2] == 1:
+            return f[:, :, 0]
+        return f
+
     def compute_k_factor_from_gray_card(
         self,
         ambient_frame: np.ndarray,
@@ -29,12 +49,16 @@ class NDVIProcessor:
     ) -> float:
         """
         Calculates sensor calibration factor k = I_660 / I_850 on an 18% Gray Card
-        after subtracting ambient illumination:
+        after subtracting ambient illumination using physical Bayer band demultiplexing:
           I_net = max(0, I_flash - I_ambient)
         """
-        # Radiometric ambient subtraction
-        nir_net = np.maximum(0, nir_frame.astype(np.float32) - ambient_frame.astype(np.float32))
-        red_net = np.maximum(0, red_frame.astype(np.float32) - ambient_frame.astype(np.float32))
+        amb_nir = self._extract_band(ambient_frame, "nir")
+        amb_red = self._extract_band(ambient_frame, "red")
+        nir_band = self._extract_band(nir_frame, "nir")
+        red_band = self._extract_band(red_frame, "red")
+
+        nir_net = np.maximum(0.0, nir_band - amb_nir)
+        red_net = np.maximum(0.0, red_band - amb_red)
 
         if roi is not None:
             x, y, w, h = roi
@@ -61,27 +85,28 @@ class NDVIProcessor:
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, float]]:
         """
         Performs:
-        1. Ambient background subtraction:
-           I_nir_clean = max(0, I_nir - I_ambient)
-           I_red_clean = max(0, I_red - I_ambient)
-        2. Segmentation: NIR mask (I_nir_clean > threshold)
-        3. Pixelwise NDVI:
+        1. Physical Bayer band demultiplexing (Pure Red for 660nm, High-SNR multi-channel for 850nm)
+        2. Ambient background subtraction:
+           I_nir_clean = max(0, I_nir - I_ambient_nir)
+           I_red_clean = max(0, I_red - I_ambient_red)
+        3. Segmentation: NIR mask (I_nir_clean > threshold)
+        4. Pixelwise NDVI:
            NDVI = (k * NIR - Red) / (k * NIR + Red + eps)
-        4. Statistical aggregation of vegetation indices.
+        5. Statistical aggregation of vegetation indices.
         
         Returns:
             ndvi_map (np.ndarray of float32, range [-1, 1])
             mask (np.ndarray of uint8, 255 for plant, 0 for background)
             metrics (dict of summary statistics)
         """
-        # Convert to float32
-        amb = ambient_frame.astype(np.float32)
-        nir_raw = nir_frame.astype(np.float32)
-        red_raw = red_frame.astype(np.float32)
+        amb_nir = self._extract_band(ambient_frame, "nir")
+        amb_red = self._extract_band(ambient_frame, "red")
+        nir_band = self._extract_band(nir_frame, "nir")
+        red_band = self._extract_band(red_frame, "red")
 
-        # Ambient subtraction
-        nir_clean = np.maximum(0.0, nir_raw - amb)
-        red_clean = np.maximum(0.0, red_raw - amb)
+        # Radiometric ambient subtraction
+        nir_clean = np.maximum(0.0, nir_band - amb_nir)
+        red_clean = np.maximum(0.0, red_band - amb_red)
 
         # Vegetative mask: reflection in 850nm above threshold
         mask = (nir_clean > config.NIR_BACKGROUND_THRESHOLD).astype(np.uint8) * 255

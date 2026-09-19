@@ -72,21 +72,16 @@ class CameraV4L2:
             logger.error("Failed to read frame from camera.")
             return self._generate_mock_frame()
 
-        # Convert to single-channel 8-bit grayscale if BGR
-        if len(frame.shape) == 3:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = frame
-
-        return gray
+        return frame
 
     def _generate_mock_frame(self) -> np.ndarray:
-        """Generates realistic synthetic leaf frame for dry-run testing."""
+        """Generates realistic synthetic 3-channel leaf frame for dry-run testing."""
         h, w = config.CAMERA_HEIGHT, config.CAMERA_WIDTH
-        mock = np.full((h, w), 10, dtype=np.uint8)
-        # Draw mock leaf ellipse in center
-        cv2.ellipse(mock, (w // 2, h // 2), (180, 260), 30, 0, 360, 140, -1)
-        cv2.ellipse(mock, (w // 2 - 80, h // 2 + 50), (120, 180), -45, 0, 360, 160, -1)
+        # 3-channel BGR background
+        mock = np.full((h, w, 3), 10, dtype=np.uint8)
+        # Draw mock leaf in center
+        cv2.ellipse(mock, (w // 2, h // 2), (180, 260), 30, 0, 360, (30, 180, 40), -1)
+        cv2.ellipse(mock, (w // 2 - 80, h // 2 + 50), (120, 180), -45, 0, 360, (25, 160, 35), -1)
         return mock
 
     def release(self):

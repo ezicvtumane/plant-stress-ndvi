@@ -25,7 +25,7 @@ class ExperimentStatistics:
     Verifies the hypothesis: NDVI & thermal response precede visible wilting by 36-54 hours (p < 0.01).
     """
     def __init__(self, data_file: Optional[str] = None):
-        self.data_file = Path(data_file) if data_file else config.DATA_DIR / "measurements_ledger.csv"
+        self.data_file = Path(data_file) if data_file else config.DATA_DIR / "validation_dataset_7days.csv"
         self.df = None
 
     def load_or_generate_dataset(self) -> pd.DataFrame:
