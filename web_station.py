@@ -1,3 +1,18 @@
+"""
+Оптико-электронный комплекс активной двухволновой спектрофотометрии и термографии
+Автор: Ковалева Алиса, 10 класс, ГБОУ СОШ №282 Кировского района Санкт-Петербурга
+Конкурс: Всероссийский конкурс научно-технологических проектов «Большие вызовы» (Сириус)
+
+ПРИМЕЧАНИЕ ПО АРХИТЕКТУРЕ (СТАДИЯ ИСПЫТАТЕЛЬНОГО ПРОТОТИПА):
+Текущая схемотехническая и программная конфигурация (стробирование галогенной лампы,
+демультиплексирование каналов Red/NIR на матрице NoIR, полуавтоматическая привязка
+термограмм UTi120S с OCR-распознаванием и удержание GPIO-реле) является временной
+лабораторной схемой для сбора валидационных серий данных. 
+Комплекс будет доработан на аппаратном уровне после поступления специализированных
+узкополосных оптических компонентов (твердотельных излучателей 660 нм и 850 нм с
+интерференционными полосовыми фильтрами FWHM <= 10 нм).
+"""
+
 import os
 import time
 import json
@@ -50,13 +65,15 @@ def init_relay():
     global RELAY_REQ
     if RELAY_REQ is None:
         try:
+            settings = gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)
             RELAY_REQ = gpiod.request_lines(
                 '/dev/gpiochip1',
                 consumer='smart_station_daemon',
-                config={(7,): gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)}
+                config={(4,): settings, (7,): settings}
             )
+            RELAY_REQ.set_value(4, Value.INACTIVE)
             RELAY_REQ.set_value(7, Value.INACTIVE)
-            print('[GPIO] Relay successfully initialized in OFF state')
+            print('[GPIO] Relay successfully initialized in OFF state on Pin 7 (PL4) & Pin 10 (PL7)')
         except Exception as e:
             print('[GPIO] Relay init error:', e)
 
@@ -166,10 +183,12 @@ def do_hardware_capture(group_name: str):
 
     init_relay()
     if RELAY_REQ:
+        RELAY_REQ.set_value(4, Value.ACTIVE)
         RELAY_REQ.set_value(7, Value.ACTIVE)
         time.sleep(0.4)
         for _ in range(5): cap.read()
         ret, frame_flash = cap.read()
+        RELAY_REQ.set_value(4, Value.INACTIVE)
         RELAY_REQ.set_value(7, Value.INACTIVE)
     else:
         time.sleep(0.4)
@@ -363,7 +382,10 @@ def index(msg: str = ''):
 <div class=\"container\">
     <div class=\"header\">
         <h1>Оптико-электронный комплекс: Сессионный пульт</h1>
-        <p>Интерактивная привязка снимков с тепловизора UTi120S | Алиса Ковалева</p>
+        <p style=\"margin-bottom: 6px;\">Интерактивная привязка снимков с тепловизора UTi120S | Алиса Ковалева</p>
+        <div style=\"display: inline-block; padding: 4px 12px; background: #1e293b; border: 1px solid #475569; border-radius: 20px; font-size: 11px; color: #94a3b8;\">
+            ⚠️ <b>Временная испытательная схема</b> (лабораторный прототип до поступления специализированных узкополосных излучателей 660/850 нм)
+        </div>
     </div>
 
     {status_banner}
