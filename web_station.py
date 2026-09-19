@@ -51,7 +51,7 @@ def init_csv():
         with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow([
-                'ID', 'Timestamp', 'Group', 'Moisture_V', 'Moisture_Pct',
+                'ID', 'Timestamp', 'Group', 'Weight_g', 'Moisture_V', 'Moisture_Pct',
                 'T_Leaf_C', 'NDVI_Mean', 'NDVI_Std',
                 'Opt_File', 'Thermal_File',
                 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9'
@@ -165,7 +165,7 @@ def get_available_uti_files():
     res.sort(key=lambda x: x['mtime'], reverse=True)
     return res
 
-def do_hardware_capture(group_name: str):
+def do_hardware_capture(group_name: str, weight_g: str = ''):
     meas_id = get_next_id()
     ts_now = datetime.now()
     ts_str = ts_now.strftime('%Y%m%d_%H%M%S')
@@ -251,19 +251,23 @@ def do_hardware_capture(group_name: str):
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_ndvi.jpg'), annotated_ndvi)
 
     v_soil, pct_soil = read_moisture_mock()
+    weight_val = weight_g.strip().replace(',', '.') if weight_g else ''
 
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow([
-            meas_id, ts_display, group_name, v_soil, pct_soil, '', mean_ndvi, std_ndvi,
+            meas_id, ts_display, group_name, weight_val, v_soil, pct_soil, '', mean_ndvi, std_ndvi,
             opt_filename, '', *cell_ndvis
         ])
     return meas_id
 
 @app.post('/do_measure_form')
-def handle_form_measure(group_name: str = Form('Контроль')):
+def handle_form_measure(
+    group_name: str = Form('Контроль'),
+    weight_g: str = Form('')
+):
     try:
-        do_hardware_capture(group_name)
+        do_hardware_capture(group_name, weight_g)
     except Exception as e:
         print('Error:', e)
     return RedirectResponse(url='/?msg=done', status_code=303)
@@ -297,8 +301,12 @@ def handle_manual_link(
             rows = list(csv.reader(f))
         for i in range(1, len(rows)):
             if str(rows[i][0]) == str(meas_id):
-                rows[i][5] = final_t
-                rows[i][9] = jpg_name
+                if len(rows[i]) >= 20:
+                    rows[i][6] = final_t
+                    rows[i][10] = jpg_name
+                else:
+                    rows[i][5] = final_t
+                    rows[i][9] = jpg_name
                 break
         with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
@@ -321,10 +329,28 @@ def index(msg: str = ''):
     meas_options = ''
     table_html = ''
     for r in reversed(rows):
-        th_stat = f'<span style=\"color:#10b981;font-weight:bold;\">✓ {r[9]}</span>' if r[9] else '<span style=\"color:#f59e0b;\">⏳ Ожидает файл</span>'
-        t_show = r[5] if r[5] else '--'
-        table_html += f'<tr><td><b>#{r[0]}</b></td><td>{r[1]}</td><td>{r[2]}</td><td>{r[6]}±{r[7]}</td><td>{r[4]}%</td><td><b style=\"color:#fbbf24;\">{t_show} °C</b></td><td>{th_stat}</td></tr>'
-        meas_options += f'<option value=\"{r[0]}\">Замер #{r[0]} | {r[2]} [{r[1]}]</option>'
+        if len(r) >= 20:
+            m_id = r[0]
+            ts = r[1]
+            grp = r[2]
+            wt = f"{r[3]} г" if r[3] else "--"
+            pct = f"{r[5]}%" if r[5] else "--"
+            t_show = r[6] if r[6] else "--"
+            ndvi_txt = f"{r[7]}±{r[8]}" if len(r)>8 else "--"
+            th_name = r[10] if len(r)>10 else ""
+        else:
+            m_id = r[0]
+            ts = r[1]
+            grp = r[2]
+            wt = "--"
+            pct = f"{r[4]}%" if len(r)>4 else "--"
+            t_show = r[5] if len(r)>5 else "--"
+            ndvi_txt = f"{r[6]}±{r[7]}" if len(r)>7 else "--"
+            th_name = r[9] if len(r)>9 else ""
+
+        th_stat = f'<span style=\"color:#10b981;font-weight:bold;\">✓ {th_name}</span>' if th_name else '<span style=\"color:#f59e0b;\">⏳ Ожидает файл</span>'
+        table_html += f'<tr><td><b>#{m_id}</b></td><td>{ts}</td><td>{grp}</td><td><b style=\"color:#38bdf8;\">{wt}</b></td><td>{ndvi_txt}</td><td>{pct}</td><td><b style=\"color:#fbbf24;\">{t_show} °C</b></td><td>{th_stat}</td></tr>'
+        meas_options += f'<option value=\"{m_id}\">Замер #{m_id} | {grp} [{ts}]</option>'
 
     uti_files = get_available_uti_files()
     file_options_list = []
@@ -403,6 +429,9 @@ def index(msg: str = ''):
                         <option value=\"Соль\">Кассета 3: СОЛЬ (NaCl)</option>
                     </select>
 
+                    <label>⚖️ Масса кассеты, г (гравиметрия):</label>
+                    <input type=\"text\" name=\"weight_g\" placeholder=\"например, 412.5 (или оставьте пустым)\">
+
                     <button type=\"submit\" class=\"btn-run\">
                         📸 СДЕЛАТЬ ЗАМЕР (ВСПЫШКА)
                     </button>
@@ -473,7 +502,7 @@ def index(msg: str = ''):
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th><th>Время</th><th>Группа</th><th>NDVI</th><th>Влажн.</th><th>T_лист (OCR)</th><th>Термограмма</th>
+                            <th>ID</th><th>Время</th><th>Группа</th><th>Масса (г)</th><th>NDVI</th><th>Влажн.</th><th>T_лист (OCR)</th><th>Термограмма</th>
                         </tr>
                     </thead>
                     <tbody>
