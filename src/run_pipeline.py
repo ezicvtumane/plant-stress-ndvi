@@ -25,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Pipeline")
 
-def run_measurement(sample_id: str, group_name: str, k_factor: float = config.DEFAULT_K_COEFFICIENT):
+def run_measurement(sample_id: str, group_name: str, k_factor: float = config.DEFAULT_K_COEFFICIENT, weight_g: float = None):
     """
     Executes an automated three-frame active acquisition cycle:
     1. Soil moisture reading via ADS1115 (Channels A0, A1).
@@ -36,7 +36,7 @@ def run_measurement(sample_id: str, group_name: str, k_factor: float = config.DE
     6. Archiving outputs to data/processed and CSV ledger.
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logger.info("Starting acquisition cycle for Sample: %s | Group: %s", sample_id, group_name)
+    logger.info("Starting acquisition cycle for Sample: %s | Group: %s | Weight: %s g", sample_id, group_name, weight_g)
 
     # 1. Initialize hardware subsystems
     soil_reader = SoilMoistureReader()
@@ -87,6 +87,7 @@ def run_measurement(sample_id: str, group_name: str, k_factor: float = config.DE
             "timestamp": timestamp,
             "sample_id": sample_id,
             "group": group_name,
+            "weight_g": weight_g,
             "soil_moisture_a0_pct": soil_data["channel_0"]["moisture_percent"],
             "soil_voltage_a0_v": soil_data["channel_0"]["voltage_V"],
             "soil_moisture_a1_pct": soil_data["channel_1"]["moisture_percent"],
@@ -116,9 +117,10 @@ def main():
     parser.add_argument("--sample", type=str, default="sample_01", help="Identifier of the plant specimen")
     parser.add_argument("--group", type=str, choices=["Control", "Drought", "Salinity"], default="Control", help="Experimental cohort")
     parser.add_argument("--k", type=float, default=config.DEFAULT_K_COEFFICIENT, help="Calibrated k factor")
+    parser.add_argument("--weight", type=float, default=None, help="Gravimetric tray mass in grams (Ground Truth)")
     args = parser.parse_args()
 
-    run_measurement(args.sample, args.group, args.k)
+    run_measurement(args.sample, args.group, args.k, weight_g=args.weight)
 
 if __name__ == "__main__":
     main()
