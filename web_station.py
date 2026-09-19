@@ -748,8 +748,11 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                     <div style="font-size:10px; color:#94a3b8;">ср: <b style="color:#c4b5fd;">{m_salt}</b></div>
                 </div>
             </div>
-            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:10px; box-sizing:border-box; background:#0b1120; border:1px solid #38bdf8; border-radius:8px; color:#38bdf8; text-decoration:none; font-size:12px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#0b1120';this.style.color='#38bdf8';">
+            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:#0b1120; border:1px solid #38bdf8; border-radius:8px; color:#38bdf8; text-decoration:none; font-size:12px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#0b1120';this.style.color='#38bdf8';">
                 📥 Экспорт всей базы данных (.CSV)
+            </a>
+            <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:#0284c7; border:1px solid #38bdf8; border-radius:8px; color:#fff; text-decoration:none; font-size:12px; font-weight:bold; margin-top:8px; transition:all 0.2s;" onmouseover="this.style.background='#0369a1';" onmouseout="this.style.background='#0284c7';">
+                📄 Скачать научно-технический отчет (.PDF)
             </a>
         </div>
     '''
@@ -945,6 +948,13 @@ def download_csv():
     if os.path.exists(CSV_LOG):
         return FileResponse(CSV_LOG, filename='plant_stress_measurements.csv')
     return HTMLResponse('Файл пока пуст')
+
+@app.get('/download/pdf')
+def download_pdf():
+    pdf_path = os.path.join(STATIC_DIR, 'analysis_report.pdf')
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, filename='Анализ_проделанной_работы_Комплекс_NDVI.pdf', media_type='application/pdf')
+    return HTMLResponse('Отчет пока не сформирован')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
