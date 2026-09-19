@@ -81,6 +81,34 @@ def calc_vpd(t_c: float, rh_pct: float) -> float:
     except Exception:
         return 0.60
 
+RU_MONTHS = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+]
+
+def format_ru_datetime(val) -> str:
+    """Форматирует дату и время в понятный русский вид: '25 февраля 2026, 14:30:15'."""
+    if not val:
+        return '--'
+    if isinstance(val, (int, float)):
+        try:
+            val = datetime.fromtimestamp(val)
+        except Exception:
+            return str(val)
+    if isinstance(val, datetime):
+        m_name = RU_MONTHS[val.month - 1]
+        return f"{val.day} {m_name} {val.year}, {val.strftime('%H:%M:%S')}"
+    
+    val_str = str(val).strip()
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y%m%d_%H%M%S'):
+        try:
+            dt = datetime.strptime(val_str, fmt)
+            m_name = RU_MONTHS[dt.month - 1]
+            return f"{dt.day} {m_name} {dt.year}, {dt.strftime('%H:%M:%S')}"
+        except ValueError:
+            pass
+    return val_str
+
 def init_csv():
     if not os.path.exists(CSV_LOG):
         with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
@@ -204,7 +232,7 @@ def get_file_info_at_index(index: int = 0):
     fname = os.path.basename(fp)
     base = os.path.splitext(fname)[0]
     mtime = os.path.getmtime(fp)
-    dt_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+    dt_str = format_ru_datetime(mtime)
 
     thumb_jpg = f'{int(mtime)}_{fname}.jpg'
     thumb_path = os.path.join(TH_CACHE_DIR, thumb_jpg)
@@ -239,7 +267,7 @@ def do_hardware_spectral_capture(group_name: str):
     meas_id = get_next_id()
     ts_now = datetime.now()
     ts_str = ts_now.strftime('%Y%m%d_%H%M%S')
-    ts_display = ts_now.strftime('%Y-%m-%d %H:%M:%S')
+    ts_display = format_ru_datetime(ts_now)
 
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -607,7 +635,8 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             th_name = r[9] if len(r)>9 else ""
 
         th_stat = f'<span style="color:#10b981;font-weight:bold;">✓ {th_name}</span>' if th_name else '<span style="color:#f59e0b;">⏳ Ожидает</span>'
-        table_html += f'<tr><td><b>#{m_id}</b></td><td>{ts}</td><td>{grp}</td><td><b style="color:#38bdf8;">{wt}</b></td><td>{t_air_str}</td><td><b style="color:#fbbf24;">{t_show}</b></td><td>{stress_badge}</td><td>{ndvi_txt}</td><td>{pct}</td><td>{th_stat}</td></tr>'
+        ts_ru = format_ru_datetime(ts)
+        table_html += f'<tr><td><b>#{m_id}</b></td><td>{ts_ru}</td><td>{grp}</td><td><b style="color:#38bdf8;">{wt}</b></td><td>{t_air_str}</td><td><b style="color:#fbbf24;">{t_show}</b></td><td>{stress_badge}</td><td>{ndvi_txt}</td><td>{pct}</td><td>{th_stat}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
