@@ -22,8 +22,12 @@ import socket
 from datetime import datetime
 import numpy as np
 import cv2
-import gpiod
-from gpiod.line import Direction, Value
+try:
+    import gpiod
+    from gpiod.line import Direction, Value
+    HAS_GPIOD = True
+except ImportError:
+    HAS_GPIOD = False
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,7 +38,8 @@ import pytesseract
 
 app = FastAPI(title='Plant Stress Lab Gallery Station')
 
-BASE_DIR = '/home/pi/plant-stress-ndvi'
+LOCAL_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = LOCAL_DIR if os.path.exists(os.path.join(LOCAL_DIR, 'static')) else '/home/pi/plant-stress-ndvi'
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 TH_CACHE_DIR = os.path.join(STATIC_DIR, 'uti_cache')
@@ -167,6 +172,8 @@ RELAY_REQ = None
 
 def init_relay():
     global RELAY_REQ
+    if not HAS_GPIOD:
+        return
     if RELAY_REQ is None:
         try:
             settings = gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)
@@ -605,10 +612,10 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             '''
 
         wizard_card = f'''
-            <div class="card" style="border: 2px solid #38bdf8; background: #0f172a;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:10px;">
-                    <h2 style="margin:0; color:#38bdf8; font-size:17px;">Шаг 2: Подтверждение замера #{s['id']}</h2>
-                    <span style="background:#0284c7; color:white; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">{s['group']}</span>
+            <div class="card" style="border: 2px solid var(--sirius-teal); background: rgba(13, 23, 40, 0.95);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 164, 153, 0.25); padding-bottom:8px; margin-bottom:10px;">
+                    <h2 style="margin:0; color:var(--sirius-teal-light); font-size:16px;">Шаг 2: Подтверждение замера #{s['id']}</h2>
+                    <span style="background:var(--sirius-teal); color:white; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:bold;">{s['group']}</span>
                 </div>
 
                 <div style="background:#1e293b; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#cbd5e1;">
@@ -727,9 +734,9 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
     summary_card = f'''
         <div class="card" style="margin-top: 2px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:6px; margin-bottom:10px;">
-                <h2 style="margin:0; font-size:15px; border:none; padding:0; color:#38bdf8;">📊 Экспресс-сводка серии</h2>
-                <span style="background:#0b1120; border:1px solid #38bdf8; color:#38bdf8; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 164, 153, 0.2); padding-bottom:6px; margin-bottom:10px;">
+                <h2 style="margin:0; font-size:15px; border:none; padding:0; color:var(--sirius-teal-light);">📊 Экспресс-сводка серии</h2>
+                <span style="background:#080e1a; border:1px solid var(--sirius-teal); color:var(--sirius-teal-light); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
             </div>
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px; text-align:center;">
                 <div style="background:rgba(6, 78, 59, 0.25); border:1px solid #059669; border-radius:8px; padding:6px 2px;">
@@ -748,11 +755,11 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                     <div style="font-size:10px; color:#94a3b8;">ср: <b style="color:#c4b5fd;">{m_salt}</b></div>
                 </div>
             </div>
-            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:#0b1120; border:1px solid #38bdf8; border-radius:8px; color:#38bdf8; text-decoration:none; font-size:12px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#0b1120';this.style.color='#38bdf8';">
-                📥 Экспорт всей базы данных (.CSV)
+            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:rgba(0,164,153,0.1); border:1px solid var(--sirius-teal); border-radius:8px; color:var(--sirius-teal-light); text-decoration:none; font-size:12px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';" onmouseout="this.style.background='rgba(0,164,153,0.1)';this.style.color='var(--sirius-teal-light)';">
+                📥 Экспорт базы данных (.CSV)
             </a>
-            <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:#0284c7; border:1px solid #38bdf8; border-radius:8px; color:#fff; text-decoration:none; font-size:12px; font-weight:bold; margin-top:8px; transition:all 0.2s;" onmouseover="this.style.background='#0369a1';" onmouseout="this.style.background='#0284c7';">
-                📄 Скачать научно-технический отчет (.PDF)
+            <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:linear-gradient(135deg, #059669, #00a499); border:1px solid var(--sirius-teal-light); border-radius:8px; color:#fff; text-decoration:none; font-size:12px; font-weight:bold; margin-top:8px; transition:all 0.2s;" onmouseover="this.style.filter='brightness(1.15)';" onmouseout="this.style.filter='brightness(1.0)';">
+                📄 Научно-технический отчет (.PDF)
             </a>
         </div>
     '''
@@ -824,45 +831,387 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Оптико-электронный комплекс</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сириус: Большие вызовы | Оптико-электронный комплекс</title>
     <style>
-        body {{ font-family: system-ui, -apple-system, sans-serif; background: #0b1120; color: #f8fafc; margin: 0; padding: 20px; min-height: 100vh; box-sizing: border-box; }}
-        .container {{ width: 100%; max-width: 1400px; margin: 0 auto; }}
-        .header {{ text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; }}
-        .header h1 {{ color: #38bdf8; margin: 0 0 5px 0; font-size: 22px; }}
-        .climate-bar {{ background: #1e293b; border: 1px solid #38bdf8; border-radius: 10px; padding: 10px 18px; margin-bottom: 16px; display: flex; justify-content: space-around; font-size: 13px; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }}
-        .grid-top {{ display: grid; grid-template-columns: 420px 1fr; gap: 16px; align-items: stretch; margin-bottom: 16px; }}
-        .card {{ background: #1e293b; border-radius: 12px; padding: 16px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }}
-        .card h2 {{ color: #38bdf8; margin-top: 0; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 12px; }}
-        label {{ display: block; margin-top: 10px; font-weight: bold; color: #cbd5e1; font-size: 13px; }}
-        select, input[type="text"] {{ width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #475569; background: #0b1120; color: white; margin-top: 4px; box-sizing: border-box; font-size: 14px; }}
-        .channels {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }}
-        .ch-box {{ background: #0b1120; padding: 8px; border-radius: 8px; border: 1px solid #334155; text-align: center; }}
-        .preview-img {{ width: 100%; height: 185px; border-radius: 6px; border: 1px solid #475569; background: #000; object-fit: contain; }}
-        table {{ width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }}
-        th {{ background: #0f172a; color: #94a3b8; padding: 10px 8px; font-weight: 600; border-bottom: 2px solid #334155; white-space: nowrap; text-align: center; font-size: 11px; position: sticky; top: 0; z-index: 10; letter-spacing: 0.3px; }}
-        td {{ padding: 8px 8px; border-bottom: 1px solid #1e293b; vertical-align: middle; text-align: center; }}
-        tr:nth-child(even) td {{ background: rgba(255, 255, 255, 0.018); }}
-        tr:hover td {{ background: rgba(56, 189, 248, 0.07); }}
+        :root {{
+            --sirius-teal: #00a499;
+            --sirius-teal-light: #2dd4bf;
+            --sirius-teal-dark: #064e3b;
+            --sirius-purple: #7c3aed;
+            --sirius-purple-light: #c4b5fd;
+            --sirius-indigo: #4338ca;
+            --bg-main: #060a12;
+            --card-bg: rgba(13, 23, 40, 0.92);
+            --card-border: rgba(0, 164, 153, 0.28);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+        }}
+        body {{
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: #042f2e;
+            background-image: linear-gradient(180deg, rgba(6, 16, 26, 0.82) 0%, rgba(6, 16, 26, 0.90) 100%), url('/static/logos/sirius_bg.png');
+            background-size: cover;
+            background-position: center top;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            color: var(--text-primary);
+            margin: 0;
+            padding: 16px 22px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }}
+        .header, .card, .climate-bar {{
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }}
+        .container {{
+            width: 100%;
+            max-width: 1440px;
+            margin: 0 auto;
+        }}
+        /* ХЕДЕР В СТИЛЕ СИРИУС */
+        .header {{
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px 20px;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        }}
+        .header-inner {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }}
+        .header-logos {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 6px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }}
+        .header-titles {{
+            flex: 1;
+            text-align: center;
+        }}
+        .header-titles h1 {{
+            color: #ffffff;
+            margin: 0 0 6px 0;
+            font-size: 20px;
+            letter-spacing: 0.4px;
+            font-weight: 700;
+        }}
+        .header-badges {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }}
+        .badge-sirius {{
+            background: linear-gradient(135deg, #4338ca, #6366f1);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }}
+        .badge-track {{
+            background: linear-gradient(135deg, #065f46, var(--sirius-teal));
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0, 164, 153, 0.3);
+        }}
+        .badge-author {{
+            background: rgba(30, 41, 59, 0.8);
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid #475569;
+        }}
+        .header-status {{
+            text-align: right;
+            min-width: 140px;
+        }}
+        .status-online {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid #10b981;
+            color: #34d399;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }}
+        .pulsing-dot {{
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+        }}
+        .station-hw {{
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-family: monospace;
+        }}
+        .header-subnote {{
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: center;
+        }}
+
+        /* КЛИМАТИЧЕСКАЯ ПАНЕЛЬ */
+        .climate-bar {{
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 10px 18px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }}
+        .clim-item {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }}
+        .clim-label {{
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }}
+        .clim-val {{
+            font-size: 15px;
+            font-weight: bold;
+            font-family: 'Segoe UI', monospace;
+        }}
+        .clim-divider {{
+            width: 1px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.1);
+        }}
+        .val-purple {{ color: #c4b5fd; }}
+        .val-cyan {{ color: #38bdf8; }}
+        .val-teal {{ color: #2dd4bf; }}
+        .val-amber {{ color: #fbbf24; }}
+        .val-slate {{ color: #cbd5e1; }}
+
+        /* СЕТКА И КАРТОЧКИ */
+        .grid-top {{
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 16px;
+            align-items: stretch;
+            margin-bottom: 16px;
+        }}
+        .card {{
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 16px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }}
+        .card h2 {{
+            color: var(--sirius-teal-light);
+            margin-top: 0;
+            font-size: 16px;
+            border-bottom: 1px solid rgba(0, 164, 153, 0.2);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        label {{
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #cbd5e1;
+            font-size: 12px;
+            letter-spacing: 0.3px;
+        }}
+        select, input[type="text"] {{
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 164, 153, 0.35);
+            background: #080e1a;
+            color: white;
+            margin-top: 4px;
+            box-sizing: border-box;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+        }}
+        select:focus, input[type="text"]:focus {{
+            border-color: var(--sirius-teal);
+            box-shadow: 0 0 10px rgba(0, 164, 153, 0.4);
+        }}
+
+        /* КНОПКА ЗАПУСКА СИРИУС-ГРАДИЕНТ */
+        .btn-run {{
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #059669 0%, #00a499 50%, #0284c7 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 4px 18px rgba(0, 164, 153, 0.4);
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }}
+        .btn-run:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(0, 164, 153, 0.6);
+            filter: brightness(1.08);
+        }}
+        .btn-run:active {{
+            transform: translateY(1px);
+        }}
+
+        /* МАТРИЦА КАНАЛОВ */
+        .channels {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }}
+        .ch-box {{
+            background: #080e1a;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+            transition: border 0.2s;
+        }}
+        .ch-box:hover {{
+            border-color: var(--sirius-teal);
+        }}
+        .preview-img {{
+            width: 100%;
+            height: 185px;
+            border-radius: 6px;
+            border: 1px solid #1e293b;
+            background: #000;
+            object-fit: contain;
+        }}
+
+        /* ТАБЛИЦА ЖУРНАЛА */
+        table {{
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 12px;
+        }}
+        th {{
+            background: #0a1120;
+            color: #94a3b8;
+            padding: 10px 8px;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(0, 164, 153, 0.3);
+            white-space: nowrap;
+            text-align: center;
+            font-size: 11px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            letter-spacing: 0.4px;
+        }}
+        td {{
+            padding: 8px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: middle;
+            text-align: center;
+        }}
+        tr:nth-child(even) td {{
+            background: rgba(255, 255, 255, 0.015);
+        }}
+        tr:hover td {{
+            background: rgba(0, 164, 153, 0.08);
+        }}
     </style>
 </head>
 <body>
 <div class="container">
+    <!-- ОФИЦИАЛЬНЫЙ БРЕНДИРОВАННЫЙ ХЕДЕР СИРИУС -->
     <div class="header">
-        <h1>Оптико-электронный комплекс: Сессионный пульт</h1>
-        <p style="margin-bottom: 6px;">Пошаговый конвейер измерений | Алиса Ковалева, 10 класс</p>
-        <div style="display: inline-block; padding: 4px 12px; background: #1e293b; border: 1px solid #475569; border-radius: 20px; font-size: 11px; color: #94a3b8;">
-            ⚠️ <b>Временная испытательная схема</b> (лабораторный прототип до поступления специализированных узкополосных излучателей 660/850 нм)
+        <div class="header-inner">
+            <div class="header-logos" style="padding: 4px 8px; background: rgba(0, 164, 153, 0.12); border: 1px solid rgba(0, 164, 153, 0.3); border-radius: 10px;">
+                <img src="/static/logos/bv_logo_badge.png" style="height: 42px; border-radius: 4px; object-fit: contain; box-shadow: 0 2px 8px rgba(0,0,0,0.35);" alt="Большие вызовы">
+                <div style="width: 1px; height: 34px; background: rgba(255,255,255,0.18);"></div>
+                <img src="/static/logos/agrobiotech_track_logo.png" style="height: 40px; object-fit: contain;" alt="Агропромышленные и биотехнологии">
+            </div>
+            <div class="header-titles">
+                <h1>Оптико-электронный комплекс фенотипирования стресса растений</h1>
+                <div class="header-badges">
+                    <span class="badge-sirius">★ СИРИУС · БОЛЬШИЕ ВЫЗОВЫ 2025/2026</span>
+                    <span class="badge-track">🌾 АГРОПРОМЫШЛЕННЫЕ И БИОТЕХНОЛОГИИ</span>
+                    <span class="badge-author">👩‍🔬 Автор: Ковалева Алиса · 10 класс (СОШ №282 СПб)</span>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="status-online"><span class="pulsing-dot"></span> СТАНЦИЯ ОНЛАЙН</div>
+                <div class="station-hw">Orange Pi 4 Pro · sun60iw2</div>
+            </div>
+        </div>
+        <div class="header-subnote">
+            ⚠️ <b>Калибровочный испытательный стенд</b> (двухволновое стробирование Red 660 нм / NIR 850 нм + термография UTi120S)
         </div>
     </div>
 
     <!-- МЕТЕОРОЛОГИЧЕСКАЯ ПАНЕЛЬ МИКРОКЛИМАТА -->
     <div class="climate-bar">
-        <span>📡 <b>Сенсор климата:</b> <span style="color:#a78bfa;">Xiaomi Sensirion SHT30</span></span>
-        <span>🌡️ <b>T возд.:</b> <span style="color:#38bdf8; font-weight:bold;">{cur_t} °C</span></span>
-        <span>💧 <b>Влажность:</b> <span style="color:#34d399; font-weight:bold;">{cur_rh}%</span></span>
-        <span>🌬️ <b>VPD воздуха:</b> <span style="color:#fbbf24; font-weight:bold;">{cur_vpd} кПа</span></span>
-        <span>🔋 <b>Батарейка:</b> <span style="color:#94a3b8;">{cur_v} В</span></span>
+        <div class="clim-item">
+            <span class="clim-label">📡 Сенсор климата</span>
+            <span class="clim-val val-purple">Sensirion SHT30</span>
+        </div>
+        <div class="clim-divider"></div>
+        <div class="clim-item">
+            <span class="clim-label">🌡️ T воздуха</span>
+            <span class="clim-val val-cyan">{cur_t} °C</span>
+        </div>
+        <div class="clim-divider"></div>
+        <div class="clim-item">
+            <span class="clim-label">💧 Влажность RH</span>
+            <span class="clim-val val-teal">{cur_rh}%</span>
+        </div>
+        <div class="clim-divider"></div>
+        <div class="clim-item">
+            <span class="clim-label">🌬️ Дефицит VPD</span>
+            <span class="clim-val val-amber">{cur_vpd} кПа</span>
+        </div>
+        <div class="clim-divider"></div>
+        <div class="clim-item">
+            <span class="clim-label">🔋 Питание SHT30</span>
+            <span class="clim-val val-slate">{cur_v} В</span>
+        </div>
     </div>
 
     {status_banner}
@@ -879,22 +1228,22 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
         <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
-                <h2>Мультиспектральная матрица</h2>
+                <h2>🔬 Мультиспектральная матрица исследования</h2>
                 <div class="channels">
                     <div class="ch-box">
-                        <div style="color:#f87171;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 1: 660 нм (Red)</div>
+                        <div style="color:#ef4444; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:0.3px;">Канал 1: 660 нм (Deep Red)</div>
                         <img src="/static/last_red.jpg?t={t_now}" class="preview-img">
                     </div>
                     <div class="ch-box">
-                        <div style="color:#818cf8;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 2: 850 нм (NIR)</div>
+                        <div style="color:#818cf8; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:0.3px;">Канал 2: 850 нм (NIR Инфракрасный)</div>
                         <img src="/static/last_nir.jpg?t={t_now}" class="preview-img">
                     </div>
                     <div class="ch-box">
-                        <div style="color:#34d399;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 3: Карта NDVI (Сетка 3х3)</div>
+                        <div style="color:#2dd4bf; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:0.3px;">Канал 3: Карта NDVI (Сетка 3×3)</div>
                         <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img">
                     </div>
                     <div class="ch-box">
-                        <div style="color:#fbbf24;font-size:11px;font-weight:bold;margin-bottom:4px;">Канал 4: Термограмма (UTi120S)</div>
+                        <div style="color:#fbbf24; font-size:11px; font-weight:bold; margin-bottom:4px; letter-spacing:0.3px;">Канал 4: Термограмма (UNI-T UTi120S)</div>
                         <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img">
                     </div>
                 </div>
@@ -904,10 +1253,10 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
     <!-- НИЖНИЙ БЛОК: ЖУРНАЛ ИЗМЕРЕНИЙ НА ВСЮ ШИРИНУ -->
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 164, 153, 0.2); padding-bottom:8px; margin-bottom:12px;">
             <div style="display:flex; align-items:center; gap:12px;">
-                <h2 style="margin:0; font-size:16px; border:none; padding:0; color:#38bdf8;">📋 Журнал физиологических замеров</h2>
-                <span style="font-size:12px; color:#94a3b8; background:#0b1120; border:1px solid #334155; padding:2px 8px; border-radius:10px;">Записей в базе: <b>{len(rows)}</b></span>
+                <h2 style="margin:0; font-size:16px; border:none; padding:0; color:var(--sirius-teal-light);">📋 Журнал физиологических замеров</h2>
+                <span style="font-size:11px; color:#94a3b8; background:#080e1a; border:1px solid rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px;">Записей в базе: <b style="color:var(--sirius-teal-light);">{len(rows)}</b></span>
             </div>
             <div style="display:flex; gap:6px;">
                 <span style="background:#064e3b; color:#34d399; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; border:1px solid #059669;">🌱 Контроль</span>
@@ -915,7 +1264,7 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 <span style="background:#4c1d95; color:#c4b5fd; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; border:1px solid #7c3aed;">🧂 Соль (NaCl)</span>
             </div>
         </div>
-        <div style="max-height: 280px; overflow-y: auto; border: 1px solid #334155; border-radius: 8px;">
+        <div style="max-height: 280px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;">
             <table>
                 <thead>
                     <tr>
@@ -951,10 +1300,26 @@ def download_csv():
 
 @app.get('/download/pdf')
 def download_pdf():
-    pdf_path = os.path.join(STATIC_DIR, 'analysis_report.pdf')
+    pdf_path = os.path.join(STATIC_DIR, 'Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf')
+    if not os.path.exists(pdf_path):
+        pdf_path = os.path.join(STATIC_DIR, 'analysis_report.pdf')
     if os.path.exists(pdf_path):
-        return FileResponse(pdf_path, filename='Анализ_проделанной_работы_Комплекс_NDVI.pdf', media_type='application/pdf')
+        return FileResponse(pdf_path, filename='Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
     return HTMLResponse('Отчет пока не сформирован')
+
+@app.get('/download/paper')
+def download_paper():
+    pdf_path = os.path.join(STATIC_DIR, 'Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf')
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, filename='Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл работы не найден')
+
+@app.get('/download/presentation')
+def download_presentation():
+    pdf_path = os.path.join(STATIC_DIR, 'Презентация_Большие_Вызовы_Ковалева_Алиса.pdf')
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, filename='Презентация_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл презентации не найден')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 

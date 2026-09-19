@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="230mm" height="240mm" viewBox="0 0 230 240" version="1.1">
+<style>
+    .cut { stroke: #ff0000; stroke-width: 0.1; fill: none; } /* Красный: Резка */
+    .engrave { stroke: #0000ff; stroke-width: 0.1; fill: #0000ff; } /* Синий: Гравировка */
+    .engrave_line { stroke: #0000ff; stroke-width: 0.2; fill: none; }
+    .text_engrave { font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; fill: #0000ff; text-anchor: middle; }
+    .text_note { font-family: monospace; font-size: 3.8px; fill: #555555; }
+</style>
+<rect x="15" y="15" width="200.0" height="208.0" rx="2" class="cut"/>
+<text x="30" y="25" class="text_note">3. БОКОВАЯ СТЕНКА ЛЕВАЯ 200x208мм (С ЭМБЛЕМОЙ)</text>
+<rect x="23" y="19" width="4.5" height="200.0" rx="1" class="cut"/>
+<rect x="60" y="188.0" width="95" height="3" rx="1" class="cut"/>
+<rect x="60" y="195.0" width="95" height="3" rx="1" class="cut"/>
+<rect x="60" y="202.0" width="95" height="3" rx="1" class="cut"/>
+<g transform="translate(93.50, 47.00) scale(0.41045)">
+  <path d="M 75 135 L 70 135 L 68 137 L 67 139 L 68 143 L 59 152 L 56 154 L 51 154 L 49 156 L 48 158 L 48 160 L 49 162 L 50 163 L 52 164 L 55 164 L 57 163 L 59 161 L 59 156 L 70 145 L 75 145 L 78 142 L 78 139 L 77 137 Z M 54 156 L 56 158 L 56 160 L 54 162 L 52 161 L 51 158 Z M 73 137 L 75 139 L 75 141 L 72 143 L 70 141 L 70 139 Z M 93 115 L 91 117 L 90 119 L 90 121 L 91 123 L 94 126 L 94 144 L 106 156 L 122 156 L 126 160 L 130 160 L 132 159 L 133 157 L 133 152 L 131 150 L 128 149 L 125 150 L 122 153 L 107 153 L 97 143 L 97 126 L 101 122 L 101 119 L 100 117 L 98 115 Z M 127 152 L 129 152 L 131 155 L 129 157 L 127 157 L 125 154 Z M 96 117 L 98 119 L 98 121 L 95 123 L 93 121 L 93 119 Z M 99 100 L 96 103 L 96 108 L 98 110 L 101 111 L 104 110 L 112 118 L 112 123 L 113 125 L 116 126 L 118 127 L 120 126 L 122 124 L 122 120 L 121 117 L 119 116 L 115 117 L 106 108 L 106 103 L 105 101 L 103 100 Z M 116 119 L 120 120 L 120 122 L 118 124 L 115 123 L 114 121 Z M 100 103 L 102 103 L 104 106 L 102 108 L 100 108 L 98 105 Z M 77 99 L 74 97 L 68 99 L 67 104 L 59 111 L 59 119 L 39 140 L 35 140 L 31 143 L 31 148 L 35 151 L 39 150 L 41 148 L 41 142 L 44 138 L 61 121 L 61 113 L 68 107 L 71 108 L 71 123 L 59 135 L 54 135 L 51 138 L 51 143 L 35 159 L 12 159 L 8 163 L 3 163 L 1 164 L 0 171 L 2 173 L 8 173 L 10 171 L 10 165 L 14 161 L 37 161 L 53 145 L 59 145 L 62 141 L 61 137 L 73 125 L 73 109 L 75 107 L 77 107 L 83 113 L 83 150 L 91 159 L 90 162 L 92 166 L 95 167 L 99 166 L 101 163 L 100 158 L 97 156 L 93 157 L 86 149 L 86 112 L 78 104 Z M 5 165 L 8 168 L 7 170 L 4 171 L 2 168 Z M 94 159 L 98 160 L 97 164 L 93 163 Z M 35 143 L 37 143 L 39 146 L 37 148 L 35 148 L 33 145 Z M 57 137 L 59 139 L 59 141 L 56 143 L 54 141 L 54 139 Z M 71 100 L 75 101 L 74 105 L 70 104 Z M 47 87 L 47 90 L 62 91 L 62 95 L 82 95 L 83 90 L 98 90 L 98 87 Z M 51 76 L 51 85 L 94 85 L 94 76 Z M 89 57 L 84 59 L 76 63 L 75 73 L 78 72 L 89 67 Z M 57 57 L 56 66 L 58 68 L 61 69 L 70 73 L 69 63 Z M 89 45 L 87 45 L 75 51 L 75 60 L 77 59 L 79 59 L 89 54 Z M 56 45 L 56 53 L 58 55 L 68 60 L 70 60 L 69 50 L 63 47 L 58 45 Z M 89 32 L 85 34 L 83 34 L 75 38 L 75 47 L 77 47 L 86 42 L 89 41 Z M 56 32 L 57 42 L 59 43 L 61 43 L 68 47 L 70 47 L 70 38 L 58 32 Z M 83 8 L 83 26 L 89 26 L 89 8 Z M 56 8 L 56 26 L 62 26 L 62 8 Z M 70 0 L 70 34 L 75 34 L 75 0 Z" class="engrave" fill-rule="evenodd"/>
+</g>
+<text x="121.0" y="127.4179104477612" class="text_engrave" style="font-size:5.5px; letter-spacing:0.8px;">АГРОПРОМЫШЛЕННЫЕ</text>
+<text x="121.0" y="134.4179104477612" class="text_engrave" style="font-size:5.5px; letter-spacing:0.8px;">И БИОТЕХНОЛОГИИ</text>
+<line x1="76.0" y1="139.4179104477612" x2="166.0" y2="139.4179104477612" class="engrave_line"/>
+<text x="121.0" y="145.4179104477612" class="text_engrave" style="font-size:3.6px; letter-spacing:0.5px;">СИРИУС • БОЛЬШИЕ ВЫЗОВЫ</text>
+
+</svg>

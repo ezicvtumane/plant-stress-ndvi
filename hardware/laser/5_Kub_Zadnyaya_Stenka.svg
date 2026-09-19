@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240mm" height="240mm" viewBox="0 0 240 240" version="1.1">
+<style>
+    .cut { stroke: #ff0000; stroke-width: 0.1; fill: none; } /* Красный: Резка */
+    .engrave { stroke: #0000ff; stroke-width: 0.1; fill: #0000ff; } /* Синий: Гравировка */
+    .engrave_line { stroke: #0000ff; stroke-width: 0.2; fill: none; }
+    .text_engrave { font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; fill: #0000ff; text-anchor: middle; }
+    .text_note { font-family: monospace; font-size: 3.8px; fill: #555555; }
+</style>
+<rect x="15" y="15" width="208.0" height="208.0" rx="2" class="cut"/>
+<text x="23" y="27" class="text_note">5. ЗАДНЯЯ СТЕНКА (BACK) 208x208мм | Фанера 4мм</text>
+<circle cx="119.0" cy="198.0" r="8" class="cut"/> <!-- Датчик d=16мм -->
+<rect x="99.0" y="40" width="40" height="12" rx="3" class="cut"/>
+<text x="119.0" y="209.0" class="text_engrave" style="font-size:3.2px;">SENSOR PORT</text>
+<text x="119.0" y="36" class="text_engrave" style="font-size:3.2px;">DC &amp; USB CABLE PORT</text>
+
+</svg>
