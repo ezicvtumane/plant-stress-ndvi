@@ -141,13 +141,15 @@ plant-stress-ndvi/
 ├── src/
 │   ├── config.py              <- Константы, калибровочные коэффициенты, адреса шин
 │   ├── camera_v4l2.py         <- Захват кадров NoIR с ручной фиксацией экспозиции
-│   ├── relay_controller.py    <- Управление стробированной вспышкой 850/660 нм
+│   ├── relay_controller.py    <- Управление стробированной вспышкой 850/660 нм (PL4/PL7)
 │   ├── sensors_ads1115.py     <- Опрос АЦП ADS1115 и расчет влажности (0-100%)
-│   ├── ndvi_processor.py      <- Алгоритм вычитания фона, расчет NDVI и COLORMAP_JET
+│   ├── climate_sht30.py       <- Прецизионный микроклимат (Sensirion SHT30, VPD, T_air, RH)
+│   ├── ndvi_processor.py      <- Алгоритм вычитания фона, расчет NDVI и матрица 3х3
 │   ├── thermal_integration.py <- Обработка термограмм UNI-T UTi120S и Delta_T
 │   ├── statistical_analysis.py<- Анализ SciPy, доверительные интервалы, t-test (p < 0.01)
 │   ├── make_triptych.py       <- Сборка триптиха: RGB - NDVI - Термограмма
 │   └── run_pipeline.py        <- Главный исполняемый скрипт измерительного цикла
+├── web_station.py             <- Сессионная веб-станция оператора (FastAPI, OCR, порт 8000)
 └── tests/
     └── test_ndvi_math.py      <- Модульные тесты математических алгоритмов и калибровок
 ```
