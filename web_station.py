@@ -109,6 +109,20 @@ def format_ru_datetime(val) -> str:
             pass
     return val_str
 
+def format_group_badge(grp_name: str) -> str:
+    """Форматирует название группы в яркий отличительный бейдж."""
+    if not grp_name:
+        return '--'
+    grp_lower = grp_name.strip().lower()
+    if 'контр' in grp_lower or 'control' in grp_lower:
+        return f'<span style="background:#064e3b; color:#34d399; padding:3px 9px; border-radius:6px; font-weight:bold; border:1px solid #059669; font-size:11px; white-space:nowrap;">🌱 {grp_name}</span>'
+    elif 'засух' in grp_lower or 'drought' in grp_lower:
+        return f'<span style="background:#78350f; color:#fde68a; padding:3px 9px; border-radius:6px; font-weight:bold; border:1px solid #d97706; font-size:11px; white-space:nowrap;">🍂 {grp_name}</span>'
+    elif 'сол' in grp_lower or 'salin' in grp_lower:
+        return f'<span style="background:#4c1d95; color:#c4b5fd; padding:3px 9px; border-radius:6px; font-weight:bold; border:1px solid #7c3aed; font-size:11px; white-space:nowrap;">🧂 {grp_name}</span>'
+    else:
+        return f'<span style="background:#334155; color:#e2e8f0; padding:3px 9px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+
 def init_csv():
     if not os.path.exists(CSV_LOG):
         with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
@@ -636,7 +650,8 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
         th_stat = f'<span style="color:#10b981;font-weight:bold;">✓ {th_name}</span>' if th_name else '<span style="color:#f59e0b;">⏳ Ожидает</span>'
         ts_ru = format_ru_datetime(ts)
-        table_html += f'<tr><td><b>#{m_id}</b></td><td>{ts_ru}</td><td>{grp}</td><td><b style="color:#38bdf8;">{wt}</b></td><td>{t_air_str}</td><td><b style="color:#fbbf24;">{t_show}</b></td><td>{stress_badge}</td><td>{ndvi_txt}</td><td>{pct}</td><td>{th_stat}</td></tr>'
+        grp_badge = format_group_badge(grp)
+        table_html += f'<tr><td><b>#{m_id}</b></td><td>{ts_ru}</td><td>{grp_badge}</td><td><b style="color:#38bdf8;">{wt}</b></td><td>{t_air_str}</td><td><b style="color:#fbbf24;">{t_show}</b></td><td>{stress_badge}</td><td>{ndvi_txt}</td><td>{pct}</td><td>{th_stat}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
@@ -716,7 +731,14 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 </div>
             </div>
 
-            <h2 style="margin-top: 15px;">Журнал физиологических замеров</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; margin-bottom:8px;">
+                <h2 style="margin:0; font-size:16px;">Журнал физиологических замеров</h2>
+                <div style="display:flex; gap:6px;">
+                    <span style="background:#064e3b; color:#34d399; padding:2px 7px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #059669;">🌱 Контроль</span>
+                    <span style="background:#78350f; color:#fde68a; padding:2px 7px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #d97706;">🍂 Засуха</span>
+                    <span style="background:#4c1d95; color:#c4b5fd; padding:2px 7px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #7c3aed;">🧂 Соль (NaCl)</span>
+                </div>
+            </div>
             <div style="max-height: 220px; overflow-y: auto; border: 1px solid #334155; border-radius: 6px;">
                 <table>
                     <thead>
