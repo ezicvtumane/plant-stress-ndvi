@@ -1403,7 +1403,7 @@ def index(
                 '''
 
         wizard_card = f'''
-            <div class="card" style="border: 2px solid #3b82f6; background: #ffffff; height:100%; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between;">
+            <div class="card" style="border: 2px solid #3b82f6; background: #ffffff; box-sizing:border-box; margin:0;">
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
                         <div>
@@ -2111,70 +2111,33 @@ def index(
 
         table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td class="col-actions" style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
 
-    is_active_wizard = bool(
-        stage in ('batch_shoot', 'batch_await_thermal', 'batch_verify', 'review')
-        or (stage == 'batch_shoot' and BATCH_STATE.get('active'))
-        or (stage == 'review' and PENDING_SESSION)
-    )
-
-    if is_active_wizard:
-        grid_top_content = f'''
-            <div style="display:flex; flex-direction:column; height:100%;">
-                {wizard_card}
-            </div>
-            <div style="display:flex; flex-direction:column; gap:12px; height:100%;">
-                <div class="card" style="margin:0; padding:14px;">
-                    <h2 style="margin:0 0 8px 0; font-size:14px; border-bottom:1.5px solid #f1f5f9; padding-bottom:6px;">🔬 Мультиспектральная матрица исследования</h2>
-                    <div class="channels" style="gap:8px;">
-                        <div class="ch-box" style="padding:6px;">
-                            <div style="color:#dc2626; font-size:10px; font-weight:700; margin-bottom:2px;">Канал 1: 660 нм (Red)</div>
-                            <img src="/static/last_red.jpg?t={t_now}" class="preview-img" style="height:124px;">
-                        </div>
-                        <div class="ch-box" style="padding:6px;">
-                            <div style="color:#4f46e5; font-size:10px; font-weight:700; margin-bottom:2px;">Канал 2: 850 нм (NIR)</div>
-                            <img src="/static/last_nir.jpg?t={t_now}" class="preview-img" style="height:124px;">
-                        </div>
-                        <div class="ch-box" style="padding:6px;">
-                            <div style="color:#0d9488; font-size:10px; font-weight:700; margin-bottom:2px;">Канал 3: Карта NDVI (3×3)</div>
-                            <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img" style="height:124px;">
-                        </div>
-                        <div class="ch-box" style="padding:6px;">
-                            <div style="color:#d97706; font-size:10px; font-weight:700; margin-bottom:2px;">Канал 4: Термограмма UTi120S</div>
-                            <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img" style="height:124px;">
-                        </div>
-                    </div>
+    grid_top_content = f'''
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            {wizard_card}
+            {summary_card}
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; margin:0; justify-content:space-between;">
+            <h2>🔬 Мультиспектральная матрица исследования</h2>
+            <div class="channels" style="flex:1; gap:10px;">
+                <div class="ch-box">
+                    <div style="color:#dc2626; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 1: 660 нм (Deep Red)</div>
+                    <img src="/static/last_red.jpg?t={t_now}" class="preview-img" style="height:175px;">
                 </div>
-                {summary_card}
-            </div>
-        '''
-    else:
-        grid_top_content = f'''
-            <div style="display:flex; flex-direction:column; gap:12px;">
-                {wizard_card}
-                {summary_card}
-            </div>
-            <div class="card" style="display:flex; flex-direction:column; margin:0; justify-content:space-between;">
-                <h2>🔬 Мультиспектральная матрица исследования</h2>
-                <div class="channels" style="flex:1; gap:10px;">
-                    <div class="ch-box">
-                        <div style="color:#dc2626; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 1: 660 нм (Deep Red)</div>
-                        <img src="/static/last_red.jpg?t={t_now}" class="preview-img" style="height:175px;">
-                    </div>
-                    <div class="ch-box">
-                        <div style="color:#4f46e5; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 2: 850 нм (NIR Инфракрасный)</div>
-                        <img src="/static/last_nir.jpg?t={t_now}" class="preview-img" style="height:175px;">
-                    </div>
-                    <div class="ch-box">
-                        <div style="color:#0d9488; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 3: Карта NDVI (Сетка 3×3)</div>
-                        <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img" style="height:175px;">
-                    </div>
-                    <div class="ch-box">
-                        <div style="color:#d97706; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 4: Термограмма (UNI-T UTi120S)</div>
-                        <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img" style="height:175px;">
-                    </div>
+                <div class="ch-box">
+                    <div style="color:#4f46e5; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 2: 850 нм (NIR Инфракрасный)</div>
+                    <img src="/static/last_nir.jpg?t={t_now}" class="preview-img" style="height:175px;">
+                </div>
+                <div class="ch-box">
+                    <div style="color:#0d9488; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 3: Карта NDVI (Сетка 3×3)</div>
+                    <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img" style="height:175px;">
+                </div>
+                <div class="ch-box">
+                    <div style="color:#d97706; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 4: Термограмма (UNI-T UTi120S)</div>
+                    <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img" style="height:175px;">
                 </div>
             </div>
-        '''
+        </div>
+    '''
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
