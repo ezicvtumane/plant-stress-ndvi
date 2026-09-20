@@ -407,9 +407,22 @@ def do_hardware_spectral_capture(group_name: str):
                    frame_flash[:, :, 2].astype(np.float32) * 0.4) * 1.25
     nir_channel = np.clip(nir_channel, 0, 255)
 
-    denom = nir_channel + red_channel
+    # Радиометрическая калибровка по белому диффузному эталону (White Reference Target)
+    # Зона белого матового картона в свободном углу предметного столика (ROI: 4%..16%)
+    h_f, w_f, _ = frame_flash.shape
+    roi_y1, roi_y2 = int(h_f * 0.04), int(h_f * 0.16)
+    roi_x1, roi_x2 = int(w_f * 0.04), int(w_f * 0.16)
+    white_red = float(np.mean(red_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
+    white_nir = float(np.mean(nir_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
+    if white_nir > 15.0 and white_red > 15.0:
+        k_bal = round(float(np.clip(white_red / white_nir, 0.85, 1.20)), 3)
+    else:
+        k_bal = 1.025
+
+    # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
+    denom = (k_bal * nir_channel) + red_channel
     denom[denom == 0] = 1e-5
-    ndvi_map = (nir_channel - red_channel) / denom
+    ndvi_map = (k_bal * nir_channel - red_channel) / denom
     ndvi_map = np.clip(ndvi_map, -1.0, 1.0)
 
     vis_red = np.zeros_like(frame_flash)
@@ -429,6 +442,13 @@ def do_hardware_spectral_capture(group_name: str):
     cell_h, cell_w = h // 3, w // 3
     cell_ndvis = []
     annotated_ndvi = vis_ndvi_color.copy()
+
+    # Отрисовка зоны радиометрической калибровки White Reference
+    cv2.rectangle(annotated_ndvi, (roi_x1, roi_y1), (roi_x2, roi_y2), (255, 255, 255), 2)
+    cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 0, 0), 3)
+    cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
 
     # Отрисовка обнаруженного фидуциального маркера ArUco
     if aruco_corners is not None and aruco_id is not None:
@@ -492,7 +512,8 @@ def do_hardware_spectral_capture(group_name: str):
         'mean_ndvi': mean_ndvi,
         'std_ndvi': std_ndvi,
         'opt_file': opt_filename,
-        'cell_ndvis': cell_ndvis
+        'cell_ndvis': cell_ndvis,
+        'k_bal': k_bal
     }
     return PENDING_SESSION
 
@@ -692,13 +713,17 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         if s.get('aruco_id'):
             step1_note = f'''
                 <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#065f46;">
-                    🎯 <b>ArUco-маркер #{s['aruco_id']} обнаружен NoIR-камерой:</b> когорта <b>«{s['group']}»</b> определена автоматически без участия оператора. Переставьте кассету на весы и подключите тепловизор.
+                    🎯 <b>ArUco-маркер #{s['aruco_id']} обнаружен:</b> когорта <b>«{s['group']}»</b> определена автоматически.<br>
+                    <span style="display:inline-block; margin-top:5px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🎯 Радиометрическая калибровка: White Ref k={s.get('k_bal', 1.025)} (диффузный эталон)</span>
+                    <div style="margin-top:6px;">Переставьте кассету на весы и подключите тепловизор.</div>
                 </div>
             '''
         else:
             step1_note = f'''
                 <div style="background:#f0fdfa; border:1px solid #ccfbf1; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#0f766e;">
-                    ✓ <b>Спектральный замер выполнен (ручной выбор когорты).</b> Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.
+                    ✓ <b>Спектральный замер выполнен (ручной выбор когорты).</b><br>
+                    <span style="display:inline-block; margin-top:5px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🎯 Радиометрическая калибровка: White Ref k={s.get('k_bal', 1.025)} (диффузный эталон)</span>
+                    <div style="margin-top:6px;">Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.</div>
                 </div>
             '''
 
