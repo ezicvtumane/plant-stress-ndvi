@@ -59,23 +59,26 @@ XIAOMI_SENSOR_SID = '158d0001576282'
 # Текущая активная сессия одиночного замера
 PENDING_SESSION = None
 
+# Каталог всех 6 кассет двух этапов эксперимента
+CASSETTE_CATALOG = {
+    1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив', 'color': '#0d9488', 'stage': 'stage1'},
+    2: {'id': 2, 'name': 'Засуха', 'desc': '0 -> 96 ч без полива', 'color': '#f59e0b', 'stage': 'stage1'},
+    3: {'id': 3, 'name': 'Соль', 'desc': 'NaCl 1.0% Осмос', 'color': '#dc2626', 'stage': 'stage1'},
+    4: {'id': 4, 'name': 'Контроль (Этап 2)', 'desc': 'Параллельный эталон', 'color': '#0d9488', 'stage': 'stage2'},
+    5: {'id': 5, 'name': 'Раннее спасение', 'desc': 'Полив ~40 ч, сигнал станции', 'color': '#059669', 'stage': 'stage2'},
+    6: {'id': 6, 'name': 'Позднее спасение', 'desc': 'Полив ~72 ч, при увядании', 'color': '#b45309', 'stage': 'stage2'}
+}
+ARUCO_CASSETTE_MAP = {cid: data['name'] for cid, data in CASSETTE_CATALOG.items()}
+
 # Конфигурация двухэтапного пакетного замера (по 3 кассеты на этап)
 BATCH_CONFIG = {
     'stage1': {
         'title': 'Этап 1: Скрининг стрессов (Кассеты 1–3)',
-        'cassettes': [
-            {'idx': 0, 'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив', 'color': '#0d9488'},
-            {'idx': 1, 'id': 2, 'name': 'Засуха', 'desc': '0 -> 96 ч без полива', 'color': '#f59e0b'},
-            {'idx': 2, 'id': 3, 'name': 'Соль', 'desc': 'NaCl 1.0% Осмос', 'color': '#dc2626'}
-        ]
+        'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3]]
     },
     'stage2': {
         'title': 'Этап 2: Тест регидратации и спасения (Кассеты 4–6)',
-        'cassettes': [
-            {'idx': 0, 'id': 4, 'name': 'Контроль (Этап 2)', 'desc': 'Параллельный эталон', 'color': '#0d9488'},
-            {'idx': 1, 'id': 5, 'name': 'Раннее спасение', 'desc': 'Полив ~40 ч, сигнал станции', 'color': '#059669'},
-            {'idx': 2, 'id': 6, 'name': 'Позднее спасение', 'desc': 'Полив ~72 ч, при увядании', 'color': '#b45309'}
-        ]
+        'cassettes': [CASSETTE_CATALOG[4], CASSETTE_CATALOG[5], CASSETTE_CATALOG[6]]
     }
 }
 
@@ -268,40 +271,57 @@ def extract_temperature_from_thermal(img_path: str) -> float:
             return float(m.group(1).replace(',', '.'))
     except Exception as e:
         print('OCR Error:', e)
-ARUCO_CASSETTE_MAP = {
-    1: 'Контроль',
-    2: 'Засуха',
-    3: 'Соль',
-    4: 'Контроль (Этап 2)',
-    5: 'Раннее спасение',
-    6: 'Позднее спасение'
-}
-
 def detect_aruco_in_image(img_bgr):
     """
     Субпиксельное оптическое распознавание фидуциальных ArUco-маркеров кассеты.
     Возвращает (marker_id, group_name, corners).
     """
-    if not hasattr(cv2, 'aruco'):
+    if not hasattr(cv2, 'aruco') or img_bgr is None:
         return None, None, None
     try:
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-        aruco_dict = (
-            cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-            if hasattr(cv2.aruco, 'getPredefinedDictionary')
-            else cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
-        )
-        if hasattr(cv2.aruco, 'ArucoDetector'):
-            detector = cv2.aruco.ArucoDetector(aruco_dict)
-            corners, ids, _ = detector.detectMarkers(gray)
-        else:
-            params = cv2.aruco.DetectorParameters_create() if hasattr(cv2.aruco, 'DetectorParameters_create') else cv2.aruco.DetectorParameters()
-            corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=params)
+        dict_candidates = [
+            cv2.aruco.DICT_4X4_50,
+            cv2.aruco.DICT_4X4_100,
+            cv2.aruco.DICT_4X4_250,
+            cv2.aruco.DICT_5X5_50
+        ]
+        
+        # Подготовка вариантов изображения (оригинал и CLAHE контрастированный)
+        images_to_try = [gray]
+        try:
+            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+            images_to_try.append(clahe.apply(gray))
+        except Exception:
+            pass
 
-        if ids is not None and len(ids) > 0:
-            m_id = int(ids[0][0])
-            grp = ARUCO_CASSETTE_MAP.get(m_id, f'Кассета #{m_id}')
-            return m_id, grp, corners[0]
+        for d_type in dict_candidates:
+            aruco_dict = (
+                cv2.aruco.getPredefinedDictionary(d_type)
+                if hasattr(cv2.aruco, 'getPredefinedDictionary')
+                else cv2.aruco.Dictionary_get(d_type)
+            )
+            for img_trial in images_to_try:
+                if hasattr(cv2.aruco, 'ArucoDetector'):
+                    detector = cv2.aruco.ArucoDetector(aruco_dict)
+                    corners, ids, _ = detector.detectMarkers(img_trial)
+                else:
+                    params = cv2.aruco.DetectorParameters_create() if hasattr(cv2.aruco, 'DetectorParameters_create') else cv2.aruco.DetectorParameters()
+                    corners, ids, _ = cv2.aruco.detectMarkers(img_trial, aruco_dict, parameters=params)
+
+                if ids is not None and len(ids) > 0:
+                    for i_idx, id_arr in enumerate(ids):
+                        m_id = int(id_arr[0])
+                        if m_id in CASSETTE_CATALOG:
+                            grp = CASSETTE_CATALOG[m_id]['name']
+                            print(f"[ArUco Detected] Найдена кассета #{m_id}: {grp} (словарь {d_type})")
+                            return m_id, grp, corners[i_idx]
+                        elif 1 <= m_id <= 6:
+                            grp = ARUCO_CASSETTE_MAP.get(m_id, f'Кассета #{m_id}')
+                            return m_id, grp, corners[i_idx]
+                    m_id = int(ids[0][0])
+                    grp = ARUCO_CASSETTE_MAP.get(m_id, f'Кассета #{m_id}')
+                    return m_id, grp, corners[0]
     except Exception as e:
         print('[ArUco Detect Error]:', e)
     return None, None, None
@@ -649,7 +669,7 @@ def handle_cancel_batch():
 
 @app.post('/api/batch_capture_next')
 def handle_batch_capture_next(group_name: str = Form('')):
-    """Съемка очередной кассеты в боксе NoIR камерой (без подключения кабеля тепловизора)."""
+    """Съемка очередной кассеты в боксе NoIR камерой с авто-детекцией ArUco."""
     global BATCH_STATE
     if not BATCH_STATE.get('active'):
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -665,6 +685,7 @@ def handle_batch_capture_next(group_name: str = Form('')):
     
     try:
         session = do_hardware_spectral_capture(target_name)
+        session['shot_order'] = len(BATCH_STATE['sessions']) + 1
         BATCH_STATE['sessions'].append(session)
         BATCH_STATE['current_step'] = len(BATCH_STATE['sessions'])
         if len(BATCH_STATE['sessions']) >= len(cassettes):
@@ -677,7 +698,7 @@ def handle_batch_capture_next(group_name: str = Form('')):
 
 @app.post('/api/batch_link_thermal')
 def handle_batch_link_thermal():
-    """Считывание 3 последних термограмм с флешки тепловизора и авто-привязка к 3 кассетам."""
+    """Считывание 3 последних термограмм с флешки тепловизора и авто-привязка к 3 кассетам с сортировкой по ArUco."""
     global BATCH_STATE
     if not BATCH_STATE.get('active') or len(BATCH_STATE['sessions']) != 3:
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -687,11 +708,16 @@ def handle_batch_link_thermal():
     if len(files) < 3:
         return RedirectResponse(url=f'/?stage=batch_await_thermal&msg=err_thermal_count&found={len(files)}', status_code=303)
     
-    # Берем 3 самых свежих файла и сортируем хронологически: [0] = самый ранний (кассета 1), [2] = самый поздний (кассета 3)
+    # Берем 3 самых свежих файла и сортируем хронологически: [0] = самый ранний, [2] = самый поздний
     recent_3 = files[:3]
     recent_3.sort(key=os.path.getmtime)
     
-    verified_list = []
+    stage_key = BATCH_STATE.get('stage_key', 'stage1')
+    stage_cassettes = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])['cassettes']
+    stage_ids = [c['id'] for c in stage_cassettes]
+    
+    paired_items = []
+    used_ids = set()
     for i, s in enumerate(BATCH_STATE['sessions']):
         fp = recent_3[i]
         fname = os.path.basename(fp)
@@ -707,71 +733,106 @@ def handle_batch_link_thermal():
         
         t_ocr = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else round(s['t_air'] + 0.5, 1)
         
-        verified_list.append({
+        detected_id = s.get('aruco_id')
+        assigned_id = None
+        if detected_id and detected_id in stage_ids and detected_id not in used_ids:
+            assigned_id = detected_id
+            used_ids.add(assigned_id)
+        
+        paired_items.append({
             'session': s,
+            'shot_order': s.get('shot_order', i + 1),
             'thermal_filename': fname,
             'thermal_thumb': thumb_jpg,
             'thermal_thumb_url': f'/static/uti_cache/{thumb_jpg}',
             't_ocr': t_ocr,
-            'dt_str': format_ru_datetime(mtime)
+            'dt_str': format_ru_datetime(mtime),
+            'detected_id': detected_id,
+            'assigned_id': assigned_id
         })
     
-    BATCH_STATE['verified_data'] = verified_list
+    # Для кассет, где ArUco не найден или повторился, берем оставшиеся неиспользованные ID этапа
+    remaining_ids = [cid for cid in stage_ids if cid not in used_ids]
+    for item in paired_items:
+        if item['assigned_id'] is None:
+            if remaining_ids:
+                item['assigned_id'] = remaining_ids.pop(0)
+            else:
+                item['assigned_id'] = stage_ids[0]
+    
+    # АВТО-СОРТИРОВКА: Раскладываем пары строго по возрастанию ID кассеты (1 -> 2 -> 3 или 4 -> 5 -> 6)!
+    # Даже если оператор снял их в произвольном порядке (напр. 3 -> 1 -> 2),
+    # на экране верификации и в итоговой базе они встанут на свои законные места!
+    paired_items.sort(key=lambda x: x['assigned_id'])
+    
+    BATCH_STATE['verified_data'] = paired_items
     return RedirectResponse(url='/?stage=batch_verify', status_code=303)
 
 @app.post('/api/batch_save_final')
 def handle_batch_save_final(
-    weight_g_0: str = Form(''), t_leaf_0: str = Form(''),
-    weight_g_1: str = Form(''), t_leaf_1: str = Form(''),
-    weight_g_2: str = Form(''), t_leaf_2: str = Form('')
+    cassette_id_0: int = Form(1), weight_g_0: str = Form(''), t_leaf_0: str = Form(''),
+    cassette_id_1: int = Form(2), weight_g_1: str = Form(''), t_leaf_1: str = Form(''),
+    cassette_id_2: int = Form(3), weight_g_2: str = Form(''), t_leaf_2: str = Form('')
 ):
-    """Окончательное групповое сохранение всей триады кассет (3 замера разом)."""
+    """Окончательное групповое сохранение всей триады кассет с учетом выбранных/распознанных ID."""
     global BATCH_STATE
     if not BATCH_STATE.get('active') or not BATCH_STATE.get('verified_data') or len(BATCH_STATE['verified_data']) != 3:
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
     
+    cassette_ids = [cassette_id_0, cassette_id_1, cassette_id_2]
     weights = [weight_g_0, weight_g_1, weight_g_2]
     t_leafs = [t_leaf_0, t_leaf_1, t_leaf_2]
     
-    with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        for i, item in enumerate(BATCH_STATE['verified_data']):
-            s = item['session']
-            meas_id = s['id']
-            ts_display = s['timestamp']
-            group_name = s['group']
-            
-            w_val = weights[i].strip().replace(',', '.') if weights[i] else ''
-            t_l_val = t_leafs[i].strip().replace(',', '.') if t_leafs[i] else str(item['t_ocr'])
-            
-            delta_t_val = ''
-            if t_l_val:
-                try:
-                    dt = round(float(t_l_val) - float(s['t_air']), 1)
-                    delta_t_val = str(dt)
-                except Exception:
-                    pass
-            
-            # Сохранение термограммы
-            jpg_stored_name = ''
-            src_thumb = os.path.join(STATIC_DIR, 'uti_cache', item['thermal_thumb'])
-            if os.path.exists(src_thumb):
-                jpg_stored_name = f"therm_{meas_id}_{item['thermal_filename']}.jpg"
-                dst_path = os.path.join(STATIC_DIR, jpg_stored_name)
-                shutil.copyfile(src_thumb, dst_path)
-                if i == 2:
-                    shutil.copyfile(dst_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
-            
-            writer.writerow([
+    records_to_save = []
+    for i, item in enumerate(BATCH_STATE['verified_data']):
+        s = item['session']
+        cid = cassette_ids[i]
+        c_meta = CASSETTE_CATALOG.get(cid, {'name': f'Кассета #{cid}'})
+        group_name = c_meta['name']
+        meas_id = s['id']
+        ts_display = s['timestamp']
+        
+        w_val = weights[i].strip().replace(',', '.') if weights[i] else ''
+        t_l_val = t_leafs[i].strip().replace(',', '.') if t_leafs[i] else str(item['t_ocr'])
+        
+        delta_t_val = ''
+        if t_l_val:
+            try:
+                dt = round(float(t_l_val) - float(s['t_air']), 1)
+                delta_t_val = str(dt)
+            except Exception:
+                pass
+        
+        # Сохранение термограммы
+        jpg_stored_name = ''
+        src_thumb = os.path.join(STATIC_DIR, 'uti_cache', item['thermal_thumb'])
+        if os.path.exists(src_thumb):
+            jpg_stored_name = f"therm_{meas_id}_{item['thermal_filename']}.jpg"
+            dst_path = os.path.join(STATIC_DIR, jpg_stored_name)
+            shutil.copyfile(src_thumb, dst_path)
+            if i == 2:
+                shutil.copyfile(dst_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
+        
+        records_to_save.append({
+            'cid': cid,
+            'row': [
                 meas_id, ts_display, group_name, w_val,
                 s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
                 t_l_val, delta_t_val, s['vpd'],
                 s['mean_ndvi'], s['std_ndvi'],
                 s['opt_file'], jpg_stored_name,
                 *s['cell_ndvis']
-            ])
+            ]
+        })
+    
+    # Сортируем записи по ID кассеты перед сохранением в CSV
+    records_to_save.sort(key=lambda r: r['cid'])
+    
+    with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        for rec in records_to_save:
+            writer.writerow(rec['row'])
             
-    stage_title = BATCH_CONFIG[BATCH_STATE['stage_key']]['title']
     BATCH_STATE = {
         'active': False,
         'stage_key': 'stage1',
@@ -779,7 +840,7 @@ def handle_batch_save_final(
         'sessions': [],
         'verified_data': None
     }
-    return RedirectResponse(url=f'/?msg=batch_saved&stage_name={stage_title}', status_code=303)
+    return RedirectResponse(url='/?msg=batch_saved', status_code=303)
 
 
 def do_delete_measurement(meas_id: str):
@@ -890,33 +951,40 @@ def index(
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
         cassettes = conf['cassettes']
         step_idx = len(BATCH_STATE.get('sessions', []))
-        cur_cassette = cassettes[min(step_idx, len(cassettes)-1)]
 
         slots_html = ''
         for i, c in enumerate(cassettes):
             if i < step_idx:
                 s_done = BATCH_STATE['sessions'][i]
+                m_id = s_done.get('aruco_id')
+                grp_name = s_done.get('group', f'Кадр #{i+1}')
+                if m_id:
+                    badge = f'<span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">🏷️ ArUco #{m_id}</span>'
+                    slot_title = f"Кассета #{m_id}"
+                else:
+                    badge = '<span style="background:#fffbeb; color:#b45309; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">⚠️ Ручная</span>'
+                    slot_title = f"Кадр #{i+1}"
                 slots_html += f'''
                     <div style="flex:1; background:#ecfdf5; border:2px solid #10b981; border-radius:8px; padding:8px; text-align:center;">
-                        <span style="font-size:11px; color:#065f46; font-weight:bold; display:block;">✓ Кассета #{c["id"]}</span>
-                        <span style="font-size:11px; color:#047857; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c["name"]}</span>
-                        <span style="font-size:12px; color:#047857; font-weight:bold;">NDVI: {s_done.get("mean_ndvi", "--")}</span>
+                        <span style="font-size:11px; color:#065f46; font-weight:bold; display:block;">✓ Снято #{i+1}</span>
+                        <span style="font-size:12px; color:#047857; font-weight:bold; display:block;">{slot_title}</span>
+                        <span style="font-size:11px; color:#059669; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{grp_name}</span>
+                        {badge}
                     </div>
                 '''
             elif i == step_idx:
                 slots_html += f'''
                     <div style="flex:1; background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:8px; text-align:center; box-shadow:0 2px 8px rgba(59,130,246,0.25);">
                         <span style="font-size:11px; color:#1d4ed8; font-weight:bold; display:block;">👉 СЕЙЧАС В БОКСЕ</span>
-                        <span style="font-size:12px; color:#1e40af; font-weight:bold; display:block;">Кассета #{c["id"]}</span>
-                        <span style="font-size:11px; color:#2563eb; font-weight:bold;">{c["name"]}</span>
+                        <span style="font-size:12px; color:#1e40af; font-weight:bold; display:block;">Кадр #{step_idx + 1} из 3</span>
+                        <span style="font-size:11px; color:#2563eb; font-weight:bold;">Любая кассета</span>
                     </div>
                 '''
             else:
                 slots_html += f'''
                     <div style="flex:1; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; opacity:0.65;">
                         <span style="font-size:11px; color:#64748b; display:block;">Очередь #{i+1}</span>
-                        <span style="font-size:11px; color:#475569; font-weight:bold;">Кассета #{c["id"]}</span>
-                        <span style="font-size:10px; color:#64748b;">{c["name"]}</span>
+                        <span style="font-size:11px; color:#475569; font-weight:bold;">Кадр #{i+1}</span>
                     </div>
                 '''
 
@@ -927,7 +995,7 @@ def index(
                         <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер триады (без проводов)</span>
                         <h2 style="margin:2px 0 0 0; color:#1e40af; font-size:16px;">{conf["title"]}</h2>
                     </div>
-                    <span style="background:#dbeafe; color:#1e40af; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold;">Кассета {step_idx + 1} из 3</span>
+                    <span style="background:#dbeafe; color:#1e40af; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold;">Кадр {step_idx + 1} из 3</span>
                 </div>
 
                 <div style="display:flex; gap:8px; margin-bottom:14px;">
@@ -937,24 +1005,23 @@ def index(
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:14px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                         <h3 style="margin:0; font-size:15px; color:#0f172a;">
-                            Установите <span style="color:{cur_cassette['color']}">Кассету #{cur_cassette['id']} ({cur_cassette['name']})</span>
+                            Установите любую кассету в бокс (Кадр #{step_idx + 1} из 3)
                         </h3>
-                        <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">ArUco #{cur_cassette['id']}</span>
+                        <span style="background:#ecfdf5; color:#047857; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ Авто-распознавание ArUco</span>
                     </div>
                     <p style="margin:0 0 10px 0; font-size:12px; color:#64748b;">
-                        {cur_cassette["desc"]}
+                        <b>Порядок установки не имеет значения!</b> Станция оптически считает ArUco-маркер с кассеты при вспышке и автоматически упорядочит данные.
                     </p>
                     <ol style="margin:0; padding-left:18px; font-size:12px; color:#334155; line-height:1.6;">
-                        <li>Поставьте <b>Кассету #{cur_cassette['id']}</b> в бокс на упоры разметки.</li>
-                        <li>Нажмите синюю кнопку ниже: станция сделает спектральную вспышку NoIR и проверит ArUco-маркер.</li>
+                        <li>Поставьте очередную кассету в бокс на упоры разметки.</li>
+                        <li>Нажмите кнопку ниже: сработает спектральная вспышка NoIR и <b>станция считает ArUco-маркер</b>.</li>
                         <li>Сразу после вспышки сделайте снимок курком тепловизора UTi120S в руках.</li>
                     </ol>
                 </div>
 
                 <form action="/api/batch_capture_next" method="post">
-                    <input type="hidden" name="group_name" value="{cur_cassette['name']}">
                     <button type="submit" class="btn-run" style="width:100%; padding:14px; font-size:15px; background:linear-gradient(135deg, #2563eb, #0d9488); cursor:pointer;">
-                        📸 СНЯТЬ СПЕКТР КАССЕТЫ #{cur_cassette['id']} ({cur_cassette['name']})
+                        📸 СДЕЛАТЬ СНИМОК #{step_idx + 1} (Вспышка NoIR + распознавание ArUco)
                     </button>
                 </form>
 
@@ -968,15 +1035,18 @@ def index(
         # ПАКЕТНЫЙ ШАГ 2: Все 3 кассеты сняты NoIR, втыкаем кабель тепловизора ОДИН РАЗ
         stage_key = BATCH_STATE.get('stage_key', 'stage1')
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
-        cassettes = conf['cassettes']
 
         cards_summary = ''
-        for i, c in enumerate(cassettes):
-            s = BATCH_STATE['sessions'][i] if i < len(BATCH_STATE.get('sessions', [])) else {}
+        for i, s in enumerate(BATCH_STATE.get('sessions', [])):
+            m_id = s.get('aruco_id')
+            grp = s.get('group', f'Кадр #{i+1}')
+            m_badge = f'🏷️ ArUco #{m_id}' if m_id else '⚠️ Ручная привязка'
             cards_summary += f'''
                 <div style="flex:1; background:#ffffff; border:1px solid #a7f3d0; border-radius:8px; padding:10px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                    <span style="font-size:11px; color:#065f46; font-weight:bold; display:block;">Кассета #{c["id"]} ({c["name"]})</span>
-                    <span style="font-size:13px; color:#047857; font-weight:bold;">NDVI: {s.get("mean_ndvi", "--")}</span>
+                    <span style="font-size:10px; color:#64748b; display:block;">Снято #{i+1} по очереди</span>
+                    <span style="font-size:12px; color:#065f46; font-weight:bold; display:block;">{grp}</span>
+                    <span style="background:#e0f2fe; color:#0369a1; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; margin:2px 0;">{m_badge}</span>
+                    <div style="font-size:12px; color:#047857; font-weight:bold; margin-top:2px;">NDVI: {s.get("mean_ndvi", "--")}</div>
                     <img src="/static/{s.get('opt_file', 'last_ndvi.jpg')}?t={t_now}" style="height:65px; border-radius:4px; margin-top:6px; object-fit:cover; width:100%; border:1px solid #e2e8f0;">
                 </div>
             '''
@@ -998,13 +1068,13 @@ def index(
                         🔌 Вставьте USB-кабель тепловизора UTi120S в Orange Pi (один раз)!
                     </p>
                     <p style="margin:0; font-size:12px; color:#166534; line-height:1.4;">
-                        Станция считает 3 последних снимка с флешки тепловизора, выполнит Tesseract OCR температуры листа и автоматически привяжет их к кассетам.
+                        Станция считает 3 последних снимка с тепловизора, выполнит Tesseract OCR и автоматически расставит их по ArUco-номерам кассет.
                     </p>
                 </div>
 
                 <form action="/api/batch_link_thermal" method="post">
                     <button type="submit" class="btn-confirm" style="width:100%; padding:14px; font-size:15px; background:linear-gradient(135deg, #10b981, #0d9488); cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.35);">
-                        🔌 СЧИТАТЬ И СВЯЗАТЬ 3 СНИМКА ТЕПЛОВИЗОРА
+                        🔌 СЧИТАТЬ И ОТСОРТИРОВАТЬ 3 СНИМКА ТЕПЛОВИЗОРА
                     </button>
                 </form>
 
@@ -1015,7 +1085,7 @@ def index(
         '''
 
     elif stage == 'batch_verify' and BATCH_STATE.get('active') and BATCH_STATE.get('verified_data'):
-        # ПАКЕТНЫЙ ШАГ 3: Финальная верификация всей тройки кассет на одном экране
+        # ПАКЕТНЫЙ ШАГ 3: Финальная верификация всей тройки кассет, отсортированной по ArUco
         stage_key = BATCH_STATE.get('stage_key', 'stage1')
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
         verified = BATCH_STATE.get('verified_data', [])
@@ -1023,20 +1093,40 @@ def index(
         items_html = ''
         for i, item in enumerate(verified):
             s = item['session']
-            c_info = conf['cassettes'][i]
+            assigned_id = item['assigned_id']
+            detected_id = item.get('detected_id')
+            shot_order = item.get('shot_order', i + 1)
+            c_info = CASSETTE_CATALOG.get(assigned_id, {'id': assigned_id, 'name': s.get('group', 'Кассета'), 'color': '#0d9488'})
+
+            if detected_id:
+                marker_badge = f'<span style="background:#ecfdf5; color:#065f46; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ ArUco #{detected_id} распознан (снята #{shot_order}-й)</span>'
+            else:
+                marker_badge = f'<span style="background:#fffbeb; color:#b45309; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #fde68a;">⚠️ ArUco не найден (снята #{shot_order}-й)</span>'
+
+            # Выпадающий список выбора когорты (на случай ручной коррекции)
+            options_html = ''
+            for cid, cdata in CASSETTE_CATALOG.items():
+                sel = 'selected' if cid == assigned_id else ''
+                options_html += f'<option value="{cid}" {sel}>Кассета #{cid}: {cdata["name"]}</option>'
+
             items_html += f'''
                 <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:8px;">
-                        <span style="font-weight:bold; font-size:14px; color:{c_info['color']};">Кассета #{c_info['id']}: {c_info['name']}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-weight:bold; font-size:13px; color:#334155;">Когорта:</label>
+                            <select name="cassette_id_{i}" style="padding:4px 8px; font-size:13px; font-weight:bold; color:{c_info['color']}; border:1.5px solid #94a3b8; border-radius:6px; background:#f8fafc;">
+                                {options_html}
+                            </select>
+                        </div>
                         <div style="display:flex; gap:6px; align-items:center;">
-                            <span style="background:#ecfdf5; color:#047857; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:bold;">NDVI: {s['mean_ndvi']}</span>
-                            <span style="background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:bold;">White Ref k={s.get('k_bal', 1.025)}</span>
+                            {marker_badge}
+                            <span style="background:#ecfdf5; color:#047857; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold;">NDVI: {s['mean_ndvi']}</span>
                         </div>
                     </div>
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
                         <div style="text-align:center;">
-                            <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">Спектр NoIR</span>
+                            <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">Спектр NoIR (кадр #{shot_order})</span>
                             <img src="/static/{s['opt_file']}?t={t_now}" style="width:100%; height:85px; object-fit:cover; border-radius:6px; border:1px solid #e2e8f0;">
                         </div>
                         <div style="text-align:center;">
@@ -1061,7 +1151,7 @@ def index(
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); background: #f8fafc;">
                 <div style="border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
-                    <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Финальная верификация триады</span>
+                    <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Финальная верификация триады (отсортировано по ArUco)</span>
                     <h2 style="margin:2px 0 0 0; color:var(--sirius-teal-dark); font-size:16px;">{conf["title"]}</h2>
                 </div>
 
