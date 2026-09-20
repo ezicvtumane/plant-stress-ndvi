@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="240.2mm" height="240.2mm" viewBox="0 0 240.2 240.2" version="1.1">
+
+<style>
+    .cut { stroke: #ff0000; stroke-width: 0.1; fill: none; } /* Красный: Резка (Cut) */
+    .engrave { stroke: #0000ff; stroke-width: 0.05; fill: #0000ff; } /* Синий: Заливка/гравировка (Fill) */
+    .engrave_line { stroke: #0000ff; stroke-width: 0.2; fill: none; } /* Синий: Контурная гравировка (Line) */
+    .text_engrave { font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; fill: #0000ff; text-anchor: middle; }
+    .text_note { font-family: monospace; font-size: 3.8px; fill: #555555; }
+</style>
+
+<g transform="translate(-222.20, 0.00)">
+<path d="M 240.400 216.100 V 220.000 H 236.600 V 212.200 H 240.400 V 216.100 Z" class="cut"/>
+<path d="M 240.400 200.100 V 204.000 H 236.600 V 196.200 H 240.400 V 200.100 Z" class="cut"/>
+<path d="M 240.400 184.100 V 188.000 H 236.600 V 180.200 H 240.400 V 184.100 Z" class="cut"/>
+<path d="M 240.400 168.100 V 172.000 H 236.600 V 164.200 H 240.400 V 168.100 Z" class="cut"/>
+<path d="M 240.400 152.100 V 156.000 H 236.600 V 148.200 H 240.400 V 152.100 Z" class="cut"/>
+<path d="M 240.400 136.100 V 140.000 H 236.600 V 132.200 H 240.400 V 136.100 Z" class="cut"/>
+<path d="M 240.400 120.100 V 124.000 H 236.600 V 116.200 H 240.400 V 120.100 Z" class="cut"/>
+<path d="M 240.400 104.100 V 108.000 H 236.600 V 100.200 H 240.400 V 104.100 Z" class="cut"/>
+<path d="M 240.400 88.100 V 92.000 H 236.600 V 84.200 H 240.400 V 88.100 Z" class="cut"/>
+<path d="M 240.400 72.100 V 76.000 H 236.600 V 68.200 H 240.400 V 72.100 Z" class="cut"/>
+<path d="M 240.400 56.100 V 60.000 H 236.600 V 52.200 H 240.400 V 56.100 Z" class="cut"/>
+<path d="M 240.400 40.100 V 44.000 H 236.600 V 36.200 H 240.400 V 40.100 Z" class="cut"/>
+<path d="M 240.400 24.100 V 28.000 H 236.600 V 20.200 H 240.400 V 24.100 Z" class="cut"/>
+<path d="M 236.300 230.200 H 448.300 H 452.300 C 452.355 230.200 452.400 230.155 452.400 230.100 V 226.100 V 14.100 V 10.100 C 452.400 10.045 452.355 10.000 452.300 10.000 H 448.300 H 236.300 H 232.300 C 232.245 10.000 232.200 10.045 232.200 10.100 V 14.100 V 226.100 V 230.100 C 232.200 230.155 232.245 230.200 232.300 230.200 H 236.300 Z" class="cut"/>
+<path d="M 444.200 24.100 V 20.200 H 448.000 V 28.000 H 444.200 V 24.100 Z" class="cut"/>
+<path d="M 444.200 40.100 V 36.200 H 448.000 V 44.000 H 444.200 V 40.100 Z" class="cut"/>
+<path d="M 444.200 56.100 V 52.200 H 448.000 V 60.000 H 444.200 V 56.100 Z" class="cut"/>
+<path d="M 444.200 72.100 V 68.200 H 448.000 V 76.000 H 444.200 V 72.100 Z" class="cut"/>
+<path d="M 444.200 88.100 V 84.200 H 448.000 V 92.000 H 444.200 V 88.100 Z" class="cut"/>
+<path d="M 444.200 104.100 V 100.200 H 448.000 V 108.000 H 444.200 V 104.100 Z" class="cut"/>
+<path d="M 444.200 120.100 V 116.200 H 448.000 V 124.000 H 444.200 V 120.100 Z" class="cut"/>
+<path d="M 444.200 136.100 V 132.200 H 448.000 V 140.000 H 444.200 V 136.100 Z" class="cut"/>
+<path d="M 444.200 152.100 V 148.200 H 448.000 V 156.000 H 444.200 V 152.100 Z" class="cut"/>
+<path d="M 444.200 168.100 V 164.200 H 448.000 V 172.000 H 444.200 V 168.100 Z" class="cut"/>
+<path d="M 444.200 184.100 V 180.200 H 448.000 V 188.000 H 444.200 V 184.100 Z" class="cut"/>
+<path d="M 444.200 200.100 V 196.200 H 448.000 V 204.000 H 444.200 V 200.100 Z" class="cut"/>
+<path d="M 444.200 216.100 V 212.200 H 448.000 V 220.000 H 444.200 V 216.100 Z" class="cut"/>
+
+<text x="342.3" y="22" class="text_note" text-anchor="middle">КРЫШКА С ОПТИКОЙ (TOP LID) 220x220мм</text>
+<circle cx="342.3" cy="95.1" r="8.5" class="cut"/> <!-- Окно NoIR d=17мм -->
+<circle cx="331.8" cy="88.85" r="1.3" class="cut"/> <!-- Крепеж M2.5 -->
+<circle cx="352.8" cy="88.85" r="1.3" class="cut"/> <!-- Крепеж M2.5 -->
+<circle cx="331.8" cy="101.35" r="1.3" class="cut"/> <!-- Крепеж M2.5 -->
+<circle cx="352.8" cy="101.35" r="1.3" class="cut"/> <!-- Крепеж M2.5 -->
+<text x="342.3" y="83.1" class="text_engrave" style="font-size:3.5px;">NoIR CAMERA</text>
+<circle cx="342.3" cy="145.1" r="13" class="cut"/> <!-- Сенсор UTi120S d=26мм -->
+<rect x="326.3" y="127.1" width="32" height="36" rx="5" class="cut"/> <!-- Окно прибора -->
+<text x="342.3" y="169.1" class="text_engrave" style="font-size:3.5px;">UTi120S THERMAL</text>
+<circle cx="292.3" cy="120.1" r="10" class="cut"/> <!-- Звезда 20мм -->
+<circle cx="292.3" cy="112.1" r="1.5" class="cut"/> <!-- Отверстия винтов/проводов -->
+<circle cx="292.3" cy="128.1" r="1.5" class="cut"/>
+<text x="292.3" y="108.1" class="text_engrave" style="font-size:3.5px;">660 nm RED</text>
+<circle cx="392.3" cy="120.1" r="10" class="cut"/> <!-- Звезда 20мм -->
+<circle cx="392.3" cy="112.1" r="1.5" class="cut"/> <!-- Отверстия винтов/проводов -->
+<circle cx="392.3" cy="128.1" r="1.5" class="cut"/>
+<text x="392.3" y="108.1" class="text_engrave" style="font-size:3.5px;">850 nm NIR</text>
+<circle cx="397.3" cy="65.1" r="17" class="cut"/> <!-- Кулер 4010 d=34мм -->
+<circle cx="381.3" cy="49.099999999999994" r="1.6" class="cut"/> <!-- M3 -->
+<circle cx="413.3" cy="49.099999999999994" r="1.6" class="cut"/> <!-- M3 -->
+<circle cx="381.3" cy="81.1" r="1.6" class="cut"/> <!-- M3 -->
+<circle cx="413.3" cy="81.1" r="1.6" class="cut"/> <!-- M3 -->
+<text x="397.3" y="46.099999999999994" class="text_engrave" style="font-size:3.0px;">FAN 4010</text>
+<rect x="267.3" y="55.099999999999994" width="28" height="12" rx="3" class="cut"/> <!-- Кабель-канал -->
+<text x="281.3" y="52.099999999999994" class="text_engrave" style="font-size:3.0px;">CABLES</text>
+
+</g>
+</svg>
