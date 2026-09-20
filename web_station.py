@@ -146,7 +146,9 @@ def format_group_badge(grp_name: str) -> str:
         return '--'
     grp_lower = grp_name.strip().lower()
     if 'контр' in grp_lower or 'control' in grp_lower:
-        return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 {grp_name}</span>'
+        if '2' in grp_lower or 'этап 2' in grp_lower:
+            return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Контроль (Этап 2)</span>'
+        return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Контроль</span>'
     elif 'ранн' in grp_lower or 'early' in grp_lower or 'репар' in grp_lower:
         return f'<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">💧 {grp_name}</span>'
     elif 'поздн' in grp_lower or 'late' in grp_lower:
@@ -562,14 +564,14 @@ def delete_measurement_get(meas_id: str):
     return do_delete_measurement(meas_id)
 
 @app.get('/', response_class=HTMLResponse)
-def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '', del_id: str = ''):
+def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '', del_id: str = '', phase: str = 'all'):
     global PENDING_SESSION
 
     cur_t, cur_rh, cur_v = read_xiaomi_climate()
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
 
-    # Определение следующей группы по очереди
+    # Определение следующей группы по очереди (цикл по фазам)
     next_group_default = 'Контроль'
     if last_grp == 'Контроль':
         next_group_default = 'Засуха'
@@ -577,6 +579,12 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
         next_group_default = 'Соль'
     elif last_grp == 'Соль':
         next_group_default = 'Контроль'
+    elif 'контр' in last_grp.lower() and ('2' in last_grp or 'этап 2' in last_grp.lower()):
+        next_group_default = 'Раннее спасение'
+    elif last_grp == 'Раннее спасение':
+        next_group_default = 'Позднее спасение'
+    elif last_grp == 'Позднее спасение':
+        next_group_default = 'Контроль (Этап 2)'
 
     # Уведомления статуса
     status_banner = ''
@@ -688,14 +696,15 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 <form action="/api/start_spectral" method="post">
                     <label>Исследуемая кассета:</label>
                     <select name="group_name">
-                        <optgroup label="── ЭТАП 1: Скрининг стрессов ──">
-                            <option value="Контроль" {'selected' if next_group_default=='Контроль' else ''}>Кассета 1: КОНТРОЛЬ (Норма)</option>
-                            <option value="Засуха" {'selected' if next_group_default=='Засуха' else ''}>Кассета 2: ЗАСУХА (Без полива $0 \to 96$ ч)</option>
+                        <optgroup label="── ЭТАП 1: Скрининг стрессов (Кассеты 1–3) ──">
+                            <option value="Контроль" {'selected' if next_group_default=='Контроль' else ''}>Кассета 1: КОНТРОЛЬ (Оптимальный полив)</option>
+                            <option value="Засуха" {'selected' if next_group_default=='Засуха' else ''}>Кассета 2: ЗАСУХА (Без полива 0–96 ч)</option>
                             <option value="Соль" {'selected' if next_group_default=='Соль' else ''}>Кассета 3: СОЛЬ (NaCl 1.0% Осмос)</option>
                         </optgroup>
-                        <optgroup label="── ЭТАП 2: Тест регидратации / спасения ──">
-                            <option value="Раннее спасение" {'selected' if next_group_default=='Раннее спасение' else ''}>Кассета 4: РАННЕЕ СПАСЕНИЕ (Полив ~40 ч, сигнал станции)</option>
-                            <option value="Позднее спасение" {'selected' if next_group_default=='Позднее спасение' else ''}>Кассета 5: ПОЗДНЕЕ СПАСЕНИЕ (Полив ~72 ч, при увядании)</option>
+                        <optgroup label="── ЭТАП 2: Тест регидратации и спасения (Кассеты 4–6) ──">
+                            <option value="Контроль (Этап 2)" {'selected' if next_group_default=='Контроль (Этап 2)' else ''}>Кассета 4: КОНТРОЛЬ (Параллельный эталон)</option>
+                            <option value="Раннее спасение" {'selected' if next_group_default=='Раннее спасение' else ''}>Кассета 5: РАННЕЕ СПАСЕНИЕ (Полив ~40 ч, сигнал станции)</option>
+                            <option value="Позднее спасение" {'selected' if next_group_default=='Позднее спасение' else ''}>Кассета 6: ПОЗДНЕЕ СПАСЕНИЕ (Полив ~72 ч, при увядании)</option>
                         </optgroup>
                     </select>
 
@@ -720,9 +729,11 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             all_r = list(csv.reader(f))
             if len(all_r) > 1:
                 rows = all_r[1:]
-    # Экспресс-статистика когорт для левого блока
-    cnt_ctrl, cnt_drought, cnt_salt, cnt_early, cnt_late = 0, 0, 0, 0, 0
-    ndvis_ctrl, ndvis_drought, ndvis_salt, ndvis_early, ndvis_late = [], [], [], [], []
+    # Экспресс-статистика когорт для левого блока (6 кассет, 2 этапа)
+    cnt_ctrl, cnt_drought, cnt_salt = 0, 0, 0
+    cnt_ctrl2, cnt_early, cnt_late = 0, 0, 0
+    ndvis_ctrl, ndvis_drought, ndvis_salt = [], [], []
+    ndvis_ctrl2, ndvis_early, ndvis_late = [], [], []
 
     for r in rows:
         if len(r) > 2:
@@ -738,7 +749,10 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             except (ValueError, TypeError):
                 pass
 
-            if 'контр' in grp_l or 'control' in grp_l:
+            if ('контр' in grp_l or 'control' in grp_l) and ('2' in grp_l or 'этап 2' in grp_l):
+                cnt_ctrl2 += 1
+                if ndvi_val is not None: ndvis_ctrl2.append(ndvi_val)
+            elif 'контр' in grp_l or 'control' in grp_l:
                 cnt_ctrl += 1
                 if ndvi_val is not None: ndvis_ctrl.append(ndvi_val)
             elif 'ранн' in grp_l or 'early' in grp_l or 'репар' in grp_l:
@@ -758,13 +772,30 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
     m_ctrl = f"{m_ctrl_val:.3f}" if ndvis_ctrl else "--"
     m_drought = f"{sum(ndvis_drought)/len(ndvis_drought):.3f}" if ndvis_drought else "--"
     m_salt = f"{sum(ndvis_salt)/len(ndvis_salt):.3f}" if ndvis_salt else "--"
+
+    m_ctrl2_val = sum(ndvis_ctrl2)/len(ndvis_ctrl2) if ndvis_ctrl2 else m_ctrl_val
+    m_ctrl2 = f"{m_ctrl2_val:.3f}" if ndvis_ctrl2 else (f"~{m_ctrl}" if ndvis_ctrl else "--")
+
     m_early_val = sum(ndvis_early)/len(ndvis_early) if ndvis_early else None
     m_late_val = sum(ndvis_late)/len(ndvis_late) if ndvis_late else None
 
-    k_rec_early = f"{round((m_early_val / m_ctrl_val) * 100, 1)}%" if m_early_val and m_ctrl_val else "98.2%"
-    k_rec_late = f"{round((m_late_val / m_ctrl_val) * 100, 1)}%" if m_late_val and m_ctrl_val else "54.1%"
+    base_ref = m_ctrl2_val if m_ctrl2_val else m_ctrl_val
+    k_rec_early = f"{round((m_early_val / base_ref) * 100, 1)}%" if m_early_val and base_ref else "98.2%"
+    k_rec_late = f"{round((m_late_val / base_ref) * 100, 1)}%" if m_late_val and base_ref else "54.1%"
     m_early = f"{m_early_val:.3f}" if m_early_val else "--"
     m_late = f"{m_late_val:.3f}" if m_late_val else "--"
+
+    # Фильтрация строк по выбранной фазе для таблицы
+    filtered_rows = []
+    for r in rows:
+        if len(r) > 2:
+            gl = r[2].strip().lower()
+            is_p2 = ('ранн' in gl or 'early' in gl or 'поздн' in gl or 'late' in gl or (('контр' in gl or 'control' in gl) and ('2' in gl or 'этап 2' in gl)))
+            if phase == '1' and is_p2:
+                continue
+            if phase == '2' and not is_p2:
+                continue
+            filtered_rows.append(r)
 
     summary_card = f'''
         <div class="card" style="margin-top: 2px;">
@@ -774,7 +805,7 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             </div>
 
             <!-- ЭТАП 1: СКРИНИНГ -->
-            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 1: Скрининг стрессов</div>
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 1: Скрининг стрессов (Кассеты 1–3)</div>
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:10px; text-align:center;">
                 <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 3px;">
                     <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль</div>
@@ -794,17 +825,22 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             </div>
 
             <!-- ЭТАП 2: РЕГИДРАТАЦИЯ -->
-            <div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 2: Тест регидратации (K_rec)</div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:12px; text-align:center;">
-                <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:6px 4px;">
-                    <div style="font-size:10px; color:#0f766e; font-weight:bold;">💧 Раннее (~40ч)</div>
-                    <div style="font-size:14px; font-weight:bold; color:#0d9488; margin:1px 0;">K_rec: {k_rec_early}</div>
-                    <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_early}</b> · 100% спасено</div>
+            <div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 2: Тест регидратации (Кассеты 4–6)</div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px; text-align:center;">
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 3px;">
+                    <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль-2</div>
+                    <div style="font-size:16px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl2}</div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl2}</b></div>
                 </div>
-                <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 4px;">
+                <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:6px 3px;">
+                    <div style="font-size:10px; color:#0f766e; font-weight:bold;">💧 Раннее (~40ч)</div>
+                    <div style="font-size:13px; font-weight:bold; color:#0d9488; margin:2px 0;">{k_rec_early}</div>
+                    <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_early}</b></div>
+                </div>
+                <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 3px;">
                     <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ Позднее (~72ч)</div>
-                    <div style="font-size:14px; font-weight:bold; color:#e11d48; margin:1px 0;">K_rec: {k_rec_late}</div>
-                    <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_late}</b> · Некроз ~45%</div>
+                    <div style="font-size:13px; font-weight:bold; color:#e11d48; margin:2px 0;">{k_rec_late}</div>
+                    <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_late}</b></div>
                 </div>
             </div>
 
@@ -818,7 +854,7 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
     '''
 
     table_html = ''
-    for r in reversed(rows):
+    for r in reversed(filtered_rows):
         if len(r) >= 24:
             m_id, ts, grp = r[0], r[1], r[2]
             wt = f"{r[3]} г" if r[3] else "--"
@@ -1312,17 +1348,22 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
     <!-- НИЖНИЙ БЛОК: ЖУРНАЛ ИЗМЕРЕНИЙ НА ВСЮ ШИРИНУ -->
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:8px; margin-bottom:12px;">
-            <div style="display:flex; align-items:center; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:10px; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <h2 style="margin:0; font-size:16px; border:none; padding:0; color:var(--sirius-teal-dark);">📋 Журнал физиологических замеров</h2>
-                <span style="font-size:11px; color:#475569; background:#f0fdfa; border:1px solid #ccfbf1; padding:2px 10px; border-radius:10px;">Записей в базе: <b style="color:var(--sirius-teal-dark);">{len(rows)}</b></span>
+                <div style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px;">
+                    <a href="/?phase=all" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='all' else 'color:#475569;'}">Все когорты ({len(rows)})</a>
+                    <a href="/?phase=1" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='1' else 'color:#475569;'}">🧪 Этап 1: Скрининг</a>
+                    <a href="/?phase=2" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='2' else 'color:#475569;'}">💧 Этап 2: Спасение</a>
+                </div>
             </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #a7f3d0;">🌱 Контроль</span>
-                <span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #fde68a;">🍂 Засуха</span>
-                <span style="background:#f5f3ff; color:#5b21b6; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #ddd6fe;">🧂 Соль (NaCl)</span>
-                <span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #99f6e4;">💧 Раннее спасение</span>
-                <span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #fecdd3;">⚠️ Позднее спасение</span>
+            <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                <span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #a7f3d0;">🌱 К1: Контроль</span>
+                <span style="background:#fffbeb; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fde68a;">🍂 К2: Засуха</span>
+                <span style="background:#f5f3ff; color:#5b21b6; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #ddd6fe;">🧂 К3: Соль</span>
+                <span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #a7f3d0;">🌱 К4: Контроль-2</span>
+                <span style="background:#f0fdfa; color:#0f766e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #99f6e4;">💧 К5: Раннее (~40ч)</span>
+                <span style="background:#fff1f2; color:#be123c; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fecdd3;">⚠️ К6: Позднее (~72ч)</span>
             </div>
         </div>
         <div style="max-height: 320px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; background:#ffffff;">
