@@ -66,9 +66,9 @@ CASSETTE_CATALOG = {
     1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив', 'color': '#0d9488', 'stage': 'stage1'},
     2: {'id': 2, 'name': 'Засуха', 'desc': '0 -> 96 ч без полива', 'color': '#f59e0b', 'stage': 'stage1'},
     3: {'id': 3, 'name': 'Соль', 'desc': 'NaCl 1.0% Осмос', 'color': '#dc2626', 'stage': 'stage1'},
-    4: {'id': 4, 'name': 'Контроль (Этап 2)', 'desc': 'Параллельный эталон', 'color': '#0d9488', 'stage': 'stage2'},
-    5: {'id': 5, 'name': 'Раннее спасение', 'desc': 'Полив ~40 ч, сигнал станции', 'color': '#059669', 'stage': 'stage2'},
-    6: {'id': 6, 'name': 'Позднее спасение', 'desc': 'Полив ~72 ч, при увядании', 'color': '#b45309', 'stage': 'stage2'}
+    4: {'id': 4, 'name': 'Эталон (Оптимум)', 'desc': 'Параллельный эталон', 'color': '#0d9488', 'stage': 'stage2'},
+    5: {'id': 5, 'name': 'Репарация (~40ч)', 'desc': 'Полив ~40 ч, сигнал станции', 'color': '#059669', 'stage': 'stage2'},
+    6: {'id': 6, 'name': 'Критический стресс (~72ч)', 'desc': 'Полив ~72 ч, при увядании', 'color': '#b45309', 'stage': 'stage2'}
 }
 ARUCO_CASSETTE_MAP = {cid: data['name'] for cid, data in CASSETTE_CATALOG.items()}
 
@@ -79,7 +79,7 @@ BATCH_CONFIG = {
         'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3]]
     },
     'stage2': {
-        'title': 'Этап 2: Тест регидратации и спасения (Кассеты 4–6)',
+        'title': 'Этап 2: Тест регидратации и репарации (Кассеты 4–6)',
         'cassettes': [CASSETTE_CATALOG[4], CASSETTE_CATALOG[5], CASSETTE_CATALOG[6]]
     }
 }
@@ -189,14 +189,14 @@ def format_group_badge(grp_name: str) -> str:
     if not grp_name:
         return '--'
     grp_lower = grp_name.strip().lower()
-    if 'контр' in grp_lower or 'control' in grp_lower:
-        if '2' in grp_lower or 'этап 2' in grp_lower:
-            return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Контроль (Этап 2)</span>'
-        return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Контроль</span>'
-    elif 'ранн' in grp_lower or 'early' in grp_lower or 'репар' in grp_lower:
-        return f'<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">💧 {grp_name}</span>'
-    elif 'поздн' in grp_lower or 'late' in grp_lower:
-        return f'<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">⚠️ {grp_name}</span>'
+    if 'эталон' in grp_lower or 'оптимум' in grp_lower or (('контр' in grp_lower or 'control' in grp_lower) and ('2' in grp_lower or 'этап 2' in grp_lower)):
+        return '<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Эталон (Оптимум)</span>'
+    elif 'контр' in grp_lower or 'control' in grp_lower:
+        return '<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Контроль</span>'
+    elif 'репар' in grp_lower or 'ранн' in grp_lower or 'early' in grp_lower:
+        return '<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">💧 Репарация (~40ч)</span>'
+    elif 'критич' in grp_lower or 'поздн' in grp_lower or 'late' in grp_lower:
+        return '<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">⚠️ Критический стресс (~72ч)</span>'
     elif 'засух' in grp_lower or 'drought' in grp_lower:
         return f'<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">🍂 {grp_name}</span>'
     elif 'сол' in grp_lower or 'salin' in grp_lower:
@@ -1292,12 +1292,12 @@ def index(
         next_group_default = 'Соль'
     elif last_grp == 'Соль':
         next_group_default = 'Контроль'
-    elif 'контр' in last_grp.lower() and ('2' in last_grp or 'этап 2' in last_grp.lower()):
-        next_group_default = 'Раннее спасение'
-    elif last_grp == 'Раннее спасение':
-        next_group_default = 'Позднее спасение'
-    elif last_grp == 'Позднее спасение':
-        next_group_default = 'Контроль (Этап 2)'
+    elif 'эталон' in last_grp.lower() or ('контр' in last_grp.lower() and ('2' in last_grp or 'этап 2' in last_grp.lower())):
+        next_group_default = 'Репарация (~40ч)'
+    elif 'репар' in last_grp.lower() or 'ранн' in last_grp.lower():
+        next_group_default = 'Критический стресс (~72ч)'
+    elif 'критич' in last_grp.lower() or 'поздн' in last_grp.lower():
+        next_group_default = 'Эталон (Оптимум)'
 
     # Уведомления статуса
     raw_banner = ''
@@ -1445,9 +1445,9 @@ def index(
                                     <option value="1">🌱 Кассета #1: Контроль (Этап 1)</option>
                                     <option value="2">🍂 Кассета #2: Засуха (Этап 1)</option>
                                     <option value="3">🧂 Кассета #3: Соль (Этап 1)</option>
-                                    <option value="4">🌱 Кассета #4: Контроль (Этап 2)</option>
-                                    <option value="5">💧 Кассета #5: Раннее спасение (Этап 2)</option>
-                                    <option value="6">⏳ Кассета #6: Позднее спасение (Этап 2)</option>
+                                    <option value="4">🌱 Кассета #4: Эталон (Оптимум)</option>
+                                    <option value="5">💧 Кассета #5: Репарация (~40ч)</option>
+                                    <option value="6">⚠️ Кассета #6: Критический стресс (~72ч)</option>
                                 </select>
                             </div>
 
@@ -1820,7 +1820,7 @@ def index(
                         <span style="font-size:20px; display:block; margin-bottom:4px;">🌱</span>
                         <b style="font-size:14px; display:block;">ЭТАП 2: РЕГИДРАТАЦИЯ</b>
                         <span style="font-size:11px; opacity:0.95; display:block; margin-top:3px;">Кассеты 4, 5, 6</span>
-                        <span style="font-size:10px; opacity:0.85; display:block; margin-top:2px;">Контроль-2 • Раннее • Позднее</span>
+                        <span style="font-size:10px; opacity:0.85; display:block; margin-top:2px;">Эталон • Репарация • Крит. стресс</span>
                     </a>
                 </div>
 
@@ -1837,9 +1837,9 @@ def index(
                                 <option value="Соль">Кассета 3: СОЛЬ (NaCl 1.0%)</option>
                             </optgroup>
                             <optgroup label="── ЭТАП 2: Спасение и регидратация ──">
-                                <option value="Контроль (Этап 2)">Кассета 4: КОНТРОЛЬ-2</option>
-                                <option value="Раннее спасение">Кассета 5: РАННЕЕ СПАСЕНИЕ</option>
-                                <option value="Позднее спасение">Кассета 6: ПОЗДНЕЕ СПАСЕНИЕ</option>
+                                <option value="Эталон (Оптимум)">Кассета 4: ЭТАЛОН (ОПТИМУМ)</option>
+                                <option value="Репарация (~40ч)">Кассета 5: РЕПАРАЦИЯ (~40ч)</option>
+                                <option value="Критический стресс (~72ч)">Кассета 6: КРИТИЧЕСКИЙ СТРЕСС (~72ч)</option>
                             </optgroup>
                         </select>
                         <button type="submit" class="btn-run" style="padding:10px; font-size:13px;">
@@ -1877,16 +1877,16 @@ def index(
             except (ValueError, TypeError):
                 pass
 
-            if ('контр' in grp_l or 'control' in grp_l) and ('2' in grp_l or 'этап 2' in grp_l):
+            if 'эталон' in grp_l or 'оптимум' in grp_l or (('контр' in grp_l or 'control' in grp_l) and ('2' in grp_l or 'этап 2' in grp_l)):
                 cnt_ctrl2 += 1
                 if ndvi_val is not None: ndvis_ctrl2.append(ndvi_val)
             elif 'контр' in grp_l or 'control' in grp_l:
                 cnt_ctrl += 1
                 if ndvi_val is not None: ndvis_ctrl.append(ndvi_val)
-            elif 'ранн' in grp_l or 'early' in grp_l or 'репар' in grp_l:
+            elif 'репар' in grp_l or 'ранн' in grp_l or 'early' in grp_l:
                 cnt_early += 1
                 if ndvi_val is not None: ndvis_early.append(ndvi_val)
-            elif 'поздн' in grp_l or 'late' in grp_l:
+            elif 'критич' in grp_l or 'поздн' in grp_l or 'late' in grp_l:
                 cnt_late += 1
                 if ndvi_val is not None: ndvis_late.append(ndvi_val)
             elif 'засух' in grp_l or 'drought' in grp_l:
@@ -1918,7 +1918,7 @@ def index(
     for r in rows:
         if len(r) > 2:
             gl = r[2].strip().lower()
-            is_p2 = ('ранн' in gl or 'early' in gl or 'поздн' in gl or 'late' in gl or (('контр' in gl or 'control' in gl) and ('2' in gl or 'этап 2' in gl)))
+            is_p2 = ('репар' in gl or 'ранн' in gl or 'early' in gl or 'критич' in gl or 'поздн' in gl or 'late' in gl or 'эталон' in gl or 'оптимум' in gl or (('контр' in gl or 'control' in gl) and ('2' in gl or 'этап 2' in gl)))
             if phase == '1' and is_p2:
                 continue
             if phase == '2' and not is_p2:
@@ -1957,20 +1957,20 @@ def index(
 
                 <!-- ЭТАП 2: РЕГИДРАТАЦИЯ -->
                 <div>
-                    <div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 2: Тест регидратации (Кассеты 4–6)</div>
+                    <div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 2: Тест регидратации и репарации (Кассеты 4–6)</div>
                     <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center;">
                         <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль-2</div>
+                            <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Эталон (Оптимум)</div>
                             <div style="font-size:15px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl2}</div>
                             <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl2}</b></div>
                         </div>
                         <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#0f766e; font-weight:bold;">💧 Раннее (~40ч)</div>
+                            <div style="font-size:10px; color:#0f766e; font-weight:bold;">💧 Репарация (~40ч)</div>
                             <div style="font-size:13px; font-weight:bold; color:#0d9488; margin:2px 0;">{k_rec_early}</div>
                             <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_early}</b></div>
                         </div>
                         <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ Позднее (~72ч)</div>
+                            <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ Крит. стресс (~72ч)</div>
                             <div style="font-size:13px; font-weight:bold; color:#e11d48; margin:2px 0;">{k_rec_late}</div>
                             <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_late}</b></div>
                         </div>
@@ -2600,16 +2600,16 @@ def index(
                 <div style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px;">
                     <a href="/?phase=all" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='all' else 'color:#475569;'}">Все когорты ({len(rows)})</a>
                     <a href="/?phase=1" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='1' else 'color:#475569;'}">🧪 Этап 1: Скрининг</a>
-                    <a href="/?phase=2" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='2' else 'color:#475569;'}">💧 Этап 2: Спасение</a>
+                    <a href="/?phase=2" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='2' else 'color:#475569;'}">💧 Этап 2: Репарация</a>
                 </div>
             </div>
             <div style="display:flex; gap:5px; flex-wrap:wrap;">
                 <span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #a7f3d0;">🌱 К1: Контроль</span>
                 <span style="background:#fffbeb; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fde68a;">🍂 К2: Засуха</span>
                 <span style="background:#f5f3ff; color:#5b21b6; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #ddd6fe;">🧂 К3: Соль</span>
-                <span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #a7f3d0;">🌱 К4: Контроль-2</span>
-                <span style="background:#f0fdfa; color:#0f766e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #99f6e4;">💧 К5: Раннее (~40ч)</span>
-                <span style="background:#fff1f2; color:#be123c; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fecdd3;">⚠️ К6: Позднее (~72ч)</span>
+                <span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #a7f3d0;">🌱 К4: Эталон (Оптимум)</span>
+                <span style="background:#f0fdfa; color:#0f766e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #99f6e4;">💧 К5: Репарация (~40ч)</span>
+                <span style="background:#fff1f2; color:#be123c; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fecdd3;">⚠️ К6: Критический стресс (~72ч)</span>
             </div>
         </div>
         <div style="max-height: 320px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; background:#ffffff;">
