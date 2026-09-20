@@ -786,12 +786,12 @@ def handle_cancel_batch():
 
 @app.post('/api/batch_capture_next')
 def handle_batch_capture_next(
-    group_name: str = Form(''),
+    cohort_choice: str = Form('auto'),
     weight_g: str = Form(''),
     t_leaf: str = Form(''),
     pct_soil: str = Form('64.0')
 ):
-    """Съемка очередной кассеты в боксе NoIR камерой с авто-детекцией ArUco, защитой от дубликатов и фиксацией замеров."""
+    """Съемка очередной кассеты в боксе NoIR камерой с авто-детекцией ArUco, мягкими предупреждениями и ручным выбором когорты."""
     global BATCH_STATE
     if not BATCH_STATE.get('active'):
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -802,35 +802,47 @@ def handle_batch_capture_next(
     if step >= len(cassettes):
         return RedirectResponse(url='/?stage=batch_await_thermal', status_code=303)
     
-    default_name = cassettes[step]['name']
-    target_name = group_name.strip() if group_name.strip() else default_name
+    expected_cassette = cassettes[step]
+    
+    # 1. Если оператор выбрал когорту вручную из списка — используем её
+    manual_mode = (cohort_choice != 'auto' and cohort_choice.strip().isdigit())
+    if manual_mode:
+        chosen_id = int(cohort_choice)
+        c_meta = CASSETTE_CATALOG.get(chosen_id, {'id': chosen_id, 'name': f'Кассета #{chosen_id}'})
+        target_name = c_meta['name']
+    else:
+        chosen_id = None
+        target_name = expected_cassette['name']
     
     try:
         session = do_hardware_spectral_capture(target_name)
         detected_id = session.get('aruco_id')
+        warn_query = ''
 
-        # 1. ЗАЩИТА: ПРОВЕРКА НА ДУБЛИКАТ В ТЕКУЩЕЙ СЕРИИ ИЗ 3 КАССЕТ
-        if detected_id is not None:
-            for past_s in BATCH_STATE['sessions']:
-                if past_s.get('aruco_id') == detected_id:
-                    grp_name = session.get('group', f'Кассета #{detected_id}')
-                    print(f"[ArUco Warning] Заблокирован дубликат маркера #{detected_id} ({grp_name})")
-                    return RedirectResponse(
-                        url=f"/?stage=batch_shoot&msg=err_duplicate_aruco&dup_id={detected_id}&dup_name={grp_name}",
-                        status_code=303
-                    )
+        if manual_mode:
+            # Ручной выбор оператора имеет абсолютный приоритет над компьютерным зрением
+            session['aruco_id'] = chosen_id
+            session['group'] = CASSETTE_CATALOG.get(chosen_id, {}).get('name', f'Кассета #{chosen_id}')
+        else:
+            # Режим авто-детекции по маркеру ArUco
+            if detected_id is not None:
+                grp_name = CASSETTE_CATALOG.get(detected_id, {}).get('name', f'Кассета #{detected_id}')
+                session['group'] = grp_name
+                
+                # Мягкое предупреждение: если маркер уже встречался в серии
+                is_dup = any(past_s.get('aruco_id') == detected_id for past_s in BATCH_STATE['sessions'])
+                if is_dup:
+                    warn_query = f'&msg=warn_duplicate_aruco&dup_id={detected_id}&dup_name={grp_name}'
+                elif detected_id not in [c['id'] for c in cassettes]:
+                    exp_str = ', '.join(str(c['id']) for c in cassettes)
+                    warn_query = f'&msg=warn_wrong_stage_aruco&wrong_id={detected_id}&expected={exp_str}'
+            else:
+                # Мягкий fallback: маркер не распознался (закрыт листом, поврежден, темно)
+                session['aruco_id'] = expected_cassette['id']
+                session['group'] = expected_cassette['name']
+                warn_query = f"&msg=warn_no_aruco&exp_id={expected_cassette['id']}&exp_name={expected_cassette['name']}"
 
-        # 2. ЗАЩИТА: ПРОВЕРКА СООТВЕТСТВИЯ ВЫБРАННОМУ ЭТАПУ
-        stage_ids = [c['id'] for c in cassettes]
-        if detected_id is not None and detected_id not in stage_ids:
-            exp_str = ', '.join(str(i) for i in stage_ids)
-            print(f"[ArUco Warning] Маркер #{detected_id} не входит в текущий этап {stage_ids}")
-            return RedirectResponse(
-                url=f"/?stage=batch_shoot&msg=err_wrong_stage_aruco&wrong_id={detected_id}&expected={exp_str}",
-                status_code=303
-            )
-
-        # 3. ФИКСАЦИЯ РУЧНЫХ ЗАМЕРОВ ДЛЯ ЭТОЙ КАССЕТЫ
+        # 2. Фиксация введенных ручных параметров
         session['user_weight'] = weight_g.strip().replace(',', '.') if weight_g.strip() else ''
         session['user_t_leaf'] = t_leaf.strip().replace(',', '.') if t_leaf.strip() else ''
         session['user_pct_soil'] = pct_soil.strip().replace(',', '.') if pct_soil.strip() else '64.0'
@@ -838,10 +850,13 @@ def handle_batch_capture_next(
 
         BATCH_STATE['sessions'].append(session)
         BATCH_STATE['current_step'] = len(BATCH_STATE['sessions'])
+
         if len(BATCH_STATE['sessions']) >= len(cassettes):
-            return RedirectResponse(url='/?stage=batch_await_thermal', status_code=303)
+            next_stage = 'batch_await_thermal'
         else:
-            return RedirectResponse(url='/?stage=batch_shoot', status_code=303)
+            next_stage = 'batch_shoot'
+
+        return RedirectResponse(url=f'/?stage={next_stage}{warn_query}', status_code=303)
     except Exception as e:
         print('[Batch Capture Error]:', e)
         return RedirectResponse(url='/?stage=batch_shoot&msg=err_camera', status_code=303)
@@ -915,8 +930,12 @@ def handle_batch_link_thermal():
     return RedirectResponse(url='/?stage=batch_verify', status_code=303)
 
 @app.post('/api/batch_save_manual')
-def handle_batch_save_manual():
-    """Мгновенное сохранение всей триады кассет с введенными ручными данными (экспресс-финиш без проводов)."""
+def handle_batch_save_manual(
+    cassette_id_0: int = Form(None), weight_g_0: str = Form(''), pct_soil_0: str = Form(''), t_leaf_0: str = Form(''),
+    cassette_id_1: int = Form(None), weight_g_1: str = Form(''), pct_soil_1: str = Form(''), t_leaf_1: str = Form(''),
+    cassette_id_2: int = Form(None), weight_g_2: str = Form(''), pct_soil_2: str = Form(''), t_leaf_2: str = Form('')
+):
+    """Мгновенное сохранение всей триады кассет с подтвержденными ручными данными (экспресс-финиш без проводов)."""
     global BATCH_STATE
     if not BATCH_STATE.get('active') or len(BATCH_STATE['sessions']) != 3:
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -925,38 +944,29 @@ def handle_batch_save_manual():
     stage_cassettes = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])['cassettes']
     stage_ids = [c['id'] for c in stage_cassettes]
 
-    paired_items = []
-    used_ids = set()
-    for i, s in enumerate(BATCH_STATE['sessions']):
-        detected_id = s.get('aruco_id')
-        assigned_id = None
-        if detected_id and detected_id in stage_ids and detected_id not in used_ids:
-            assigned_id = detected_id
-            used_ids.add(assigned_id)
-        paired_items.append({'session': s, 'assigned_id': assigned_id})
-
-    remaining_ids = [cid for cid in stage_ids if cid not in used_ids]
-    for item in paired_items:
-        if item['assigned_id'] is None:
-            item['assigned_id'] = remaining_ids.pop(0) if remaining_ids else stage_ids[0]
-
-    paired_items.sort(key=lambda x: x['assigned_id'])
+    form_cids = [cassette_id_0, cassette_id_1, cassette_id_2]
+    form_weights = [weight_g_0, weight_g_1, weight_g_2]
+    form_pcts = [pct_soil_0, pct_soil_1, pct_soil_2]
+    form_tleafs = [t_leaf_0, t_leaf_1, t_leaf_2]
 
     records_to_save = []
-    for item in paired_items:
-        s = item['session']
-        cid = item['assigned_id']
-        c_meta = CASSETTE_CATALOG.get(cid, {'name': s.get('group', f'Кассета #{cid}')})
+    for i, s in enumerate(BATCH_STATE['sessions']):
+        # Приоритет выбора: подтвержденный ID из формы -> распознанный ArUco -> кассета по умолчанию этапа
+        cid = form_cids[i] if (i < len(form_cids) and form_cids[i] is not None) else s.get('aruco_id')
+        if not cid or cid not in CASSETTE_CATALOG:
+            cid = stage_ids[i] if i < len(stage_ids) else 1
+
+        c_meta = CASSETTE_CATALOG.get(cid, {'name': f'Кассета #{cid}'})
         group_name = c_meta['name']
         meas_id = s['id']
         ts_display = s['timestamp']
 
-        w_val = s.get('user_weight', '')
-        t_l_val = s.get('user_t_leaf', '')
+        w_val = form_weights[i].strip().replace(',', '.') if (i < len(form_weights) and form_weights[i].strip()) else s.get('user_weight', '')
+        t_l_val = form_tleafs[i].strip().replace(',', '.') if (i < len(form_tleafs) and form_tleafs[i].strip()) else s.get('user_t_leaf', '')
         if not t_l_val:
             t_l_val = str(round(float(s['t_air']), 1))
 
-        pct_s = s.get('user_pct_soil', '64.0')
+        pct_s = form_pcts[i].strip().replace(',', '.') if (i < len(form_pcts) and form_pcts[i].strip()) else s.get('user_pct_soil', '64.0')
         try:
             ps = float(pct_s)
             s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
@@ -972,19 +982,25 @@ def handle_batch_save_manual():
             except Exception:
                 pass
 
-        records_to_save.append([
-            meas_id, ts_display, group_name, w_val,
-            s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
-            t_l_val, delta_t_val, s['vpd'],
-            s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
-            s['opt_file'], '',
-            *s['cell_ndvis']
-        ])
+        records_to_save.append({
+            'cid': cid,
+            'row': [
+                meas_id, ts_display, group_name, w_val,
+                s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+                t_l_val, delta_t_val, s['vpd'],
+                s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
+                s['opt_file'], '',
+                *s['cell_ndvis']
+            ]
+        })
+
+    # Сортируем записи по ID кассеты перед записью в журнал (Контроль, Засуха, Соль)
+    records_to_save.sort(key=lambda x: x['cid'])
 
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        for row in records_to_save:
-            writer.writerow(row)
+        for r in records_to_save:
+            writer.writerow(r['row'])
 
     stage_name = 'Этап 1 (Скрининг)' if stage_key == 'stage1' else 'Этап 2 (Регидратация)'
     BATCH_STATE = {
@@ -1258,7 +1274,9 @@ def index(
     dup_id: str = '',
     dup_name: str = '',
     wrong_id: str = '',
-    expected: str = ''
+    expected: str = '',
+    exp_id: str = '',
+    exp_name: str = ''
 ):
     global PENDING_SESSION, BATCH_STATE
 
@@ -1312,6 +1330,17 @@ def index(
         f_cnt = found if found else '0'
         raw_banner = f'⚠️ На тепловизоре обнаружено только {f_cnt} снимка(ов). Сделайте щелчок курком для всех 3 кассет и убедитесь, что USB-кабель подключен.'
         banner_bg = '#ef4444'
+    elif msg == 'warn_duplicate_aruco':
+        d_name_str = f' ({dup_name})' if dup_name else ''
+        raw_banner = f'⚠️ Внимание: маркер #{dup_id}{d_name_str} уже встречался в этой серии! Кадр принят. При необходимости выберите другую кассету ниже.'
+        banner_bg = '#f59e0b'
+    elif msg == 'warn_no_aruco':
+        e_str = exp_name if exp_name else f'Кассета #{exp_id}'
+        raw_banner = f'⚠️ ArUco-маркер не считался (закрыт листом или поврежден). Замер принят и назначен как «{e_str}». При необходимости измените кассету.'
+        banner_bg = '#f59e0b'
+    elif msg == 'warn_wrong_stage_aruco':
+        raw_banner = f'⚠️ Предупреждение: маркер #{wrong_id} из другого этапа (ожидались кассеты: {expected}). Кадр принят, проверьте назначение кассеты.'
+        banner_bg = '#f59e0b'
     elif msg == 'err_duplicate_aruco':
         d_name_str = f' ({dup_name})' if dup_name else ''
         raw_banner = f'⛔ ЗАБЛОКИРОВАН ДУБЛИКАТ: Кассета с ArUco #{dup_id}{d_name_str} УЖЕ была снята в этой серии! Вы забыли заменить кассету на упорах. Пожалуйста, смените кассету.'
@@ -1406,6 +1435,24 @@ def index(
 
                 <form action="/api/batch_capture_next" method="post">
                     <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:12px; font-weight:bold; color:#1e40af; display:block; margin-bottom:4px;">
+                                🏷️ Кассета (когорта):
+                            </label>
+                            <select name="cohort_choice" style="width:100%; padding:8px 10px; font-size:13px; font-weight:bold; border:1.5px solid #3b82f6; border-radius:6px; background:#eff6ff; color:#1e40af;">
+                                <option value="auto" selected>🎯 Автоматически (распознать по ArUco-маркеру)</option>
+                                <option value="1">🌱 Кассета #1: Контроль (Этап 1)</option>
+                                <option value="2">🍂 Кассета #2: Засуха (Этап 1)</option>
+                                <option value="3">🧂 Кассета #3: Соль (Этап 1)</option>
+                                <option value="4">🌱 Кассета #4: Контроль (Этап 2)</option>
+                                <option value="5">💧 Кассета #5: Раннее спасение (Этап 2)</option>
+                                <option value="6">⏳ Кассета #6: Позднее спасение (Этап 2)</option>
+                            </select>
+                            <span style="font-size:11px; color:#64748b; display:block; margin-top:3px;">
+                                По умолчанию станция считает маркер сама. Если маркер стерт, помят или не читается — выберите кассету вручную.
+                            </span>
+                        </div>
+
                         <span style="font-size:11px; font-weight:bold; color:#334155; text-transform:uppercase; display:block; margin-bottom:8px;">
                             📝 Физиологические параметры для кадра #{step_idx + 1} (вводятся сразу при замере):
                         </span>
@@ -1445,17 +1492,52 @@ def index(
         for i, s in enumerate(BATCH_STATE.get('sessions', [])):
             m_id = s.get('aruco_id')
             grp = s.get('group', f'Кадр #{i+1}')
-            m_badge = f'🏷️ ArUco #{m_id}' if m_id else '⚠️ Ручная привязка'
-            w_disp = f"{s.get('user_weight')} г" if s.get('user_weight') else "--"
-            t_disp = f"{s.get('user_t_leaf')} °C" if s.get('user_t_leaf') else "--"
+            m_badge = f'<span style="background:#ecfdf5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">🏷️ ArUco #{m_id}</span>' if m_id else '<span style="background:#fffbeb; color:#b45309; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">⚠️ Ручная</span>'
+            
+            # Генерация options для выпадающего списка выбора когорты
+            options_html = ''
+            for cid, cdata in CASSETTE_CATALOG.items():
+                sel = 'selected' if cid == m_id else ''
+                options_html += f'<option value="{cid}" {sel}>#{cid}: {cdata["name"]}</option>'
+                
+            w_val = s.get('user_weight', '')
+            t_val = s.get('user_t_leaf', '')
+            p_val = s.get('user_pct_soil', '64.0')
+            
             cards_summary += f'''
-                <div style="flex:1; background:#ffffff; border:1px solid #a7f3d0; border-radius:8px; padding:10px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                    <span style="font-size:10px; color:#64748b; display:block;">Кассета #{i+1}</span>
-                    <span style="font-size:12px; color:#065f46; font-weight:bold; display:block;">{grp}</span>
-                    <span style="background:#e0f2fe; color:#0369a1; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; margin:2px 0;">{m_badge}</span>
-                    <div style="font-size:11px; color:#0f766e; margin-top:3px;"><b>⚖️ {w_disp}</b> · <b>🌡️ {t_disp}</b></div>
-                    <div style="font-size:11px; color:#047857; font-weight:bold; margin-top:2px;">NDVI: {s.get("mean_ndvi", "--")} · PLA: {s.get("leaf_area_cm2", "--")} см²</div>
-                    <img src="/static/{s.get('opt_file', 'last_ndvi.jpg')}?t={t_now}" style="height:65px; border-radius:4px; margin-top:6px; object-fit:cover; width:100%; border:1px solid #e2e8f0;">
+                <div style="flex:1; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:11px; color:#64748b; font-weight:bold;">Кадр #{i+1}</span>
+                        {m_badge}
+                    </div>
+                    
+                    <div style="margin-bottom:8px;">
+                        <label style="font-size:10px; font-weight:bold; color:#1e40af; display:block; margin-bottom:2px;">Когорта / Кассета:</label>
+                        <select name="cassette_id_{i}" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1.5px solid #94a3b8; border-radius:6px; background:#f8fafc;">
+                            {options_html}
+                        </select>
+                    </div>
+
+                    <img src="/static/{s.get('opt_file', 'last_ndvi.jpg')}?t={t_now}" style="height:68px; border-radius:4px; object-fit:cover; width:100%; border:1px solid #e2e8f0; margin-bottom:6px;">
+                    
+                    <div style="font-size:11px; color:#047857; font-weight:bold; text-align:center; margin-bottom:8px;">
+                        NDVI: {s.get("mean_ndvi", "--")} · PLA: {s.get("leaf_area_cm2", "--")} см²
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <div>
+                            <label style="font-size:10px; font-weight:bold; color:#0f766e; display:block;">⚖️ Масса с весов, г:</label>
+                            <input type="text" name="weight_g_{i}" value="{w_val}" placeholder="напр. 410.0" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #0d9488; border-radius:4px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px; font-weight:bold; color:#d97706; display:block;">🌡️ T листа с UTi120S (°C):</label>
+                            <input type="number" step="0.1" name="t_leaf_{i}" value="{t_val}" placeholder="напр. 23.8" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #f59e0b; border-radius:4px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:10px; font-weight:bold; color:#0284c7; display:block;">💧 Влажность почвы, %:</label>
+                            <input type="number" step="0.1" min="0" max="100" name="pct_soil_{i}" value="{p_val}" style="width:100%; padding:5px; font-size:12px; border:1px solid #38bdf8; border-radius:4px; box-sizing:border-box;">
+                        </div>
+                    </div>
                 </div>
             '''
 
@@ -1467,18 +1549,18 @@ def index(
                     <span style="font-size:12px; color:#047857;">{conf["title"]}</span>
                 </div>
 
-                <div style="display:flex; gap:8px; margin-bottom:14px;">
-                    {cards_summary}
-                </div>
-
                 <form action="/api/batch_save_manual" method="post">
+                    <div style="display:flex; gap:8px; margin-bottom:14px;">
+                        {cards_summary}
+                    </div>
+
                     <button type="submit" class="btn-confirm" style="width:100%; padding:15px; font-size:16px; background:linear-gradient(135deg, #059669, #00a499); cursor:pointer; box-shadow:0 4px 14px rgba(0,164,153,0.35);">
                         ✅ ВСЁ ГОТОВО — СОХРАНИТЬ ВСЮ ТРИАДУ В ЖУРНАЛ (БЕЗ ТЕПЛОВИЗОРА)
                     </button>
                 </form>
 
                 <div style="margin-top:14px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; text-align:center;">
-                    <span style="font-size:12px; color:#475569; display:block; margin-bottom:8px;">Есть свободное время? Можете подтянуть файлы снимков тепловизора:</span>
+                    <span style="font-size:12px; color:#475569; display:block; margin-bottom:8px;">Есть свободное время? Можете подключить тепловизор кабелем и подтянуть фотоснимки:</span>
                     <form action="/api/batch_link_thermal" method="post">
                         <button type="submit" style="padding:10px 18px; font-size:13px; background:#0284c7; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">
                             🔌 Вставить USB-кабель тепловизора и прикрепить фото
@@ -1547,7 +1629,7 @@ def index(
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
                         <div>
                             <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0f766e;">⚖️ Масса с весов, г:</label>
-                            <input type="text" name="weight_g_{i}" required placeholder="напр. 415.0" style="width:100%; padding:7px; font-size:13px; border:2px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box;" {'autofocus' if i==0 else ''}>
+                            <input type="text" name="weight_g_{i}" value="{s.get('user_weight', '')}" placeholder="напр. 415.0" style="width:100%; padding:7px; font-size:13px; border:2px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box;" {'autofocus' if i==0 else ''}>
                         </div>
                         <div>
                             <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0284c7;">💧 Влажность почвы, %:</label>
