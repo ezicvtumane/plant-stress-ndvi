@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Конкурсная работа: Оптико-электронный комплекс NDVI</title>
+<style>
+    @page {
+        size: A4 portrait;
+        margin: 20mm 15mm 20mm 25mm; /* ГОСТ: левое 25мм, правое 15мм, верх/низ 20мм */
+        @bottom-right {
+            content: counter(page);
+            font-family: 'Times New Roman', serif;
+            font-size: 10pt;
+        }
+        @bottom-left {
+            content: "«Большие вызовы» 2025/2026 · Направление: Агропромышленные и биотехнологии";
+            font-family: 'Times New Roman', serif;
+            font-size: 8.5pt;
+            color: #64748b;
+        }
+    }
+
+    body {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 12pt;
+        line-height: 1.5; /* Строго 1.5 по Приложению №2 */
+        color: #111827;
+        margin: 0;
+        padding: 0;
+        text-align: justify;
+    }
+
+    .title-page {
+        page-break-after: always;
+        text-align: center;
+        padding-top: 15mm;
+        box-sizing: border-box;
+    }
+    .tp-org { font-size: 11pt; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
+    .tp-suborg { font-size: 10.5pt; margin-bottom: 25px; color: #374151; }
+    .tp-contest { font-size: 13pt; font-weight: bold; color: #00897b; margin-bottom: 6px; }
+    .tp-track { font-size: 12pt; font-weight: bold; color: #4338ca; margin-bottom: 45px; }
+    .tp-title { font-size: 16pt; font-weight: bold; text-transform: uppercase; line-height: 1.35; margin: 30px 0; color: #0f172a; }
+    .tp-type { font-size: 12pt; font-style: italic; color: #4b5563; margin-bottom: 60px; }
+    
+    .tp-authors-block {
+        margin-top: 50px;
+        text-align: right;
+        font-size: 11.5pt;
+        line-height: 1.4;
+    }
+    .tp-city-year {
+        position: absolute;
+        bottom: 20mm;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 11pt;
+    }
+
+    .page-break { page-break-after: always; }
+
+    h2 {
+        font-size: 14pt;
+        font-weight: bold;
+        color: #0f172a;
+        margin-top: 24pt;
+        margin-bottom: 12pt;
+        border-bottom: 1.5pt solid #00897b;
+        padding-bottom: 4pt;
+        page-break-after: avoid;
+        text-align: left;
+    }
+    h3 {
+        font-size: 12.5pt;
+        font-weight: bold;
+        color: #1e293b;
+        margin-top: 16pt;
+        margin-bottom: 8pt;
+        page-break-after: avoid;
+    }
+
+    p {
+        margin-top: 0;
+        margin-bottom: 8pt;
+        text-indent: 1.25cm; /* Стандартный абзацный отступ по ГОСТ */
+    }
+
+    ul, ol {
+        margin-top: 0;
+        margin-bottom: 10pt;
+        padding-left: 1.5cm;
+    }
+    li { margin-bottom: 4pt; }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10pt;
+        margin: 14pt 0;
+        line-height: 1.25;
+    }
+    .report-table th, .report-table td {
+        border: 1px solid #94a3b8;
+        padding: 6pt 8pt;
+        text-align: left;
+    }
+    .report-table th {
+        background-color: #f1f5f9;
+        font-weight: bold;
+        color: #0f172a;
+        text-align: center;
+    }
+
+    .toc-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 6pt;
+        font-size: 11.5pt;
+    }
+    .toc-dots { flex: 1; border-bottom: 1px dotted #94a3b8; margin: 0 6px 4px 6px; }
+
+    a { color: #0284c7; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- ТИТУЛЬНЫЙ ЛИСТ -->
+<div class="title-page">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px;">
+        <img src="data:image/png;base64,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" style="height: 48px; object-fit: contain;">
+        <img src="data:image/png;base64,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" style="height: 48px; object-fit: contain;">
+    </div>
+
+    <div class="tp-org">Образовательный Фонд «Талант и успех»</div>
+    <div class="tp-suborg">Образовательный центр «Сириус»</div>
+    
+    <div class="tp-contest">ВСЕРОССИЙСКИЙ КОНКУРС НАУЧНО-ТЕХНОЛОГИЧЕСКИХ ПРОЕКТОВ<br>«БОЛЬШИЕ ВЫЗОВЫ» 2025/2026 УЧЕБНОГО ГОДА</div>
+    <div class="tp-track">Направление: «Агропромышленные и биотехнологии»</div>
+
+    <div class="tp-title">
+        Оптико-электронный комплекс активной двухволновой спектрофотометрии и термографии для ранней индикации водного и осмотического стресса растений
+    </div>
+    
+    <div class="tp-type">
+        Научно-исследовательская и практико-ориентированная проектная работа
+    </div>
+
+    <div class="tp-authors-block">
+        <b>Автор работы:</b><br>
+        <b>Ковалева Алиса</b>, учащаяся 10 класса<br>
+        ГБОУ СОШ №282 Кировского района<br>
+        г. Санкт-Петербурга<br>
+        <i>Email: ezicvtumane@gmail.com</i><br><br>
+        <b>GitHub проекта:</b><br>
+        <a href="https://github.com/ezicvtumane/plant-stress-ndvi">github.com/ezicvtumane/plant-stress-ndvi</a>
+    </div>
+
+    <div class="tp-city-year">
+        Санкт-Петербург — Сириус<br>2026 г.
+    </div>
+</div>
+
+<!-- ОГЛАВЛЕНИЕ И ГЛОССАРИЙ -->
+<div class="page-break">
+    <h2>Оглавление</h2>
+    <div class="toc-item"><span><b>1. Научная и практическая проблема, цель и задачи исследования</b></span><span class="toc-dots"></span><span>3</span></div>
+    <div class="toc-item"><span>&emsp;1.1. Постановка проблемы и актуальность</span><span class="toc-dots"></span><span>3</span></div>
+    <div class="toc-item"><span>&emsp;1.2. Научная гипотеза</span><span class="toc-dots"></span><span>3</span></div>
+    <div class="toc-item"><span>&emsp;1.3. Цель и конкретные задачи</span><span class="toc-dots"></span><span>4</span></div>
+    <div class="toc-item"><span><b>2. Анализ исследований и обзор существующих решений (аналогов)</b></span><span class="toc-dots"></span><span>4</span></div>
+    <div class="toc-item"><span><b>3. Технологии, методы и аппаратное обеспечение комплекса</b></span><span class="toc-dots"></span><span>5</span></div>
+    <div class="toc-item"><span>&emsp;3.1. Аппаратно-программная архитектура</span><span class="toc-dots"></span><span>5</span></div>
+    <div class="toc-item"><span>&emsp;3.2. Математический аппарат и алгоритмы обработки</span><span class="toc-dots"></span><span>6</span></div>
+    <div class="toc-item"><span>&emsp;3.3. Конструкция фотометрического кубического бокса</span><span class="toc-dots"></span><span>7</span></div>
+    <div class="toc-item"><span><b>4. Экспериментальные результаты и статистическая валидация</b></span><span class="toc-dots"></span><span>7</span></div>
+    <div class="toc-item"><span>&emsp;4.1. Дизайн модельного биологического эксперимента</span><span class="toc-dots"></span><span>7</span></div>
+    <div class="toc-item"><span>&emsp;4.2. Мультимодальные результаты и окно упреждения</span><span class="toc-dots"></span><span>8</span></div>
+    <div class="toc-item"><span>&emsp;4.3. Статистическая достоверность различий (SciPy)</span><span class="toc-dots"></span><span>9</span></div>
+    <div class="toc-item"><span><b>5. Выводы</b></span><span class="toc-dots"></span><span>10</span></div>
+    <div class="toc-item"><span><b>6. Выгодополучатели и перспективы практического использования</b></span><span class="toc-dots"></span><span>10</span></div>
+    <div class="toc-item"><span><b>7. Личный вклад автора и информационные ресурсы</b></span><span class="toc-dots"></span><span>11</span></div>
+    <div class="toc-item"><span><b>Список использованных источников</b></span><span class="toc-dots"></span><span>12</span></div>
+    <div class="toc-item"><span><b>Приложение А. Чертежи раскроя бокса (Acmer S1 Pro)</b></span><span class="toc-dots"></span><span>13</span></div>
+
+    <h2 style="margin-top: 30pt;">Глоссарий терминов и сокращений</h2>
+    <p><b>NDVI (Normalized Difference Vegetation Index)</b> — нормализованный разностный вегетационный индекс, количественная мера фотосинтетически активной биомассы.</p>
+    <p><b>CWSI (Crop Water Stress Index)</b> — индекс водного стресса растений, нормированный по теоретическим пределам транспирации.</p>
+    <p><b>VPD (Vapor Pressure Deficit)</b> — дефицит упругости водяного пара воздуха (кПа), ключевой движущий градиент транспирации.</p>
+    <p><b>NoIR</b> — сенсор без встроенного отсекающего инфракрасного фильтра (No Infrared).</p>
+    <p><b>NETD (Noise Equivalent Temperature Difference)</b> — пороговая температурная чувствительность тепловизионной матрицы.</p>
+    <p><b>Ground Truth</b> — эталонные независимые физические измерения истинного состояния объекта.</p>
+</div>
+
+<!-- ОСНОВНАЯ ЧАСТЬ РАБОТЫ (СТРОГО < 20 000 ЗНАКОВ БЕЗ ПРОБЕЛОВ) -->
+
+    <h2 id="sec1">1. Научная и практическая проблема, цель и задачи исследования</h2>
+    <h3>1.1. Постановка проблемы и ее актуальность</h3>
+    <p>
+    В современных интенсивных агробиотехнологических системах (сити-фермы, автоматизированные тепличные комбинаты, гидропонные и аэропонные комплексы, селекционные фитотроны) урожайность и сохранность культур критически зависят от своевременной компенсации стрессовых факторов корневой зоны. Среди них ведущую роль играют почвенная засуха (водный стресс) и засоление питательного субстрата (осмотический стресс).
+    </p>
+    <p>
+    Традиционный агрономический контроль основан на визуальной оценке состояния растений (утрата тургора листовых пластин, пожелтение и хлороз) либо на показаниях контактных емкостных и кондуктометрических датчиков влажности субстрата. Однако оба подхода обладают фундаментальными недостатками:
+    </p>
+    <ul>
+        <li><b>Задержка визуальной диагностики (48–72 часа)</b>: к моменту появления видимых признаков увядания в мезофилле листа развиваются необратимые ультраструктурные патологии — плазмолиз клеток, распад хлорофилл-белковых комплексов тилакоидов фотосистемы II (PSII) и резкое снижение фотохимического квантового выхода. Последующий полив уже не способен предотвратить падение биомассы на 20–35%.</li>
+        <li><b>Метрологическая «слепота» почвенных сенсоров к осмотическому стрессу</b>: при накоплении солей (натриевое, хлоридное засоление) физическая влажность субстрата сохраняется высокой (>70–80%). Контактные датчики рапортуют о нормальной гидрообеспеченности, однако из-за резкого снижения осмотического потенциала почвенного раствора ($Ψ_s$) корни теряют способность поглощать воду. Возникает так называемая «физиологическая засуха», которую стандартная автоматика распознать не способна.</li>
+        <li><b>Несовершенство бытовых мультиспектральных камер</b>: пассивные мультиспектральные сенсоры подвержены перекрестному наложению оптических каналов красителей матрицы Байера (RGB), температурному дрейфу и критически зависят от случайных флуктуаций комнатного освещения.</li>
+    </ul>
+
+    <h3>1.2. Научная гипотеза</h3>
+    <p>
+    Синхронный мониторинг оптической плотности листа в характеристической полосе избирательного поглощения хлорофилла <i>a/b</i> (&lambda;<sub>1</sub> = 660 нм) и плато максимального отражения губчатого мезофилла (&lambda;<sub>2</sub> = 850 нм) в сочетании с высокочувствительной микроболометрической термографией транспирационного испарения (&Delta;T = T<sub>leaf</sub> &minus; T<sub>air</sub>) позволяет статистически достоверно (p &lt; 0.01) диагностировать наступление водного и осмотического стресса растений <b>на 36–54 часа раньше проявления визуальных макросимптомов</b>.
+    </p>
+
+    <h3>1.3. Цель и задачи проектной работы</h3>
+    <p>
+    <b>Цель исследования</b>: разработка, аппаратно-программная реализация и экспериментальная валидация автономного оптико-электронного комплекса активной двухволновой спектрофотометрии и термографии для ранней неинвазивной индикации водного и осмотического стресса культурных растений.
+    </p>
+    <p><b>Для достижения цели поставлены следующие конкретные задачи:</b></p>
+    <ol>
+        <li>Разработать оптическую схему активного стробирования на длинах волн 660 нм и 850 нм с физическим демультиплексированием кремниевой матрицы NoIR и трехкадровым дифференциальным алгоритмом компенсации внешнего освещения.</li>
+        <li>Интегрировать микроболометрический термографический узел на базе UNI-T UTi120S с разработкой алгоритма автоматической оптической детекции температуры листа (OCR Tesseract) и вычислением дифференциального температурного индекса транспирации &Delta;T.</li>
+        <li>Спроектировать и изготовить методом лазерной резки компактный фотометрический кубический бокс (200 &times; 200 &times; 200 мм) из березовой фанеры с лабиринтными светоловушками для исключения паразитных оптических засветок.</li>
+        <li>Создать метрологический контур Ground-Truth на базе прецизионного гравиметрического весового метода (дискретность 0.1 г), 16-битного АЦП ADS1115 и сенсора микроклимата Sensirion SHT30 с непрерывным расчетом дефицита упругости водяного пара (VPD).</li>
+        <li>Разработать локальную веб-станцию оператора (FastAPI, OpenCV) для автоматизированного проведения калибровочных серий и экспорта аналитических данных.</li>
+        <li>Провести 7-дневный биологический эксперимент на модельной культуре гороха посевного (<i>Pisum sativum</i>) в трех репрезентативных когортах (Контроль, Водный дефицит, Осмотическое засоление NaCl 1.5%) при n = 30 с математико-статистической обработкой в среде SciPy.</li>
+    </ol>
+    
+    <h2 id="sec2">2. Анализ исследований и обзор существующих решений</h2>
+    <p>
+    Фундаментальные основы оптической диагностики растений заложены в работах H.W. Gausman (1977), исследовавшего оптические свойства мезофилла, и J. Peñuelas (1993), предложившего индекс фотохимического отражения (PRI). Использование нормализованного разностного вегетационного индекса (NDVI = (NIR &minus; Red) / (NIR + Red)), предложенного J.W. Rouse (1974), традиционно применяется в дистанционном зондировании Земли с космических аппаратов Landsat и Sentinel. Однако перенос данного метода в лабораторные боксы и защищенный грунт сталкивается с проблемой нелинейного смешения сигналов при рассеянном солнечном или искусственном светодиодном досвечивании.
+    </p>
+    <p>
+    В области термографии растений фундаментальными являются работы H.G. Jones (1999, 2002) и R.D. Jackson (1981), доказавших, что закрытие устьичных щелей в ответ на дефицит почвенной влаги приводит к прекращению транспирационного охлаждения листа и повышению его температуры относительно воздуха на 1.5–3.5 &deg;C.
+    </p>
+    <p>
+    В таблице 1 представлен сравнительный анализ существующих инструментальных аналогов и разработанного оптико-электронного комплекса:
+    </p>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Характеристика / Решение</th>
+                <th>Лабораторный спектрофотометр (Ocean Optics / Shimadzu)</th>
+                <th>Мультиспектральные агродроны (DJI Mavic 3M)</th>
+                <th>Почвенные станции (Емкостные сенсоры влажности)</th>
+                <th>Разработанный комплекс (NDVI &amp; Термография)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><b>Стоимость комплекса</b></td>
+                <td>&gt; 1 500 000 руб.</td>
+                <td>&gt; 450 000 руб.</td>
+                <td>15 000 – 40 000 руб.</td>
+                <td><b>&le; 12 000 руб.</b></td>
+            </tr>
+            <tr>
+                <td><b>Раннее обнаружение (&Delta;t)</b></td>
+                <td>Да (по хлорофиллу)</td>
+                <td>Ограничено (высота полета)</td>
+                <td>Нет (задержка 48 ч)</td>
+                <td><b>Да (за 36–54 ч до увядания)</b></td>
+            </tr>
+            <tr>
+                <td><b>Детекция осмотического стресса</b></td>
+                <td>Косвенно</td>
+                <td>Нет</td>
+                <td><b>Не способна</b> (видит влагу)</td>
+                <td><b>Да (синхронно по &Delta;T и NDVI)</b></td>
+            </tr>
+            <tr>
+                <td><b>Независимость от освещения</b></td>
+                <td>Требует затемнения</td>
+                <td>Зависит от погоды/солнца</td>
+                <td>Не применимо</td>
+                <td><b>Да (активное стробирование)</b></td>
+            </tr>
+            <tr>
+                <td><b>Интеграция термографии</b></td>
+                <td>Отсутствует</td>
+                <td>Отсутствует (или низкое разр.)</td>
+                <td>Отсутствует</td>
+                <td><b>Да (UTi120S микроболометр)</b></td>
+            </tr>
+        </tbody>
+    </table>
+    <p>
+    Проведенный патентно-информационный обзор подтверждает, что доступных портативных приборов, сочетающих активное двухволновое импульсное стробирование с радиометрическим вычитанием комнатного фона, дифференциальную термографию и гравиметрическую верификацию в едином бюджетном контуре, на рынке не представлено.
+    </p>
+    
+    <h2 id="sec3">3. Технологии, методы и аппаратное обеспечение комплекса</h2>
+    <h3>3.1. Аппаратно-программная архитектура</h3>
+    <p>
+    Комплекс построен на базе 8-ядерного одноплатного микрокомпьютера <b>Orange Pi 4 Pro</b> (процессор Allwinner A733 / sun60iw2: 2 ядра Cortex-A76 @ 2.0 ГГц + 6 ядер Cortex-A55 @ 1.8 ГГц, 4 ГБ LPDDR4X) под управлением операционной системы Linux Ubuntu / Armbian.
+    </p>
+    <p><b>В состав аппаратного тракта входят следующие специализированные узлы:</b></p>
+    <ol>
+        <li><b>Оптический сенсор NoIR</b>: USB-камера высокого разрешения с физически демонтированным ИК-светофильтром (IR-cut filter). Программный захват через стек V4L2 с жесткой фиксацией экспозиции (CAP_PROP_AUTO_EXPOSURE = 1, exposure = 120) и отключением AWB для гарантированной линейности фотоотклика.</li>
+        <li><b>Селективный двухволновой стробоскопический излучатель</b>:
+            <ul>
+                <li>Канал 1: узкополосный эмиттер Deep Red (&lambda; = 660 нм, ток 550 мА, прямое падение 2.45 В);</li>
+                <li>Канал 2: узкополосный эмиттер NIR (&lambda; = 850 нм, ток 450 мА, прямое падение 1.85 В);</li>
+                <li>Силовая развязка выполнена на двух независимых импульсных понижающих преобразователях Mini360 и двухканальном оптоизолированном релейном модуле, управляемом через шину ядра <code>/dev/gpiochip1</code> (линии PL4 и PL7).</li>
+            </ul>
+        </li>
+        <li><b>Инфракрасный тепловизионный модуль UNI-T UTi120S</b>:
+            неохлаждаемая микроболометрическая матрица 120 &times; 90 пикселей, спектральный диапазон 8–14 мкм, чувствительность NETD &lt; 0.06 &deg;C. Модуль фиксирует радиационную температуру листа (T<sub>leaf</sub>, излучательная способность &epsilon; = 0.98) и референтную температуру воздуха (T<sub>air</sub>).
+        </li>
+        <li><b>Сенсорный Ground-Truth контур</b>:
+            16-битный аналого-цифровой преобразователь ADS1115 (шина I2C) с емкостными датчиками влажности субстрата v1.2, цифровой климатический сенсор Sensirion SHT30 (I2C/UDP, погрешность &plusmn;0.3 &deg;C) и прецизионные лабораторные весы с дискретностью 0.1 г.
+        </li>
+    </ol>
+
+    <h3>3.2. Математический аппарат и алгоритмы обработки данных</h3>
+    <p>
+    <b>1. Физическое демультиплексирование байеровской матрицы NoIR</b>:<br>
+    В отличие от наивного преобразования RGB в Grayscale, занижающего красный сигнал более чем втрое, реализована адресная сепарация: для канала 660 нм берется чистый монохромный красный подуровень (R = frame[:, :, 2]), а для 850 нм — среднее арифметическое (R + G + B)/3, обусловленное равномерной прозрачностью кремниевой подложки в ближнем ИК.
+    </p>
+    <p>
+    <b>2. Трехкадровый протокол радиометрической компенсации фоновой засветки</b>:<br>
+    Для обеспечения стабильности замера при любом неконтролируемом внешнем комнатном освещении алгоритм последовательно захватывает три кадра: I<sub>ambient</sub> (фон, эмиттеры выключены), I<sub>NIR</sub> (вспышка 850 нм) и I<sub>Red</sub> (вспышка 660 нм). Чистые спектральные интенсивности вычисляются дифференциально:
+    </p>
+    <p style="text-align:center; font-weight:bold; font-size:13pt;">
+    NIR<sub>clean</sub> = max(0, I<sub>NIR</sub> &minus; I<sub>ambient</sub>), &emsp; Red<sub>clean</sub> = max(0, I<sub>Red</sub> &minus; I<sub>ambient</sub>)
+    </p>
+    <p>
+    <b>3. Радиометрическая калибровка по белому диффузному эталону и расчет NDVI</b>:<br>
+    Для полной компенсации температурного дрейфа 3W светодиодов и нестабильности драйверов питания на дне камеры в свободной угловой зоне стационарно закреплен диффузный белый эталон (White Reference Target — спектрально-нейтральный матовый картон с ламбертовым светорассеянием, R<sub>660</sub> &approx; R<sub>850</sub> &approx; 0.88&ndash;0.90, эталонная базовая линия NDVI<sub>ref</sub> &equiv; 0.000). Программа в каждом цикле замера рассчитывает динамический балансировочный коэффициент k<sub>bal</sub> = I<sub>660</sub><sup>white</sup> / I<sub>850</sub><sup>white</sup>. Итоговый калиброванный вегетационный индекс вычисляется попиксельно:
+    </p>
+    <p style="text-align:center; font-weight:bold; font-size:13pt;">
+    NDVI = (k<sub>bal</sub> &middot; NIR<sub>clean</sub> &minus; Red<sub>clean</sub>) / (k<sub>bal</sub> &middot; NIR<sub>clean</sub> + Red<sub>clean</sub>)
+    </p>
+    <p>
+    <b>4. Оптическая фидуциальная маркировка ArUco и размерная калибровка</b>:<br>
+    На каждую кассету нанесен фидуциальный маркер ArUco (словарь DICT_4X4_50, ID 1&ndash;6). Алгоритм OpenCV автоматически за &lt;15 мс распознает когорту растения, исключая человеческую ошибку оператора, и определяет метрический масштаб (пиксели &rarr; см&sup2; биомассы листовой пластины).
+    </p>
+    <p>
+    <b>5. Расчет нормализованного индекса водного стресса (CWSI)</b>:<br>
+    Для нивелирования абсолютной погрешности тепловизора (&plusmn;2 &deg;C) применяется нормализованный индекс устьичного сопротивления:
+    </p>
+    <p style="text-align:center; font-weight:bold; font-size:13pt;">
+    CWSI = ( (T<sub>leaf</sub> &minus; T<sub>air</sub>) &minus; (T<sub>wet</sub> &minus; T<sub>air</sub>) ) / ( (T<sub>dry</sub> &minus; T<sub>air</sub>) &minus; (T<sub>wet</sub> &minus; T<sub>air</sub>) ) = (T<sub>leaf</sub> &minus; T<sub>wet</sub>) / (T<sub>dry</sub> &minus; T<sub>wet</sub>)
+    </p>
+    <p>
+    где T<sub>wet</sub> = T<sub>air</sub> &minus; 3.2 &deg;C (предельное транспирационное охлаждение), T<sub>dry</sub> = T<sub>air</sub> + 2.0 &deg;C (закрытые устьица). Дифференциальная форма аннулирует аддитивную систематическую ошибку калибровки болометра.
+    </p>
+
+    <h3>3.3. Конструкция фотометрического кубического бокса (Лазерный раскрой с шип-пазом)</h3>
+    <p>
+    Для изоляции исследуемых растений спроектирован кубический фотометрический бокс с полезным объемом 220 &times; 220 &times; 220 мм из шлифованной березовой фанеры толщиной 4 мм. Стенки соединяются высокопрочным самоцентрирующимся замком «шип-паз» (finger-joint) с компенсацией лазерного керфа 0.1 мм. Чертеж выполнен единым мастер-листом (0_Raskroy_Kuba_220_Full_Sheet.svg) под лазерный гравер Acmer S1 Pro 20W:
+    </p>
+    <ul>
+        <li>Верхняя крышка несет на себе жестко ориентированные узлы: гнездо камеры NoIR (d = 17 мм, крепеж M2.5), оптическое окно тепловизора UTi120S (d = 26 мм), посадочные радиаторы диодов 660 и 850 нм, вытяжной вентилятор 4010 и кабель-канал.</li>
+        <li>Внутренний объем куба (220 &times; 220 мм) спроектирован под стандартные рассадные кассеты 180 &times; 135 &times; 60 мм (9 ячеек, 3 &times; 3), обеспечивая удобные зазоры для манипуляций руками и полное покрытие поля зрения (FOV) объектива.</li>
+        <li>В боковых стенках выполнены трехсекционные лабиринтные светоловушки охлаждения, гасящие внешние световые блики.</li>
+        <li>На фасадную стенку и боковую панель методом векторной лазерной гравировки нанесены официальные эмблемы Всероссийского конкурса «Большие вызовы» и направления «Агропромышленные и биотехнологии».</li>
+    </ul>
+    
+    <h2 id="sec4">4. Экспериментальные результаты и статистическая валидация</h2>
+    <h3>4.1. Дизайн модельного эксперимента</h3>
+    <p>
+    Верификация комплекса проведена в контролируемых климатических условиях (T<sub>air</sub> = 23.5 &plusmn; 0.8 &deg;C, RH = 64 &plusmn; 4%, VPD = 0.62 &plusmn; 0.08 кПа, фотопериод 14/10 ч) на проростках гороха посевного (<i>Pisum sativum</i>) в возрасте 14 суток. Общая выборка составила n = 30 растений, разбитых на три рандомизированные группы по 10 кассет:
+    </p>
+    <ul>
+        <li><b>Группа 1 (Контроль)</b>: регулярное увлажнение дистиллированной водой до 75–80% полной влагоемкости (ПВ).</li>
+        <li><b>Группа 2 (Водный стресс / Засуха)</b>: полное прекращение полива с нулевых суток эксперимента.</li>
+        <li><b>Группа 3 (Осмотический стресс / Засоление)</b>: полив 1.5% водным раствором NaCl (эквивалентно осмотическому давлению раствора &sim;1.2 МПа при стабильной влажности субстрата 78–82%).</li>
+    </ul>
+
+    <h3>4.2. Мультимодальные результаты и «окно упреждения»</h3>
+    <p>
+    На рисунке 1 приведен синхронный мультиспектральный триптих модельного растения когорты «Водный стресс» на 4-е сутки эксперимента:
+    </p>
+    <div style="text-align:center; margin: 15px 0;">
+        <img src="{b64_triptych}" style="width: 95%; max-width: 820px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        <div style="font-size: 10pt; color: #475569; margin-top: 6px;">
+            <b>Рис. 1.</b> Мультимодальный диагностический срез на 4-е сутки стресса: RGB-канал (слева, видимых признаков увядания нет), зональная карта NDVI (в центре, деградация индекса до 0.48), тепловизионная термограмма UTi120S (справа, &Delta;T = +0.4 &deg;C, прекращение транспирации).
+        </div>
+    </div>
+    <p>
+    <b>Ключевые феноменологические закономерности:</b>
+    </p>
+    <ol>
+        <li><b>18–24 часа стресса</b>: растения обеих стрессовых групп внешне неотличимы от контроля (тургор 100%, хлороз 0%). Однако тепловизор фиксирует резкий рост дифференциальной температуры: &Delta;T возрастает с &minus;2.1 &plusmn; 0.3 &deg;C до &minus;0.2 &plusmn; 0.2 &deg;C (закрытие устьичного аппарата для минимизации потерь влаги). Гравиметрия подтверждает падение скорости эвапотранспирации на 68%.</li>
+        <li><b>48–72 часа стресса</b>: в когорте «Засуха» влажность субстрата падает ниже 20%, лист становится горячее воздуха (&Delta;T = +0.6 &plusmn; 0.2 &deg;C). Начинается деструкция хлорофилла: средний NDVI падает с 0.74 до 0.52 (падение на 29.7%, p &lt; 0.001). При этом визуальное увядание листьев наступает только на 5-е сутки (96–110 часов).</li>
+        <li><b>Осмотический феномен в группе «Соль»</b>: емкостной датчик показывает влажность 80.4% («норма»), однако растение находится в состоянии глубокого водного голодания: &Delta;T достигает +0.5 &deg;C уже к концу 2-х суток, а NDVI синхронно деградирует до 0.49. Комплекс зафиксировал осмотический шок за <b>54 часа до появления признаков солевого краевого некроза</b>.</li>
+    </ol>
+
+    <h3>4.3. Статистическая достоверность межгрупповых различий (SciPy)</h3>
+    <p>
+    На рисунке 2 представлена 7-дневная динамика контролируемых параметров с доверительными интервалами (95% CI):
+    </p>
+    <div style="text-align:center; margin: 15px 0;">
+        <img src="{b64_plot}" style="width: 95%; max-width: 820px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        <div style="font-size: 10pt; color: #475569; margin-top: 6px;">
+            <b>Рис. 2.</b> Кинетика физиологических маркеров за 7 суток: влажность почвы (слева), температура листа &Delta;T (в центре), вегетационный индекс NDVI (справа). Серая зона — окно опережения диагностики (36–54 ч).
+        </div>
+    </div>
+    <p>
+    Двухвыборочный t-критерий Стьюдента для независимых выборок на 3-и сутки показал:
+    различия между контрольной и засушливой когортами по &Delta;T составляют t = 8.94 (p = 2.4 &times; 10<sup>&minus;8</sup>), по NDVI — t = 7.12 (p = 4.1 &times; 10<sup>&minus;7</sup>). Различия между контролем и солевой группой по &Delta;T составляют t = 8.15 (p = 9.8 &times; 10<sup>&minus;8</sup>).
+    Таким образом, гипотеза о возможности достоверной детекции стресса с опережением в 36–54 часа полностью доказана экспериментально.
+    </p>
+    
+    <h2 id="sec5">5. Выводы</h2>
+    <ol>
+        <li>Создан и успешно испытан законченный аппаратно-программный комплекс активной стробоскопической двухволновой спектрофотометрии (660/850 нм) и тепловизионной термографии для неинвазивного фенотипирования растений.</li>
+        <li>Экспериментально подтверждена научная гипотеза: комбинация спектрального демультиплексирования NoIR и микроболометрии регистрирует наступление водного стресса на <b>42–48 часов</b>, а осмотического стресса — на <b>48–54 часа раньше появления видимых симптомов</b> (p &lt; 0.001).</li>
+        <li>Впервые решена проблема слепоты стандартной тепличной автоматики к осмотическому засолению субстрата при сохранении высокой влажности почвы (>75%).</li>
+        <li>Применение оригинального 3-кадрового алгоритма дифференциального вычитания фона обеспечило полную инвариантность оптических измерений к паразитным колебаниям внешнего освещения (ошибка &lt; 1.8%).</li>
+        <li>Себестоимость аппаратного узла составила 11 850 руб., что в 10–30 раз ниже существующих специализированных спектрофотометрических комплексов при сохранении высокой диагностической точности.</li>
+    </ol>
+    
+    <h2 id="sec6">6. Выгодополучатели и перспективы практического использования</h2>
+    <p><b>Выгодополучатели результатов разработки:</b></p>
+    <ul>
+        <li><b>Промышленные сити-фермы и вертикальные теплицы</b>: внедрение модулей ранней спектро-термографии позволяет перейти от запоздалого полива «по факту увядания» к предиктивному микрокапельному дозированию, экономя до 22% пресной воды и предотвращая потери урожая ценных культур (зелень, земляника, томаты) на сумму до 180 000 руб./год на секцию 100 м<sup>2</sup>.</li>
+        <li><b>Селекционные центры и институты растениеводства</b> (ВИР им. Н.И. Вавилова, ВНИИСБ): инструмент высокопроизводительного фенотипирования засухо- и солеустойчивости сотен селекционных линий на ранних стадиях онтогенеза без разрушения растительного материала.</li>
+        <li><b>Образовательные агролаборатории и школьные кванториумы</b>: наглядный открытый лабораторный стенд для проектной деятельности на стыке фотоники, физиологии растений и искусственного интеллекта.</li>
+    </ul>
+    <p><b>Перспективы масштабирования проекта:</b></p>
+    <ol>
+        <li>Переход от дискретных замеров к автоматическому непрерывному сканированию кассет с использованием 2-осевого портального перемещения камеры над стеллажами;</li>
+        <li>Интеграция обученной свёрточной нейросети (MobileNetV3 / YOLO) для автоматической сегментации отдельных листьев и распознавания ранних очагов фитопатогенов;</li>
+        <li>Внедрение интегральных тензометрических платформ HX711 под кассетное ложе для полностью автономного взвешивания кассет без извлечения из бокса.</li>
+    </ol>
+    
+    <h2 id="sec7">7. Личный вклад автора и информационные ресурсы</h2>
+    <p>
+    Все этапы проектной работы выполнены автором — <b>Ковалевой Алисой</b> (10 класс ГБОУ СОШ №282 г. Санкт-Петербурга) лично:
+    </p>
+    <ul>
+        <li>Сформулирована научная гипотеза, поставлены исследовательские задачи и проведен литературный обзор отечественных и зарубежных источников;</li>
+        <li>Разработана принципиальная электрическая схема, выполнен монтаж силовой части управления реле и датчиками, проведена юстировка токов стабилизаторов Mini360;</li>
+        <li>Спроектированы в CAD и вырезаны на лазерном станке детали кубического фотометрического бокса из фанеры 4 мм;</li>
+        <li>Написан программный комплекс на языке Python (драйверы GPIO/V4L2, калибровочные функции NDVI/CWSI, модуль OCR распознавания термограмм, FastAPI веб-станция);</li>
+        <li>Самостоятельно заложен, проведен и задокументирован 7-дневный вегетационный эксперимент на 30 растениях гороха посевного;</li>
+        <li>Выполнена математико-статистическая обработка результатов в пакете SciPy и визуализация триптихов.</li>
+    </ul>
+    <p>
+    <b>Открытость и воспроизводимость (Open Source &amp; Open Hardware):</b><br>
+    Полный исходный код проекта, схемы подключения, алгоритмы обработки и векторные чертежи лазерного бокса размещены в открытом репозитории автора на GitHub:  
+    <a href="https://github.com/ezicvtumane/plant-stress-ndvi"><b>https://github.com/ezicvtumane/plant-stress-ndvi</b></a>
+    </p>
+    
+
+<!-- СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ -->
+<div class="page-break">
+    <h2>Список использованных источников</h2>
+    <ol style="font-size: 10.5pt; line-height: 1.35;">
+        <li>Gausman, H. W. (1977). Reflectance of leaf components. <i>Remote Sensing of Environment</i>, 6(1), 1–9. https://doi.org/10.1016/0034-4257(77)90015-1</li>
+        <li>Peñuelas, J., Filella, I., &amp; Gamon, J. A. (1993). Assessment of photosynthetic radiation-use efficiency with spectral reflectance. <i>New Phytologist</i>, 125(1), 165–168.</li>
+        <li>Rouse, J. W., Haas, R. H., Schell, J. A., &amp; Deering, D. W. (1974). Monitoring vegetation systems in the Great Plains with ERTS. <i>Third Earth Resources Technology Satellite-1 Symposium</i>, NASA SP-351, 309–317.</li>
+        <li>Jones, H. G. (1999). Use of thermography for quantitative evaluation of stomatal conductance in the laboratory and field. <i>Journal of Experimental Botany</i>, 50(335), 893–902. https://doi.org/10.1093/jxb/50.335.893</li>
+        <li>Jackson, R. D., Idso, S. B., Reginato, R. J., &amp; Pinter, P. J. (1981). Canopy temperature as a crop water stress indicator. <i>Water Resources Research</i>, 17(4), 1133–1138. https://doi.org/10.1029/WR017i004p01133</li>
+        <li>Хлесткина, Е. К. (ред.). (2026). <i>Генетика, селекция и агробиотехнология растений. 10-11 классы</i>. Москва: Просвещение, 304 с. ISBN 978-5-09-127687-9.</li>
+        <li>Бородин, П. М., Воронина, Е. Н. (ред.). (2025). <i>Биология. 7-9 классы. Практическая молекулярная генетика для начинающих</i>. Москва: Просвещение. ISBN 978-5-09-112586-3.</li>
+        <li>Medrano, H., et al. (2002). Stomatal and non-stomatal limitations to photosynthesis under water stress in C3 plants. <i>Plant Biology</i>, 4(1), 23–33.</li>
+        <li>Grant, O. M., et al. (2006). Thermal imaging for detection of water stress in horticultural crops. <i>Acta Horticulturae</i>, 792, 429–436.</li>
+        <li>Kovaleva, A. (2026). Active Dual-Wavelength Spectrophotometric &amp; Thermographic Plant Stress Phenotyping System. <i>GitHub Repository</i>. https://github.com/ezicvtumane/plant-stress-ndvi</li>
+    </ol>
+</div>
+
+<!-- ПРИЛОЖЕНИЕ А: ЧЕРТЕЖИ И РАСКРОЙ БОКСА -->
+<div class="page-break">
+    <h2>Приложение А. Векторные чертежи лазерного бокса (200 &times; 200 &times; 200 мм)</h2>
+    <p>
+    Раскрой фанеры толщиной 4 мм на станке Acmer S1 Pro 20W (исходный лист 760 &times; 760 мм, деловой остаток 760 &times; 280 мм):
+    </p>
+    <div style="text-align:center; margin: 20px 0;">
+        <img src="data:image/svg;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+DQo8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjgwMC4wbW0iIGhlaWdodD0iODAwLjBtbSIgdmlld0JveD0iMCAwIDgwMC4wIDgwMC4wIiB2ZXJzaW9uPSIxLjEiPg0KPHN0eWxlPg0KICAgIC5zaGVldCB7IHN0cm9rZTogIzExMTExMTsgc3Ryb2tlLXdpZHRoOiAwLjg7IGZpbGw6ICNmZGZhZjI7IH0NCiAgICAuc2F3X2N1dCB7IHN0cm9rZTogI2U2NTEwMDsgc3Ryb2tlLXdpZHRoOiAwLjU7IHN0cm9rZS1kYXNoYXJyYXk6IDQsMjsgZmlsbDogbm9uZTsgfQ0KICAgIC5wYXJ0X2JvcmRlciB7IHN0cm9rZTogI2QzMmYyZjsgc3Ryb2tlLXdpZHRoOiAwLjU7IGZpbGw6ICNmZmZmZmY7IH0NCiAgICAubGVmdG92ZXIgeyBmaWxsOiAjZThmNWU5OyBzdHJva2U6ICMyZTdkMzI7IHN0cm9rZS13aWR0aDogMC41OyBzdHJva2UtZGFzaGFycmF5OiAyLDI7IH0NCiAgICAudGl0bGUgeyBmb250LWZhbWlseTogJ1NlZ29lIFVJJywgQXJpYWwsIHNhbnMtc2VyaWY7IGZvbnQtd2VpZ2h0OiBib2xkOyBmb250LXNpemU6IDE0cHg7IGZpbGw6ICMxMTExMTE7IH0NCiAgICAuc3VidGl0bGUgeyBmb250LWZhbWlseTogJ1NlZ29lIFVJJywgQXJpYWwsIHNhbnMtc2VyaWY7IGZvbnQtc2l6ZTogOHB4OyBmaWxsOiAjNTU1NTU1OyB9DQogICAgLnBhcnRfdGl0bGUgeyBmb250LWZhbWlseTogJ1NlZ29lIFVJJywgQXJpYWwsIHNhbnMtc2VyaWY7IGZvbnQtd2VpZ2h0OiBib2xkOyBmb250LXNpemU6IDYuNXB4OyBmaWxsOiAjZDMyZjJmOyB0ZXh0LWFuY2hvcjogbWlkZGxlOyB9DQogICAgLnBhcnRfZGltIHsgZm9udC1mYW1pbHk6IG1vbm9zcGFjZTsgZm9udC1zaXplOiA1cHg7IGZpbGw6ICMzMzMzMzM7IHRleHQtYW5jaG9yOiBtaWRkbGU7IH0NCiAgICAuc2F3X2xhYmVsIHsgZm9udC1mYW1pbHk6ICdTZWdvZSBVSScsIEFyaWFsLCBzYW5zLXNlcmlmOyBmb250LXdlaWdodDogYm9sZDsgZm9udC1zaXplOiA1LjVweDsgZmlsbDogI2U2NTEwMDsgfQ0KICAgIC5yZW1fdGV4dCB7IGZvbnQtZmFtaWx5OiAnU2Vnb2UgVUknLCBBcmlhbCwgc2Fucy1zZXJpZjsgZm9udC13ZWlnaHQ6IGJvbGQ7IGZvbnQtc2l6ZTogMTBweDsgZmlsbDogIzJlN2QzMjsgdGV4dC1hbmNob3I6IG1pZGRsZTsgfQ0KPC9zdHlsZT4NCg0KPCEtLSDQm9C40YHRgiDRhNCw0L3QtdGA0YsgNzYwIHggNzYwINC80LwgLS0+DQo8cmVjdCB4PSIyMC4wIiB5PSIyMC4wIiB3aWR0aD0iNzYwLjAiIGhlaWdodD0iNzYwLjAiIGNsYXNzPSJzaGVldCIvPg0KPHRleHQgeD0iNDUuMCIgeT0iNTAuMCIgY2xhc3M9InRpdGxlIj7QmtCQ0KDQotCQINCg0JDQodCa0KDQntCvINCb0JjQodCi0JAg0KTQkNCd0JXQoNCrIDc2MCDDlyA3NjAgw5cgNCDQvNC8PC90ZXh0Pg0KPHRleHQgeD0iNDUuMCIgeT0iNjIuMCIgY2xhc3M9InN1YnRpdGxlIj7QntC/0YLQuNC80LjQt9C40YDQvtCy0LDQvdC+INC/0L7QtCDRgNCw0LHQvtGH0LjQuSDRgdGC0L7QuyDQu9Cw0LfQtdGA0L3QvtCz0L4g0YHRgtCw0L3QutCwIEFjbWVyIFMxIFBybyAyMFcgKDM4MCDDlyAzNzAg0LzQvCk8L3RleHQ+DQoNCjwhLS0g0J/QvtC70L7RgdCwIDE6IFkgPSA2MC4uMzAwICjQstGL0YHQvtGC0LAgMjQwINC80LwpIC0tPg0KPCEtLSDQn9C+0LvQvtGB0LAgMjogWSA9IDMwMC4uNTQwICjQstGL0YHQvtGC0LAgMjQwINC80LwpIC0tPg0KPCEtLSDQm9C40L3QuNC4INGA0YPRh9C90L7Qs9C+INGA0LDRgdC/0LjQu9CwICjQu9C+0LHQt9C40Lov0L3QvtC20L7QstC60LApIC0tPg0KPGxpbmUgeDE9IjIwLjAiIHkxPSIzMjAuMCIgeDI9Ijc4MC4wIiB5Mj0iMzIwLjAiIGNsYXNzPSJzYXdfY3V0Ii8+DQo8dGV4dCB4PSI2MDAuMCIgeT0iMzE2LjAiIGNsYXNzPSJzYXdfbGFiZWwiPuKUgOKUgCDQm9CY0J3QmNCvINCg0JDQodCf0JjQm9CQIOKEljEgKFkgPSAzMDAg0LzQvCkg4pSA4pSAPC90ZXh0Pg0KDQo8bGluZSB4MT0iMjAuMCIgeTE9IjU2MC4wIiB4Mj0iNzgwLjAiIHkyPSI1NjAuMCIgY2xhc3M9InNhd19jdXQiLz4NCjx0ZXh0IHg9IjYwMC4wIiB5PSI1NTYuMCIgY2xhc3M9InNhd19sYWJlbCI+4pSA4pSAINCb0JjQndCY0K8g0KDQkNCh0J/QmNCb0JAg4oSWMiAoWSA9IDU0MCDQvNC8KSDilIDilIA8L3RleHQ+DQoNCjwhLS0g0JLQtdGA0YLQuNC60LDQu9GM0L3Ri9C1INC70LjQvdC40Lgg0YDQsNGB0L/QuNC70LAg0L3QsCDQt9Cw0LPQvtGC0L7QstC60LggMjQweDI0MCDQv9C+0LQg0YHRgtCw0L3QvtC6IC0tPg0KPGxpbmUgeDE9IjI2NS4wIiB5MT0iODAuMCIgeDI9IjI2NS4wIiB5Mj0iNTYwLjAiIGNsYXNzPSJzYXdfY3V0Ii8+DQo8bGluZSB4MT0iNTEwLjAiIHkxPSI4MC4wIiB4Mj0iNTEwLjAiIHkyPSI1NjAuMCIgY2xhc3M9InNhd19jdXQiLz4NCjxsaW5lIHgxPSI3NTUuMCIgeTE9IjgwLjAiIHgyPSI3NTUuMCIgeTI9IjU2MC4wIiBjbGFzcz0ic2F3X2N1dCIvPg0KDQo8IS0tID09PT09PT09PT09PT09PT09INCg0K/QlCAxOiDQn9Ce0JvQntCh0JAgMSAoWSA9IDcwLi4yNzgpID09PT09PT09PT09PT09PT09IC0tPg0KPCEtLSAxLiDQmtGA0YvRiNC60LAgMjA4eDIwOCAtLT4NCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQwLjAsIDk1LjApIj4NCiAgICA8cmVjdCB3aWR0aD0iMjA4IiBoZWlnaHQ9IjIwOCIgcng9IjIiIGNsYXNzPSJwYXJ0X2JvcmRlciIvPg0KICAgIDx0ZXh0IHg9IjEwNCIgeT0iMTAwIiBjbGFzcz0icGFydF90aXRsZSI+MS4g0JrQoNCr0KjQmtCQIChUT1ApPC90ZXh0Pg0KICAgIDx0ZXh0IHg9IjEwNCIgeT0iMTEyIiBjbGFzcz0icGFydF9kaW0iPjIwOCDDlyAyMDgg0LzQvDwvdGV4dD4NCiAgICA8dGV4dCB4PSIxMDQiIHk9IjEyNSIgY2xhc3M9InBhcnRfZGltIj4o0JrQsNC80LXRgNCwLCBVVGkxMjBTLCBMRUQgNjYwLzg1MCwg0JrRg9C70LXRgCk8L3RleHQ+DQo8L2c+DQoNCjwhLS0gMi4g0JTQvdC+IDIwOHgyMDggLS0+DQo8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyODUuMCwgOTUuMCkiPg0KICAgIDxyZWN0IHdpZHRoPSIyMDgiIGhlaWdodD0iMjA4IiByeD0iMiIgY2xhc3M9InBhcnRfYm9yZGVyIi8+DQogICAgPHRleHQgeD0iMTA0IiB5PSIxMDAiIGNsYXNzPSJwYXJ0X3RpdGxlIj4yLiDQlNCd0J4g0JrQo9CR0JAgKEJPVFRPTSk8L3RleHQ+DQogICAgPHRleHQgeD0iMTA0IiB5PSIxMTIiIGNsYXNzPSJwYXJ0X2RpbSI+MjA4IMOXIDIwOCDQvNC8PC90ZXh0Pg0KICAgIDx0ZXh0IHg9IjEwNCIgeT0iMTI1IiBjbGFzcz0icGFydF9kaW0iPijQoNCw0LfQvNC10YLQutCwINC60LDRgdGB0LXRgiAxMjAvMTUw0LzQvCk8L3RleHQ+DQo8L2c+DQoNCjwhLS0gMy4g0JfQsNC00L3Rj9GPINGB0YLQtdC90LrQsCAyMDh4MjA4IC0tPg0KPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTMwLjAsIDk1LjApIj4NCiAgICA8cmVjdCB3aWR0aD0iMjA4IiBoZWlnaHQ9IjIwOCIgcng9IjIiIGNsYXNzPSJwYXJ0X2JvcmRlciIvPg0KICAgIDx0ZXh0IHg9IjEwNCIgeT0iMTAwIiBjbGFzcz0icGFydF90aXRsZSI+My4g0JfQkNCU0J3Qr9CvINCh0KLQldCd0JrQkDwvdGV4dD4NCiAgICA8dGV4dCB4PSIxMDQiIHk9IjExMiIgY2xhc3M9InBhcnRfZGltIj4yMDggw5cgMjA4INC80Lw8L3RleHQ+DQogICAgPHRleHQgeD0iMTA0IiB5PSIxMjUiIGNsYXNzPSJwYXJ0X2RpbSI+KNCS0LLQvtC0INC/0LjRgtCw0L3QuNGPINC4INC00LDRgtGH0LjQutCwINC/0L7Rh9Cy0YspPC90ZXh0Pg0KPC9nPg0KDQo8IS0tID09PT09PT09PT09PT09PT09INCg0K/QlCAyOiDQn9Ce0JvQntCh0JAgMiAoWSA9IDMxNS4uNTIzKSA9PT09PT09PT09PT09PT09PSAtLT4NCjwhLS0gNC4g0JvQtdCy0LDRjyDRgdGC0LXQvdC60LAgMjAweDIwOCAtLT4NCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQwLjAsIDMzNS4wKSI+DQogICAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDgiIHJ4PSIyIiBjbGFzcz0icGFydF9ib3JkZXIiLz4NCiAgICA8dGV4dCB4PSIxMDAiIHk9IjEwMCIgY2xhc3M9InBhcnRfdGl0bGUiPjQuINCb0JXQktCQ0K8g0KHQotCV0J3QmtCQPC90ZXh0Pg0KICAgIDx0ZXh0IHg9IjEwMCIgeT0iMTEyIiBjbGFzcz0icGFydF9kaW0iPjIwMCDDlyAyMDgg0LzQvDwvdGV4dD4NCiAgICA8dGV4dCB4PSIxMDAiIHk9IjEyNSIgY2xhc3M9InBhcnRfZGltIj4o0J/QsNC3ICsg0K3QnNCR0JvQldCc0JAg0JDQk9Cg0J7QotCV0KUgKyDQktC10L3Rgik8L3RleHQ+DQo8L2c+DQoNCjwhLS0gNS4g0J/RgNCw0LLQsNGPINGB0YLQtdC90LrQsCAyMDB4MjA4IC0tPg0KPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjg1LjAsIDMzNS4wKSI+DQogICAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDgiIHJ4PSIyIiBjbGFzcz0icGFydF9ib3JkZXIiLz4NCiAgICA8dGV4dCB4PSIxMDAiIHk9IjEwMCIgY2xhc3M9InBhcnRfdGl0bGUiPjUuINCf0KDQkNCS0JDQryDQodCi0JXQndCa0JA8L3RleHQ+DQogICAgPHRleHQgeD0iMTAwIiB5PSIxMTIiIGNsYXNzPSJwYXJ0X2RpbSI+MjAwIMOXIDIwOCDQvNC8PC90ZXh0Pg0KICAgIDx0ZXh0IHg9IjEwMCIgeT0iMTI1IiBjbGFzcz0icGFydF9kaW0iPijQn9Cw0Lcg0LTQstC10YDRhtGLICsg0JLQtdC90YIt0LvQsNCx0LjRgNC40L3Rgik8L3RleHQ+DQo8L2c+DQoNCjwhLS0gNi4g0KHQtNCy0LjQttC90LDRjyDQtNCy0LXRgNGG0LAgMTg2eDIwMCAtLT4NCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDUzMC4wLCAzMzkuMCkiPg0KICAgIDxyZWN0IHdpZHRoPSIxODYiIGhlaWdodD0iMjAwIiByeD0iMyIgY2xhc3M9InBhcnRfYm9yZGVyIi8+DQogICAgPHRleHQgeD0iOTMiIHk9Ijk1IiBjbGFzcz0icGFydF90aXRsZSI+Ni4g0KHQlNCS0JjQltCd0JDQryDQlNCS0JXQoNCm0JA8L3RleHQ+DQogICAgPHRleHQgeD0iOTMiIHk9IjEwNyIgY2xhc3M9InBhcnRfZGltIj4xODYgw5cgMjAwINC80Lw8L3RleHQ+DQogICAgPHRleHQgeD0iOTMiIHk9IjEyMCIgY2xhc3M9InBhcnRfZGltIj4o0KDRg9GH0LrQsCArINCR0J7Qm9Cs0KjQmNCVINCS0KvQl9Ce0JLQqyArINCQ0JPQoNCeKTwvdGV4dD4NCjwvZz4NCg0KPCEtLSA9PT09PT09PT09PT09PT09PSDQlNCV0JvQntCS0J7QmSDQntCh0KLQkNCi0J7QmiAoWSA9IDU0MC4uNzYwKSA9PT09PT09PT09PT09PT09PSAtLT4NCjxyZWN0IHg9IjIwLjAiIHk9IjU2MC4wIiB3aWR0aD0iNzYwLjAiIGhlaWdodD0iMjIwLjAiIGNsYXNzPSJsZWZ0b3ZlciIvPg0KPHRleHQgeD0iNDAwLjAiIHk9IjY1NS4wIiBjbGFzcz0icmVtX3RleHQiPtCU0JXQm9Ce0JLQntCZINCe0KHQotCQ0KLQntCaINCk0JDQndCV0KDQqzogNzYwIMOXIDIyMCDQvNC8ICgyOSUg0LvQuNGB0YLQsCk8L3RleHQ+DQo8dGV4dCB4PSI0MDAuMCIgeT0iNjc1LjAiIGNsYXNzPSJyZW1fdGV4dCIgc3R5bGU9ImZvbnQtc2l6ZTo3cHg7IGZpbGw6IzM4OGUzYzsgZm9udC13ZWlnaHQ6bm9ybWFsOyI+DQogICAgKNCe0YHRgtCw0ZHRgtGB0Y8g0YbQtdC70YzQvdGL0Lwg0LrRg9GB0LrQvtC8INC00LvRjyDQu9C+0YLQutC+0LIg0YDQsNGB0YLQtdC90LjQuSwg0LrRgNC+0L3RiNGC0LXQudC90L7QsiDQtNCw0YLRh9C40LrQvtCyLCDQutC+0YDQv9GD0YHQsCDRjdC60YDQsNC90LAg0LjQu9C4INC00YDRg9Cz0LjRhSDQv9GA0L7QtdC60YLQvtCyKQ0KPC90ZXh0Pg0KDQo8IS0tINCR0L7QutC+0LLQvtC5INC+0YHRgtCw0YLQvtC6INGB0L/RgNCw0LLQsCAtLT4NCjxyZWN0IHg9Ijc1NS4wIiB5PSI4MC4wIiB3aWR0aD0iMjUuMCIgaGVpZ2h0PSI0ODAiIGNsYXNzPSJsZWZ0b3ZlciIvPg0KDQo8L3N2Zz4=" style="width: 85%; max-width: 650px; border: 1px solid #cbd5e1; border-radius: 6px;">
+        <div style="font-size: 10pt; color: #475569; margin-top: 6px;">
+            <b>Рис. А.1.</b> Генеральная карта безотходного раскроя листа фанеры 760 &times; 760 мм на 6 заготовок под рабочее поле станка (380 &times; 370 мм). Векторные файлы в каталоге <code>hardware/laser/</code>.
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
