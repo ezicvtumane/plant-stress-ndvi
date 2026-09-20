@@ -215,7 +215,11 @@ def init_relay():
         return
     if RELAY_REQ is None:
         try:
-            settings = gpiod.LineSettings(direction=Direction.OUTPUT, output_value=Value.INACTIVE)
+            settings = gpiod.LineSettings(
+                direction=Direction.OUTPUT,
+                active_low=True,
+                output_value=Value.INACTIVE
+            )
             RELAY_REQ = gpiod.request_lines(
                 '/dev/gpiochip1',
                 consumer='smart_station_daemon',
@@ -223,7 +227,7 @@ def init_relay():
             )
             RELAY_REQ.set_value(4, Value.INACTIVE)
             RELAY_REQ.set_value(7, Value.INACTIVE)
-            print('[GPIO] Relay hold initialized on Pin 7 (PL4) & Pin 10 (PL7)')
+            print('[GPIO] Relay hold initialized with active_low=True (OFF in standby): Pin 7 (PL4) & Pin 10 (PL7)')
         except Exception as e:
             print('[GPIO] Relay init error:', e)
 
