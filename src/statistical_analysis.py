@@ -134,43 +134,44 @@ class ExperimentStatistics:
 
         fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
         colors = {"Control": "#2ca02c", "Drought": "#d62728", "Salinity": "#1f77b4"}
+        labels_ru = {"Control": "Контроль", "Drought": "Засуха", "Salinity": "Засоление"}
 
         # 1. NDVI Dynamics
         for grp in ["Control", "Drought", "Salinity"]:
             sub = self.df[self.df["group"] == grp]
             stats_df = sub.groupby("day")["ndvi_mean"].agg(["mean", "sem"])
             axes[0].errorbar(stats_df.index, stats_df["mean"], yerr=stats_df["sem"] * 1.96,
-                             label=grp, color=colors[grp], marker="o", capsize=4, linewidth=2)
+                             label=labels_ru[grp], color=colors[grp], marker="o", capsize=4, linewidth=2)
         
-        axes[0].axvspan(3, 5, color="orange", alpha=0.18, label="Окно ранней индикации (36-54ч)")
+        axes[0].axvspan(3, 5, color="orange", alpha=0.18, label="Окно ранней индикации (36–54 ч)")
         axes[0].set_ylabel("NDVI листовой пластины", fontsize=11)
         axes[0].set_title("Динамика NDVI и транспирации при стрессе (n = 30)", fontsize=13, fontweight="bold")
         axes[0].grid(True, linestyle="--", alpha=0.6)
-        axes[0].legend(loc="lower left")
+        axes[0].legend(loc="lower left", framealpha=0.9)
 
         # 2. Transpiration Delta_T (T_leaf - T_air)
         for grp in ["Control", "Drought", "Salinity"]:
             sub = self.df[self.df["group"] == grp]
             stats_df = sub.groupby("day")["delta_t_celsius"].agg(["mean", "sem"])
             axes[1].errorbar(stats_df.index, stats_df["mean"], yerr=stats_df["sem"] * 1.96,
-                             label=grp, color=colors[grp], marker="s", capsize=4, linewidth=2)
+                             label=labels_ru[grp], color=colors[grp], marker="s", capsize=4, linewidth=2)
         
-        axes[1].axhline(0, color="gray", linestyle=":", label="T_leaf = T_air (стоп испарение)")
-        axes[1].set_ylabel(r"$\Delta T = T_{leaf} - T_{air}$, °C", fontsize=11)
+        axes[1].axhline(0, color="gray", linestyle=":", label=r"$T_{\mathrm{лист}} = T_{\mathrm{возд}}$ (остановка транспирации)")
+        axes[1].set_ylabel(r"$\Delta T = T_{\mathrm{лист}} - T_{\mathrm{возд}}$, °C", fontsize=11)
         axes[1].grid(True, linestyle="--", alpha=0.6)
-        axes[1].legend(loc="upper left")
+        axes[1].legend(loc="upper left", framealpha=0.9)
 
         # 3. Soil Moisture
         for grp in ["Control", "Drought", "Salinity"]:
             sub = self.df[self.df["group"] == grp]
             stats_df = sub.groupby("day")["soil_moisture_a0_pct"].agg(["mean", "sem"])
             axes[2].errorbar(stats_df.index, stats_df["mean"], yerr=stats_df["sem"] * 1.96,
-                             label=grp, color=colors[grp], marker="^", capsize=4, linewidth=2)
+                             label=labels_ru[grp], color=colors[grp], marker="^", capsize=4, linewidth=2)
         
         axes[2].set_ylabel("Влажность субстрата, %", fontsize=11)
         axes[2].set_xlabel("Дни биологического эксперимента", fontsize=11)
         axes[2].grid(True, linestyle="--", alpha=0.6)
-        axes[2].legend(loc="center left")
+        axes[2].legend(loc="center left", framealpha=0.9)
 
         plt.tight_layout()
         out_path = Path(output_file) if output_file else config.PROCESSED_DATA_DIR / "statistical_validation_plot.png"
