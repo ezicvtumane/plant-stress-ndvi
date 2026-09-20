@@ -274,18 +274,33 @@ def read_moisture_mock(group_name: str = ''):
         return v_final, pct_final
 
 def extract_temperature_from_thermal(img_path: str) -> float:
+    """
+    Субпиксельное OCR-распознавание температуры центральной точки из термограммы UTi120S.
+    Многопороговая бинаризация и авто-коррекция пропуска десятичной точки.
+    """
     try:
         img = cv2.imread(img_path)
-        if img is None: return 23.5
-        crop = img[0:70, 0:130]
+        if img is None:
+            return 23.5
+        crop = img[0:75, 0:145]
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 210, 255, cv2.THRESH_BINARY)
-        text = pytesseract.image_to_string(thresh, config='--psm 6 -c tessedit_char_whitelist=0123456789.C°')
-        m = re.search(r'(\d{1,2}[\.,]\d)', text)
-        if m:
-            return float(m.group(1).replace(',', '.'))
+        for th_val in [210, 195, 225, 180]:
+            _, thresh = cv2.threshold(gray, th_val, 255, cv2.THRESH_BINARY)
+            txt = pytesseract.image_to_string(thresh, config='--psm 6 -c tessedit_char_whitelist=0123456789.,C°%')
+            m = re.search(r'(\d{1,2})[\.,](\d)', txt)
+            if m:
+                val = float(f"{m.group(1)}.{m.group(2)}")
+                if 10.0 <= val <= 50.0:
+                    return val
+            # Защита от слитного распознавания без точки (например '268' -> 26.8 °C)
+            m_int = re.search(r'\b(\d{3})\b', txt)
+            if m_int:
+                val = float(m_int.group(1)) / 10.0
+                if 10.0 <= val <= 50.0:
+                    return val
     except Exception as e:
-        print('OCR Error:', e)
+        print('[OCR Error]:', e)
+    return 23.5
 def detect_aruco_in_image(img_bgr):
     """
     Субпиксельное оптическое распознавание фидуциальных ArUco-маркеров кассеты.
@@ -988,6 +1003,74 @@ def delete_measurement_post(meas_id: str = Form(...)):
 def delete_measurement_get(meas_id: str):
     return do_delete_measurement(meas_id)
 
+@app.post('/api/update_measurement')
+def handle_update_measurement(
+    meas_id: str = Form(...),
+    t_leaf: str = Form(''),
+    weight_g: str = Form(''),
+    pct_soil: str = Form('')
+):
+    """
+    Интерактивная коррекция параметров ранее сохраненного замера (T_leaf, Weight, Soil).
+    Автоматически пересчитывает Delta_T = T_leaf - T_air и сохраняет в measurements.csv.
+    """
+    meas_id = str(meas_id).strip()
+    if not os.path.exists(CSV_LOG) or not meas_id:
+        return RedirectResponse(url='/?msg=err_not_found', status_code=303)
+
+    with open(CSV_LOG, 'r', encoding='utf-8') as f:
+        rows = list(csv.reader(f))
+
+    if not rows or len(rows) <= 1:
+        return RedirectResponse(url='/', status_code=303)
+
+    header = rows[0]
+    data_rows = rows[1:]
+
+    found = False
+    for r in data_rows:
+        if r and str(r[0]).strip() == meas_id:
+            found = True
+            # Обновление T_leaf и пересчет Delta_T
+            if t_leaf.strip():
+                try:
+                    tl = float(t_leaf.strip().replace(',', '.'))
+                    r[8] = str(round(tl, 1))
+                    # r[4] is T_Air_C
+                    if len(r) > 4 and r[4]:
+                        try:
+                            t_air = float(r[4])
+                            r[9] = str(round(tl - t_air, 1))
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            # Обновление массы
+            if weight_g.strip():
+                r[3] = weight_g.strip().replace(',', '.')
+
+            # Обновление влажности субстрата
+            if pct_soil.strip():
+                try:
+                    ps = float(pct_soil.strip().replace(',', '.'))
+                    ps = round(max(0.0, min(100.0, ps)), 1)
+                    r[7] = str(ps)
+                    # r[6] is Moisture_V
+                    r[6] = str(round(3.0 - (ps / 100.0) * 1.8, 2))
+                except Exception:
+                    pass
+            break
+
+    if found:
+        with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            writer.writerows(data_rows)
+        return RedirectResponse(url=f'/?msg=updated&upd_id={meas_id}', status_code=303)
+
+    return RedirectResponse(url='/?msg=err_not_found', status_code=303)
+
 @app.get('/', response_class=HTMLResponse)
 def index(
     stage: str = 'idle',
@@ -995,6 +1078,7 @@ def index(
     msg: str = '',
     last_grp: str = '',
     del_id: str = '',
+    upd_id: str = '',
     phase: str = 'all',
     found: str = '',
     stage_name: str = ''
@@ -1027,6 +1111,9 @@ def index(
         status_banner = f'<div style="background:#10b981;padding:14px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;box-shadow:0 4px 12px rgba(16,185,129,0.3);">🎉 Пакетная сессия ({s_lbl}) успешно сохранена! Все 3 замера добавлены в журнал.</div>'
     elif msg == 'saved':
         status_banner = '<div style="background:#10b981;padding:12px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">✅ Замер сохранен в базу! Переставьте следующую кассету.</div>'
+    elif msg == 'updated':
+        u_lbl = f' #{upd_id}' if upd_id else ''
+        status_banner = f'<div style="background:#0284c7;padding:11px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">✏️ Исследование{u_lbl} успешно скорректировано! T листа и ΔT пересчитаны.</div>'
     elif msg == 'cancelled':
         status_banner = '<div style="background:#64748b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">Замер сброшен. Готов к новому старту.</div>'
     elif msg == 'deleted':
@@ -1242,8 +1329,19 @@ def index(
                             <input type="number" step="0.1" min="0" max="100" name="pct_soil_{i}" value="{s.get('pct_soil', 64.0)}" required style="width:100%; padding:7px; font-size:13px; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box;">
                         </div>
                         <div>
-                            <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#334155;">🌡️ T листа (°C, OCR):</label>
-                            <input type="text" name="t_leaf_{i}" value="{item['t_ocr']}" required style="width:100%; padding:7px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                <label style="font-size:11px; font-weight:bold; color:#334155;">🌡️ T листа (°C):</label>
+                                <span style="font-size:10px; color:#64748b;">OCR: <b>{item['t_ocr']}°C</b></span>
+                            </div>
+                            <input type="number" step="0.1" name="t_leaf_{i}" id="t_leaf_{i}" value="{item['t_ocr']}" required style="width:100%; padding:7px; font-size:13px; font-weight:bold; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box;">
+                            <div style="display:flex; gap:2px; margin-top:4px;">
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -1.0)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 1.0°C">-1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.5)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.5°C">-0.5°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.1)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.1°C">-0.1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.1)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.1°C">+0.1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.5)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.5°C">+0.5°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 1.0)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 1.0°C">+1°</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1351,8 +1449,19 @@ def index(
                             <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="{s['pct_soil']}" required style="width:100%; padding:8px; font-size:13px; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box;">
                         </div>
                         <div>
-                            <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#334155;">🌡️ T листа (OCR / курок):</label>
-                            <input type="text" name="t_leaf" value="{t_leaf_init}" required style="width:100%; padding:8px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                <label style="font-size:11px; font-weight:bold; color:#334155;">🌡️ T листа (°C):</label>
+                                <span style="font-size:10px; color:#64748b;">OCR: <b>{t_leaf_init}°C</b></span>
+                            </div>
+                            <input type="number" step="0.1" name="t_leaf" id="single_t_leaf" value="{t_leaf_init}" required style="width:100%; padding:8px; font-size:13px; font-weight:bold; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box;">
+                            <div style="display:flex; gap:2px; margin-top:4px;">
+                                <button type="button" onclick="adjTemp('single_t_leaf', -1.0)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 1.0°C">-1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', -0.5)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.5°C">-0.5°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', -0.1)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.1°C">-0.1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 0.1)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.1°C">+0.1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 0.5)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.5°C">+0.5°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 1.0)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 1.0°C">+1°</button>
+                            </div>
                         </div>
                     </div>
 
@@ -1677,8 +1786,9 @@ def index(
         grp_badge = format_group_badge(grp)
         t_leaf_html = f'<b style="color:#d97706;white-space:nowrap;">{t_show}</b>' if t_show != '--' else '<span style="color:#94a3b8;">--</span>'
         del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id}?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">✕</button></form>'''
+        edit_btn = f'''<button type="button" onclick="openEditModal('{m_id}', '{t_show}', '{wt}', '{pct}')" style="background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; border-radius:4px; padding:2px 5px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1; margin-right:3px;" title="Скорректировать замер #{m_id}" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#e0f2fe';this.style.color='#0369a1';">✏️</button>'''
 
-        table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td>{del_btn}</td></tr>'
+        table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
@@ -2143,7 +2253,7 @@ def index(
                         <th style="width:85px;">🌿 PLA (см²)</th>
                         <th style="width:65px;">Почва</th>
                         <th style="width:105px;">Тепловизор</th>
-                        <th style="width:38px;" title="Удалить запись">✕</th>
+                        <th style="width:68px;">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2153,6 +2263,74 @@ def index(
         </div>
     </div>
 </div>
+
+<!-- МОДАЛЬНОЕ ОКНО КОРРЕКЦИИ ЗАМЕРА -->
+<div id="editModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(15,23,42,0.6); align-items:center; justify-content:center; backdrop-filter:blur(2px);">
+    <div style="background:#ffffff; padding:22px; border-radius:12px; width:340px; box-shadow:0 12px 36px rgba(0,0,0,0.25); border:2px solid var(--sirius-teal);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+            <h3 id="editModalTitle" style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">✏️ Коррекция замера</h3>
+            <button type="button" onclick="closeEditModal()" style="background:none; border:none; font-size:16px; cursor:pointer; color:#94a3b8;">✕</button>
+        </div>
+        <form action="/api/update_measurement" method="post">
+            <input type="hidden" name="meas_id" id="edit_meas_id">
+            
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">🌡️ T листа (°C):</label>
+                <input type="number" step="0.1" name="t_leaf" id="edit_t_leaf" required style="width:100%; padding:8px; font-size:14px; font-weight:bold; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box;">
+                <div style="display:flex; gap:3px; margin-top:4px;">
+                    <button type="button" onclick="adjTemp('edit_t_leaf', -1.0)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">-1°</button>
+                    <button type="button" onclick="adjTemp('edit_t_leaf', -0.5)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">-0.5°</button>
+                    <button type="button" onclick="adjTemp('edit_t_leaf', -0.1)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">-0.1°</button>
+                    <button type="button" onclick="adjTemp('edit_t_leaf', 0.1)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">+0.1°</button>
+                    <button type="button" onclick="adjTemp('edit_t_leaf', 0.5)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">+0.5°</button>
+                    <button type="button" onclick="adjTemp('edit_t_leaf', 1.0)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">+1°</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px; font-weight:bold; color:#0f766e; display:block; margin-bottom:4px;">⚖️ Масса кассеты с весов (г):</label>
+                <input type="text" name="weight_g" id="edit_weight" style="width:100%; padding:8px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px; font-weight:bold; color:#0284c7; display:block; margin-bottom:4px;">💧 Влажность субстрата (%):</label>
+                <input type="number" step="0.1" min="0" max="100" name="pct_soil" id="edit_soil" style="width:100%; padding:8px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
+            </div>
+
+            <div style="display:flex; gap:8px;">
+                <button type="submit" style="flex:1; padding:10px; background:linear-gradient(135deg, #059669, #00a499); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 Сохранить и пересчитать ΔT</button>
+                <button type="button" onclick="closeEditModal()" style="padding:10px 14px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer;">Отмена</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function adjTemp(id, delta) {{
+    let inp = document.getElementById(id);
+    if (!inp) return;
+    let cur = parseFloat(inp.value.replace(',', '.')) || 23.5;
+    inp.value = (cur + delta).toFixed(1);
+}}
+function openEditModal(id, tLeaf, weight, soil) {{
+    document.getElementById('edit_meas_id').value = id;
+    document.getElementById('editModalTitle').innerText = '✏️ Коррекция замера #' + id;
+    let cleanT = tLeaf.replace(' °C', '').replace('°C', '').trim();
+    if (cleanT === '--') cleanT = '23.5';
+    document.getElementById('edit_t_leaf').value = cleanT;
+    let cleanW = weight.replace(' г', '').replace('г', '').trim();
+    if (cleanW === '--') cleanW = '';
+    document.getElementById('edit_weight').value = cleanW;
+    let cleanS = soil.replace('%', '').trim();
+    if (cleanS === '--') cleanS = '64.0';
+    document.getElementById('edit_soil').value = cleanS;
+    let modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
+}}
+function closeEditModal() {{
+    document.getElementById('editModal').style.display = 'none';
+}}
+</script>
 </body>
 </html>'''
     return html
