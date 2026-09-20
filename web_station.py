@@ -1206,27 +1206,45 @@ def index(
         next_group_default = 'Контроль (Этап 2)'
 
     # Уведомления статуса
-    status_banner = ''
+    raw_banner = ''
+    banner_bg = '#10b981'
     if msg == 'batch_saved':
         s_lbl = stage_name if stage_name else 'Пакетная триада'
-        status_banner = f'<div style="background:#10b981;padding:14px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;box-shadow:0 4px 12px rgba(16,185,129,0.3);">🎉 Пакетная сессия ({s_lbl}) успешно сохранена! Все 3 замера добавлены в журнал.</div>'
+        raw_banner = f'🎉 Пакетная сессия ({s_lbl}) успешно сохранена! Все 3 замера добавлены в журнал.'
+        banner_bg = '#10b981'
     elif msg == 'saved':
-        status_banner = '<div style="background:#10b981;padding:12px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">✅ Замер сохранен в базу! Переставьте следующую кассету.</div>'
+        raw_banner = '✅ Замер сохранен в базу! Переставьте следующую кассету.'
+        banner_bg = '#10b981'
     elif msg == 'updated':
         u_lbl = f' #{upd_id}' if upd_id else ''
-        status_banner = f'<div style="background:#0284c7;padding:11px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">✏️ Исследование{u_lbl} успешно скорректировано! T листа и ΔT пересчитаны.</div>'
+        raw_banner = f'✏️ Исследование{u_lbl} успешно скорректировано! T листа и ΔT пересчитаны.'
+        banner_bg = '#0284c7'
     elif msg == 'cancelled':
-        status_banner = '<div style="background:#64748b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">Замер сброшен. Готов к новому старту.</div>'
+        raw_banner = 'Замер сброшен. Готов к новому старту.'
+        banner_bg = '#64748b'
     elif msg == 'deleted':
         d_lbl = f' #{del_id}' if del_id else ''
-        status_banner = f'<div style="background:#dc2626;padding:11px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">🗑️ Исследование{d_lbl} успешно удалено из журнала.</div>'
+        raw_banner = f'🗑️ Исследование{d_lbl} успешно удалено из журнала.'
+        banner_bg = '#dc2626'
     elif msg == 'err_not_found':
-        status_banner = '<div style="background:#f59e0b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">⚠️ Исследование не найдено в базе данных.</div>'
+        raw_banner = '⚠️ Исследование не найдено в базе данных.'
+        banner_bg = '#f59e0b'
     elif msg == 'err_camera':
-        status_banner = '<div style="background:#ef4444;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">❌ Ошибка камеры /dev/video0. Проверьте USB подключение.</div>'
+        raw_banner = '❌ Ошибка камеры /dev/video0. Проверьте USB подключение.'
+        banner_bg = '#ef4444'
     elif msg == 'err_thermal_count':
         f_cnt = found if found else '0'
-        status_banner = f'<div style="background:#ef4444;padding:12px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">⚠️ На тепловизоре обнаружено только {f_cnt} снимка(ов). Сделайте щелчок курком для всех 3 кассет и убедитесь, что USB-кабель подключен.</div>'
+        raw_banner = f'⚠️ На тепловизоре обнаружено только {f_cnt} снимка(ов). Сделайте щелчок курком для всех 3 кассет и убедитесь, что USB-кабель подключен.'
+        banner_bg = '#ef4444'
+
+    status_banner = ''
+    if raw_banner:
+        status_banner = f'''
+            <div id="statusAlert" style="position:relative; background:{banner_bg}; padding:12px 42px 12px 18px; border-radius:8px; font-weight:bold; margin-bottom:14px; text-align:center; color:white; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                <span>{raw_banner}</span>
+                <button type="button" onclick="dismissBanner()" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.2); border:none; color:white; width:26px; height:26px; border-radius:50%; font-size:14px; font-weight:bold; cursor:pointer; line-height:26px; text-align:center;" title="Закрыть уведомление">✕</button>
+            </div>
+        '''
 
     # ------------------ ЛОГИКА ЭТАПОВ (WIZARD) ------------------
     if stage == 'batch_shoot' and BATCH_STATE.get('active'):
@@ -2469,6 +2487,29 @@ function openEditModal(id, grp, ts, tLeaf, weight, soil) {{
 function closeEditModal() {{
     document.getElementById('editModal').style.display = 'none';
 }}
+function dismissBanner() {{
+    let el = document.getElementById('statusAlert');
+    if (el) {{
+        el.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-8px)';
+        setTimeout(() => el.remove(), 400);
+    }}
+    if (window.history && window.history.replaceState) {{
+        window.history.replaceState({{}}, document.title, window.location.pathname);
+    }}
+}}
+
+document.addEventListener('DOMContentLoaded', function() {{
+    if (document.getElementById('statusAlert')) {{
+        if (window.history && window.history.replaceState) {{
+            window.history.replaceState({{}}, document.title, window.location.pathname);
+        }}
+        setTimeout(function() {{
+            dismissBanner();
+        }}, 4500);
+    }}
+}});
 </script>
 </body>
 </html>'''
