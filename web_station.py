@@ -56,8 +56,36 @@ XIAOMI_GATEWAY_IP = '192.168.0.9'
 XIAOMI_GATEWAY_PORT = 9898
 XIAOMI_SENSOR_SID = '158d0001576282'
 
-# Текущая активная сессия замера до подтверждения оператором
+# Текущая активная сессия одиночного замера
 PENDING_SESSION = None
+
+# Конфигурация двухэтапного пакетного замера (по 3 кассеты на этап)
+BATCH_CONFIG = {
+    'stage1': {
+        'title': 'Этап 1: Скрининг стрессов (Кассеты 1–3)',
+        'cassettes': [
+            {'idx': 0, 'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив', 'color': '#0d9488'},
+            {'idx': 1, 'id': 2, 'name': 'Засуха', 'desc': '0 -> 96 ч без полива', 'color': '#f59e0b'},
+            {'idx': 2, 'id': 3, 'name': 'Соль', 'desc': 'NaCl 1.0% Осмос', 'color': '#dc2626'}
+        ]
+    },
+    'stage2': {
+        'title': 'Этап 2: Тест регидратации и спасения (Кассеты 4–6)',
+        'cassettes': [
+            {'idx': 0, 'id': 4, 'name': 'Контроль (Этап 2)', 'desc': 'Параллельный эталон', 'color': '#0d9488'},
+            {'idx': 1, 'id': 5, 'name': 'Раннее спасение', 'desc': 'Полив ~40 ч, сигнал станции', 'color': '#059669'},
+            {'idx': 2, 'id': 6, 'name': 'Позднее спасение', 'desc': 'Полив ~72 ч, при увядании', 'color': '#b45309'}
+        ]
+    }
+}
+
+BATCH_STATE = {
+    'active': False,
+    'stage_key': 'stage1',
+    'current_step': 0,
+    'sessions': [],
+    'verified_data': None
+}
 
 def read_xiaomi_climate():
     """Автоматический опрос Sensirion SHT30 по локальному UDP протоколу."""
@@ -584,10 +612,175 @@ def handle_save_final(
 
 @app.get('/api/cancel_session')
 def handle_cancel_session():
-    """Сброс текущего замера."""
+    """Сброс текущего одиночного замера."""
     global PENDING_SESSION
     PENDING_SESSION = None
     return RedirectResponse(url='/?msg=cancelled', status_code=303)
+
+# ----------------- ЭНДПОИНТЫ ПАКЕТНОГО ЗАМЕРА (3-В-1) -----------------
+@app.get('/api/start_batch')
+def handle_start_batch(stage: str = 'stage1'):
+    """Старт пакетной сессии для выбранного этапа (stage1 или stage2)."""
+    global BATCH_STATE, PENDING_SESSION
+    PENDING_SESSION = None
+    if stage not in BATCH_CONFIG:
+        stage = 'stage1'
+    BATCH_STATE = {
+        'active': True,
+        'stage_key': stage,
+        'current_step': 0,
+        'sessions': [],
+        'verified_data': None
+    }
+    return RedirectResponse(url='/?stage=batch_shoot', status_code=303)
+
+@app.get('/api/cancel_batch')
+def handle_cancel_batch():
+    """Отмена текущей пакетной сессии."""
+    global BATCH_STATE
+    BATCH_STATE = {
+        'active': False,
+        'stage_key': 'stage1',
+        'current_step': 0,
+        'sessions': [],
+        'verified_data': None
+    }
+    return RedirectResponse(url='/?msg=cancelled', status_code=303)
+
+@app.post('/api/batch_capture_next')
+def handle_batch_capture_next(group_name: str = Form('')):
+    """Съемка очередной кассеты в боксе NoIR камерой (без подключения кабеля тепловизора)."""
+    global BATCH_STATE
+    if not BATCH_STATE.get('active'):
+        return RedirectResponse(url='/?msg=err_no_session', status_code=303)
+    
+    stage_key = BATCH_STATE['stage_key']
+    cassettes = BATCH_CONFIG[stage_key]['cassettes']
+    step = len(BATCH_STATE['sessions'])
+    if step >= len(cassettes):
+        return RedirectResponse(url='/?stage=batch_await_thermal', status_code=303)
+    
+    default_name = cassettes[step]['name']
+    target_name = group_name.strip() if group_name.strip() else default_name
+    
+    try:
+        session = do_hardware_spectral_capture(target_name)
+        BATCH_STATE['sessions'].append(session)
+        BATCH_STATE['current_step'] = len(BATCH_STATE['sessions'])
+        if len(BATCH_STATE['sessions']) >= len(cassettes):
+            return RedirectResponse(url='/?stage=batch_await_thermal', status_code=303)
+        else:
+            return RedirectResponse(url='/?stage=batch_shoot', status_code=303)
+    except Exception as e:
+        print('[Batch Capture Error]:', e)
+        return RedirectResponse(url='/?stage=batch_shoot&msg=err_camera', status_code=303)
+
+@app.post('/api/batch_link_thermal')
+def handle_batch_link_thermal():
+    """Считывание 3 последних термограмм с флешки тепловизора и авто-привязка к 3 кассетам."""
+    global BATCH_STATE
+    if not BATCH_STATE.get('active') or len(BATCH_STATE['sessions']) != 3:
+        return RedirectResponse(url='/?msg=err_no_session', status_code=303)
+    
+    auto_mount_uti()
+    files = get_uti_sorted_files()
+    if len(files) < 3:
+        return RedirectResponse(url=f'/?stage=batch_await_thermal&msg=err_thermal_count&found={len(files)}', status_code=303)
+    
+    # Берем 3 самых свежих файла и сортируем хронологически: [0] = самый ранний (кассета 1), [2] = самый поздний (кассета 3)
+    recent_3 = files[:3]
+    recent_3.sort(key=os.path.getmtime)
+    
+    verified_list = []
+    for i, s in enumerate(BATCH_STATE['sessions']):
+        fp = recent_3[i]
+        fname = os.path.basename(fp)
+        mtime = os.path.getmtime(fp)
+        thumb_jpg = f'{int(mtime)}_{fname}.jpg'
+        thumb_path = os.path.join(TH_CACHE_DIR, thumb_jpg)
+        if not os.path.exists(thumb_path):
+            try:
+                im = Image.open(fp)
+                im.save(thumb_path)
+            except Exception:
+                pass
+        
+        t_ocr = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else round(s['t_air'] + 0.5, 1)
+        
+        verified_list.append({
+            'session': s,
+            'thermal_filename': fname,
+            'thermal_thumb': thumb_jpg,
+            'thermal_thumb_url': f'/static/uti_cache/{thumb_jpg}',
+            't_ocr': t_ocr,
+            'dt_str': format_ru_datetime(mtime)
+        })
+    
+    BATCH_STATE['verified_data'] = verified_list
+    return RedirectResponse(url='/?stage=batch_verify', status_code=303)
+
+@app.post('/api/batch_save_final')
+def handle_batch_save_final(
+    weight_g_0: str = Form(''), t_leaf_0: str = Form(''),
+    weight_g_1: str = Form(''), t_leaf_1: str = Form(''),
+    weight_g_2: str = Form(''), t_leaf_2: str = Form('')
+):
+    """Окончательное групповое сохранение всей триады кассет (3 замера разом)."""
+    global BATCH_STATE
+    if not BATCH_STATE.get('active') or not BATCH_STATE.get('verified_data') or len(BATCH_STATE['verified_data']) != 3:
+        return RedirectResponse(url='/?msg=err_no_session', status_code=303)
+    
+    weights = [weight_g_0, weight_g_1, weight_g_2]
+    t_leafs = [t_leaf_0, t_leaf_1, t_leaf_2]
+    
+    with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        for i, item in enumerate(BATCH_STATE['verified_data']):
+            s = item['session']
+            meas_id = s['id']
+            ts_display = s['timestamp']
+            group_name = s['group']
+            
+            w_val = weights[i].strip().replace(',', '.') if weights[i] else ''
+            t_l_val = t_leafs[i].strip().replace(',', '.') if t_leafs[i] else str(item['t_ocr'])
+            
+            delta_t_val = ''
+            if t_l_val:
+                try:
+                    dt = round(float(t_l_val) - float(s['t_air']), 1)
+                    delta_t_val = str(dt)
+                except Exception:
+                    pass
+            
+            # Сохранение термограммы
+            jpg_stored_name = ''
+            src_thumb = os.path.join(STATIC_DIR, 'uti_cache', item['thermal_thumb'])
+            if os.path.exists(src_thumb):
+                jpg_stored_name = f"therm_{meas_id}_{item['thermal_filename']}.jpg"
+                dst_path = os.path.join(STATIC_DIR, jpg_stored_name)
+                shutil.copyfile(src_thumb, dst_path)
+                if i == 2:
+                    shutil.copyfile(dst_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
+            
+            writer.writerow([
+                meas_id, ts_display, group_name, w_val,
+                s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+                t_l_val, delta_t_val, s['vpd'],
+                s['mean_ndvi'], s['std_ndvi'],
+                s['opt_file'], jpg_stored_name,
+                *s['cell_ndvis']
+            ])
+            
+    stage_title = BATCH_CONFIG[BATCH_STATE['stage_key']]['title']
+    BATCH_STATE = {
+        'active': False,
+        'stage_key': 'stage1',
+        'current_step': 0,
+        'sessions': [],
+        'verified_data': None
+    }
+    return RedirectResponse(url=f'/?msg=batch_saved&stage_name={stage_title}', status_code=303)
+
 
 def do_delete_measurement(meas_id: str):
     """Удаление некорректного замера по ID из CSV базы данных."""
@@ -639,14 +832,23 @@ def delete_measurement_get(meas_id: str):
     return do_delete_measurement(meas_id)
 
 @app.get('/', response_class=HTMLResponse)
-def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '', del_id: str = '', phase: str = 'all'):
-    global PENDING_SESSION
+def index(
+    stage: str = 'idle',
+    offset: int = 0,
+    msg: str = '',
+    last_grp: str = '',
+    del_id: str = '',
+    phase: str = 'all',
+    found: str = '',
+    stage_name: str = ''
+):
+    global PENDING_SESSION, BATCH_STATE
 
     cur_t, cur_rh, cur_v = read_xiaomi_climate()
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
 
-    # Определение следующей группы по очереди (цикл по фазам)
+    # Определение следующей группы по умолчанию для одиночного замера
     next_group_default = 'Контроль'
     if last_grp == 'Контроль':
         next_group_default = 'Засуха'
@@ -663,21 +865,222 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
     # Уведомления статуса
     status_banner = ''
-    if msg == 'saved':
-        status_banner = '<div style="background:#10b981;padding:12px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">✅ Замер сохранен в базу! Переставьте следующую кассету.</div>'
+    if msg == 'batch_saved':
+        s_lbl = stage_name if stage_name else 'Пакетная триада'
+        status_banner = f'<div style="background:#10b981;padding:14px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;box-shadow:0 4px 12px rgba(16,185,129,0.3);">🎉 Пакетная сессия ({s_lbl}) успешно сохранена! Все 3 замера добавлены в журнал.</div>'
+    elif msg == 'saved':
+        status_banner = '<div style="background:#10b981;padding:12px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">✅ Замер сохранен в базу! Переставьте следующую кассету.</div>'
     elif msg == 'cancelled':
-        status_banner = '<div style="background:#64748b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">Замер сброшен. Готов к новому старту.</div>'
+        status_banner = '<div style="background:#64748b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">Замер сброшен. Готов к новому старту.</div>'
     elif msg == 'deleted':
         d_lbl = f' #{del_id}' if del_id else ''
-        status_banner = f'<div style="background:#dc2626;padding:11px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">🗑️ Исследование{d_lbl} успешно удалено из журнала.</div>'
+        status_banner = f'<div style="background:#dc2626;padding:11px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">🗑️ Исследование{d_lbl} успешно удалено из журнала.</div>'
     elif msg == 'err_not_found':
-        status_banner = '<div style="background:#f59e0b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">⚠️ Исследование не найдено в базе данных.</div>'
+        status_banner = '<div style="background:#f59e0b;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">⚠️ Исследование не найдено в базе данных.</div>'
     elif msg == 'err_camera':
-        status_banner = '<div style="background:#ef4444;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;">❌ Ошибка камеры /dev/video0. Проверьте USB подключение.</div>'
+        status_banner = '<div style="background:#ef4444;padding:10px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">❌ Ошибка камеры /dev/video0. Проверьте USB подключение.</div>'
+    elif msg == 'err_thermal_count':
+        f_cnt = found if found else '0'
+        status_banner = f'<div style="background:#ef4444;padding:12px;border-radius:8px;font-weight:bold;margin-bottom:14px;text-align:center;color:white;">⚠️ На тепловизоре обнаружено только {f_cnt} снимка(ов). Сделайте щелчок курком для всех 3 кассет и убедитесь, что USB-кабель подключен.</div>'
 
     # ------------------ ЛОГИКА ЭТАПОВ (WIZARD) ------------------
-    if stage == 'review' and PENDING_SESSION:
-        # ЭТАП 2: ВЕРИФИКАЦИЯ И ПОДТВЕРЖДЕНИЕ
+    if stage == 'batch_shoot' and BATCH_STATE.get('active'):
+        # ПАКЕТНЫЙ ШАГ 1: Съемка 3 кассет NoIR + курок тепловизора
+        stage_key = BATCH_STATE.get('stage_key', 'stage1')
+        conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
+        cassettes = conf['cassettes']
+        step_idx = len(BATCH_STATE.get('sessions', []))
+        cur_cassette = cassettes[min(step_idx, len(cassettes)-1)]
+
+        slots_html = ''
+        for i, c in enumerate(cassettes):
+            if i < step_idx:
+                s_done = BATCH_STATE['sessions'][i]
+                slots_html += f'''
+                    <div style="flex:1; background:#ecfdf5; border:2px solid #10b981; border-radius:8px; padding:8px; text-align:center;">
+                        <span style="font-size:11px; color:#065f46; font-weight:bold; display:block;">✓ Кассета #{c["id"]}</span>
+                        <span style="font-size:11px; color:#047857; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c["name"]}</span>
+                        <span style="font-size:12px; color:#047857; font-weight:bold;">NDVI: {s_done.get("mean_ndvi", "--")}</span>
+                    </div>
+                '''
+            elif i == step_idx:
+                slots_html += f'''
+                    <div style="flex:1; background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:8px; text-align:center; box-shadow:0 2px 8px rgba(59,130,246,0.25);">
+                        <span style="font-size:11px; color:#1d4ed8; font-weight:bold; display:block;">👉 СЕЙЧАС В БОКСЕ</span>
+                        <span style="font-size:12px; color:#1e40af; font-weight:bold; display:block;">Кассета #{c["id"]}</span>
+                        <span style="font-size:11px; color:#2563eb; font-weight:bold;">{c["name"]}</span>
+                    </div>
+                '''
+            else:
+                slots_html += f'''
+                    <div style="flex:1; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; opacity:0.65;">
+                        <span style="font-size:11px; color:#64748b; display:block;">Очередь #{i+1}</span>
+                        <span style="font-size:11px; color:#475569; font-weight:bold;">Кассета #{c["id"]}</span>
+                        <span style="font-size:10px; color:#64748b;">{c["name"]}</span>
+                    </div>
+                '''
+
+        wizard_card = f'''
+            <div class="card" style="border: 2px solid #3b82f6; background: #ffffff;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
+                    <div>
+                        <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер триады (без проводов)</span>
+                        <h2 style="margin:2px 0 0 0; color:#1e40af; font-size:16px;">{conf["title"]}</h2>
+                    </div>
+                    <span style="background:#dbeafe; color:#1e40af; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold;">Кассета {step_idx + 1} из 3</span>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-bottom:14px;">
+                    {slots_html}
+                </div>
+
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <h3 style="margin:0; font-size:15px; color:#0f172a;">
+                            Установите <span style="color:{cur_cassette['color']}">Кассету #{cur_cassette['id']} ({cur_cassette['name']})</span>
+                        </h3>
+                        <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">ArUco #{cur_cassette['id']}</span>
+                    </div>
+                    <p style="margin:0 0 10px 0; font-size:12px; color:#64748b;">
+                        {cur_cassette["desc"]}
+                    </p>
+                    <ol style="margin:0; padding-left:18px; font-size:12px; color:#334155; line-height:1.6;">
+                        <li>Поставьте <b>Кассету #{cur_cassette['id']}</b> в бокс на упоры разметки.</li>
+                        <li>Нажмите синюю кнопку ниже: станция сделает спектральную вспышку NoIR и проверит ArUco-маркер.</li>
+                        <li>Сразу после вспышки сделайте снимок курком тепловизора UTi120S в руках.</li>
+                    </ol>
+                </div>
+
+                <form action="/api/batch_capture_next" method="post">
+                    <input type="hidden" name="group_name" value="{cur_cassette['name']}">
+                    <button type="submit" class="btn-run" style="width:100%; padding:14px; font-size:15px; background:linear-gradient(135deg, #2563eb, #0d9488); cursor:pointer;">
+                        📸 СНЯТЬ СПЕКТР КАССЕТЫ #{cur_cassette['id']} ({cur_cassette['name']})
+                    </button>
+                </form>
+
+                <div style="margin-top:12px; text-align:center;">
+                    <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Прервать пакетную сессию</a>
+                </div>
+            </div>
+        '''
+
+    elif stage == 'batch_await_thermal' and BATCH_STATE.get('active'):
+        # ПАКЕТНЫЙ ШАГ 2: Все 3 кассеты сняты NoIR, втыкаем кабель тепловизора ОДИН РАЗ
+        stage_key = BATCH_STATE.get('stage_key', 'stage1')
+        conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
+        cassettes = conf['cassettes']
+
+        cards_summary = ''
+        for i, c in enumerate(cassettes):
+            s = BATCH_STATE['sessions'][i] if i < len(BATCH_STATE.get('sessions', [])) else {}
+            cards_summary += f'''
+                <div style="flex:1; background:#ffffff; border:1px solid #a7f3d0; border-radius:8px; padding:10px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                    <span style="font-size:11px; color:#065f46; font-weight:bold; display:block;">Кассета #{c["id"]} ({c["name"]})</span>
+                    <span style="font-size:13px; color:#047857; font-weight:bold;">NDVI: {s.get("mean_ndvi", "--")}</span>
+                    <img src="/static/{s.get('opt_file', 'last_ndvi.jpg')}?t={t_now}" style="height:65px; border-radius:4px; margin-top:6px; object-fit:cover; width:100%; border:1px solid #e2e8f0;">
+                </div>
+            '''
+
+        wizard_card = f'''
+            <div class="card" style="border: 2px solid #10b981; background: #ffffff;">
+                <div style="text-align:center; padding:6px 0 10px 0;">
+                    <div style="font-size:28px; margin-bottom:2px;">🎉</div>
+                    <h2 style="margin:0; color:#065f46; font-size:17px;">Все 3 кассеты успешно отсняты NoIR-камерой!</h2>
+                    <span style="font-size:12px; color:#047857;">{conf["title"]}</span>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-bottom:14px;">
+                    {cards_summary}
+                </div>
+
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:14px; margin-bottom:14px; text-align:center;">
+                    <p style="margin:0 0 6px 0; font-size:14px; color:#15803d; font-weight:bold;">
+                        🔌 Вставьте USB-кабель тепловизора UTi120S в Orange Pi (один раз)!
+                    </p>
+                    <p style="margin:0; font-size:12px; color:#166534; line-height:1.4;">
+                        Станция считает 3 последних снимка с флешки тепловизора, выполнит Tesseract OCR температуры листа и автоматически привяжет их к кассетам.
+                    </p>
+                </div>
+
+                <form action="/api/batch_link_thermal" method="post">
+                    <button type="submit" class="btn-confirm" style="width:100%; padding:14px; font-size:15px; background:linear-gradient(135deg, #10b981, #0d9488); cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.35);">
+                        🔌 СЧИТАТЬ И СВЯЗАТЬ 3 СНИМКА ТЕПЛОВИЗОРА
+                    </button>
+                </form>
+
+                <div style="margin-top:12px; text-align:center;">
+                    <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Отменить сессию</a>
+                </div>
+            </div>
+        '''
+
+    elif stage == 'batch_verify' and BATCH_STATE.get('active') and BATCH_STATE.get('verified_data'):
+        # ПАКЕТНЫЙ ШАГ 3: Финальная верификация всей тройки кассет на одном экране
+        stage_key = BATCH_STATE.get('stage_key', 'stage1')
+        conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
+        verified = BATCH_STATE.get('verified_data', [])
+
+        items_html = ''
+        for i, item in enumerate(verified):
+            s = item['session']
+            c_info = conf['cassettes'][i]
+            items_html += f'''
+                <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:8px;">
+                        <span style="font-weight:bold; font-size:14px; color:{c_info['color']};">Кассета #{c_info['id']}: {c_info['name']}</span>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span style="background:#ecfdf5; color:#047857; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:bold;">NDVI: {s['mean_ndvi']}</span>
+                            <span style="background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:bold;">White Ref k={s.get('k_bal', 1.025)}</span>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+                        <div style="text-align:center;">
+                            <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">Спектр NoIR</span>
+                            <img src="/static/{s['opt_file']}?t={t_now}" style="width:100%; height:85px; object-fit:cover; border-radius:6px; border:1px solid #e2e8f0;">
+                        </div>
+                        <div style="text-align:center;">
+                            <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">Тепловизор ({item['thermal_filename']})</span>
+                            <img src="{item['thermal_thumb_url']}?t={t_now}" style="width:100%; height:85px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc;">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <div>
+                            <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0f766e;">⚖️ Масса с весов, г:</label>
+                            <input type="text" name="weight_g_{i}" required placeholder="напр. 415.0" style="width:100%; padding:7px; font-size:13px; border:2px solid var(--sirius-teal); border-radius:6px;" {'autofocus' if i==0 else ''}>
+                        </div>
+                        <div>
+                            <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#334155;">🌡️ T листа (°C, OCR):</label>
+                            <input type="text" name="t_leaf_{i}" value="{item['t_ocr']}" required style="width:100%; padding:7px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px;">
+                        </div>
+                    </div>
+                </div>
+            '''
+
+        wizard_card = f'''
+            <div class="card" style="border: 2px solid var(--sirius-teal); background: #f8fafc;">
+                <div style="border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
+                    <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Финальная верификация триады</span>
+                    <h2 style="margin:2px 0 0 0; color:var(--sirius-teal-dark); font-size:16px;">{conf["title"]}</h2>
+                </div>
+
+                <form action="/api/batch_save_final" method="post">
+                    {items_html}
+
+                    <button type="submit" class="btn-confirm" style="width:100%; padding:14px; font-size:16px; background:linear-gradient(135deg, #059669, #00a499); box-shadow:0 4px 14px rgba(0,164,153,0.35); margin-top:8px; cursor:pointer;">
+                        ✅ ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ ВСЮ ТРИАДУ В БАЗУ (3 ЗАМЕРА)
+                    </button>
+
+                    <div style="margin-top:10px; text-align:center;">
+                        <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Отменить эту сессию</a>
+                    </div>
+                </form>
+            </div>
+        '''
+
+    elif stage == 'review' and PENDING_SESSION:
+        # ЭТАП 2 ОДИНОЧНОГО ЗАМЕРА: ВЕРИФИКАЦИЯ И ПОДТВЕРЖДЕНИЕ
         s = PENDING_SESSION
         uti_info = get_file_info_at_index(offset)
 
@@ -710,22 +1113,19 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
 
         aruco_badge = f'<span style="background:#059669; color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold; box-shadow:0 2px 6px rgba(5,150,105,0.3);">🎯 ArUco #{s["aruco_id"]}: {s["group"]}</span>' if s.get('aruco_id') else f'<span style="background:var(--sirius-teal); color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">{s["group"]}</span>'
         
-        if s.get('aruco_id'):
-            step1_note = f'''
-                <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#065f46;">
-                    🎯 <b>ArUco-маркер #{s['aruco_id']} обнаружен:</b> когорта <b>«{s['group']}»</b> определена автоматически.<br>
-                    <span style="display:inline-block; margin-top:5px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🎯 Радиометрическая калибровка: White Ref k={s.get('k_bal', 1.025)} (диффузный эталон)</span>
-                    <div style="margin-top:6px;">Переставьте кассету на весы и подключите тепловизор.</div>
-                </div>
-            '''
-        else:
-            step1_note = f'''
-                <div style="background:#f0fdfa; border:1px solid #ccfbf1; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#0f766e;">
-                    ✓ <b>Спектральный замер выполнен (ручной выбор когорты).</b><br>
-                    <span style="display:inline-block; margin-top:5px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🎯 Радиометрическая калибровка: White Ref k={s.get('k_bal', 1.025)} (диффузный эталон)</span>
-                    <div style="margin-top:6px;">Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.</div>
-                </div>
-            '''
+        step1_note = f'''
+            <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#065f46;">
+                🎯 <b>ArUco-маркер #{s.get('aruco_id', '--')} обнаружен:</b> когорта <b>«{s['group']}»</b> определена автоматически.<br>
+                <span style="display:inline-block; margin-top:5px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🎯 Радиометрическая калибровка: White Ref k={s.get('k_bal', 1.025)} (диффузный эталон)</span>
+                <div style="margin-top:6px;">Переставьте кассету на весы и подключите тепловизор.</div>
+            </div>
+        ''' if s.get('aruco_id') else f'''
+            <div style="background:#f0fdfa; border:1px solid #ccfbf1; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#0f766e;">
+                ✓ <b>Спектральный замер выполнен (ручной выбор когорты).</b><br>
+                <span style="display:inline-block; margin-top:5px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🎯 Радиометрическая калибровка: White Ref k={s.get('k_bal', 1.025)} (диффузный эталон)</span>
+                <div style="margin-top:6px;">Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.</div>
+            </div>
+        '''
 
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); background: #ffffff;">
@@ -777,40 +1177,60 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 </form>
             </div>
         '''
+
     else:
-        # ЭТАП 1: ОЖИДАНИЕ СТАРТА НОВОГО ЗАМЕРА
+        # ЭТАП IDLE: ВЫБОР РЕЖИМА ЗАМЕРА (ПАКЕТНЫЙ 3-В-1 ИЛИ ОДИНОЧНЫЙ)
         wizard_card = f'''
-            <div class="card">
-                <h2>1. Старт замера кассеты в боксе</h2>
-                <p style="font-size: 12px; color: #64748b; margin: 4px 0 10px 0;">
-                    Поставьте кассету в бокс. Держите тепловизор в руках (без кабеля).
-                </p>
-                <form action="/api/start_spectral" method="post">
-                    <label>Исследуемая кассета:</label>
-                    <select name="group_name">
-                        <optgroup label="── ЭТАП 1: Скрининг стрессов (Кассеты 1–3) ──">
-                            <option value="Контроль" {'selected' if next_group_default=='Контроль' else ''}>Кассета 1: КОНТРОЛЬ (Оптимальный полив)</option>
-                            <option value="Засуха" {'selected' if next_group_default=='Засуха' else ''}>Кассета 2: ЗАСУХА (Без полива 0–96 ч)</option>
-                            <option value="Соль" {'selected' if next_group_default=='Соль' else ''}>Кассета 3: СОЛЬ (NaCl 1.0% Осмос)</option>
-                        </optgroup>
-                        <optgroup label="── ЭТАП 2: Тест регидратации и спасения (Кассеты 4–6) ──">
-                            <option value="Контроль (Этап 2)" {'selected' if next_group_default=='Контроль (Этап 2)' else ''}>Кассета 4: КОНТРОЛЬ (Параллельный эталон)</option>
-                            <option value="Раннее спасение" {'selected' if next_group_default=='Раннее спасение' else ''}>Кассета 5: РАННЕЕ СПАСЕНИЕ (Полив ~40 ч, сигнал станции)</option>
-                            <option value="Позднее спасение" {'selected' if next_group_default=='Позднее спасение' else ''}>Кассета 6: ПОЗДНЕЕ СПАСЕНИЕ (Полив ~72 ч, при увядании)</option>
-                        </optgroup>
-                    </select>
-
-                    <button type="submit" class="btn-run">
-                        📸 1. НАЧАТЬ ЗАМЕР В БОКСЕ (ВСПЫШКА)
-                    </button>
-                </form>
-
-                <div style="margin-top:15px; padding:12px; background:#f0fdfa; border-radius:8px; border:1px solid #ccfbf1; font-size:11px; color:#0f766e; line-height:1.5;">
-                    <b>Регламент цикла:</b><br>
-                    1. Нажмите зеленую кнопку выше (NoIR вспышка);<br>
-                    2. Сделайте снимок курком тепловизора UTi120S;<br>
-                    3. Поставьте кассету на весы и воткните кабель тепловизора в плату.
+            <div class="card" style="border: 2px solid var(--sirius-teal);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">🚀 Пакетный замер триады кассет (3-в-1)</h2>
+                    <span style="background:#e0f2fe; color:#0369a1; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">1 подключение кабеля</span>
                 </div>
+                <p style="font-size: 12px; color: #475569; margin: 0 0 14px 0; line-height:1.4;">
+                    Выберите исследуемый этап. Станция последовательно снимет 3 кассеты, а провод тепловизора подключается <b>всего один раз в конце</b>:
+                </p>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+                    <!-- Кнопка Этап 1 -->
+                    <a href="/api/start_batch?stage=stage1" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488, #059669); color:white; padding:14px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.25);">
+                        <span style="font-size:20px; display:block; margin-bottom:4px;">🔬</span>
+                        <b style="font-size:14px; display:block;">ЭТАП 1: СКРИНИНГ</b>
+                        <span style="font-size:11px; opacity:0.95; display:block; margin-top:3px;">Кассеты 1, 2, 3</span>
+                        <span style="font-size:10px; opacity:0.85; display:block; margin-top:2px;">Контроль • Засуха • Соль</span>
+                    </a>
+
+                    <!-- Кнопка Этап 2 -->
+                    <a href="/api/start_batch?stage=stage2" style="text-decoration:none; display:block; background:linear-gradient(135deg, #2563eb, #3b82f6); color:white; padding:14px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(37,99,235,0.25);">
+                        <span style="font-size:20px; display:block; margin-bottom:4px;">🌱</span>
+                        <b style="font-size:14px; display:block;">ЭТАП 2: РЕГИДРАТАЦИЯ</b>
+                        <span style="font-size:11px; opacity:0.95; display:block; margin-top:3px;">Кассеты 4, 5, 6</span>
+                        <span style="font-size:10px; opacity:0.85; display:block; margin-top:2px;">Контроль-2 • Раннее • Позднее</span>
+                    </a>
+                </div>
+
+                <!-- Выпадающий одиночный замер -->
+                <details style="border-top:1px solid #e2e8f0; padding-top:10px; margin-top:8px;">
+                    <summary style="cursor:pointer; color:#64748b; font-size:12px; font-weight:bold;">
+                        ⚙️ Одиночный замер (для выборочной пересъемки одной кассеты)
+                    </summary>
+                    <form action="/api/start_spectral" method="post" style="margin-top:10px;">
+                        <select name="group_name" style="margin-bottom:8px;">
+                            <optgroup label="── ЭТАП 1: Скрининг стрессов ──">
+                                <option value="Контроль">Кассета 1: КОНТРОЛЬ</option>
+                                <option value="Засуха">Кассета 2: ЗАСУХА</option>
+                                <option value="Соль">Кассета 3: СОЛЬ (NaCl 1.0%)</option>
+                            </optgroup>
+                            <optgroup label="── ЭТАП 2: Спасение и регидратация ──">
+                                <option value="Контроль (Этап 2)">Кассета 4: КОНТРОЛЬ-2</option>
+                                <option value="Раннее спасение">Кассета 5: РАННЕЕ СПАСЕНИЕ</option>
+                                <option value="Позднее спасение">Кассета 6: ПОЗДНЕЕ СПАСЕНИЕ</option>
+                            </optgroup>
+                        </select>
+                        <button type="submit" class="btn-run" style="padding:10px; font-size:13px;">
+                            📸 Снять одну кассету в боксе
+                        </button>
+                    </form>
+                </details>
             </div>
         '''
 
