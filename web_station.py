@@ -1403,88 +1403,87 @@ def index(
                 '''
 
         wizard_card = f'''
-            <div class="card" style="border: 2px solid #3b82f6; background: #ffffff;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
-                    <div>
-                        <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер триады (без проводов)</span>
-                        <h2 style="margin:2px 0 0 0; color:#1e40af; font-size:16px;">{conf["title"]}</h2>
+            <div class="card" style="border: 2px solid #3b82f6; background: #ffffff; height:100%; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
+                        <div>
+                            <span style="font-size:10px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер триады (без проводов)</span>
+                            <h2 style="margin:2px 0 0 0; color:#1e40af; font-size:15px;">{conf["title"]}</h2>
+                        </div>
+                        <span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Кадр {step_idx + 1} из 3</span>
                     </div>
-                    <span style="background:#dbeafe; color:#1e40af; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold;">Кадр {step_idx + 1} из 3</span>
-                </div>
 
-                <div style="display:flex; gap:8px; margin-bottom:14px;">
-                    {slots_html}
-                </div>
-
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:14px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <h3 style="margin:0; font-size:15px; color:#0f172a;">
-                            Установите любую кассету в бокс (Кадр #{step_idx + 1} из 3)
-                        </h3>
-                        <span style="background:#ecfdf5; color:#047857; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ Авто-распознавание ArUco</span>
+                    <div style="display:flex; gap:6px; margin-bottom:10px;">
+                        {slots_html}
                     </div>
-                    <p style="margin:0 0 10px 0; font-size:12px; color:#64748b;">
-                        <b>Порядок установки не имеет значения!</b> Станция оптически считает ArUco-маркер с кассеты при вспышке и автоматически упорядочит данные.
-                    </p>
-                    <ol style="margin:0; padding-left:18px; font-size:12px; color:#334155; line-height:1.6;">
-                        <li>Поставьте очередную кассету в бокс на упоры разметки.</li>
-                        <li>Нажмите кнопку ниже: сработает спектральная вспышка NoIR и <b>станция считает ArUco-маркер</b>.</li>
-                        <li>Сразу после вспышки сделайте снимок курком тепловизора UTi120S в руках.</li>
-                    </ol>
-                </div>
 
-                <form action="/api/batch_capture_next" method="post">
-                    <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
-                        <div style="margin-bottom:10px;">
-                            <label style="font-size:12px; font-weight:bold; color:#1e40af; display:block; margin-bottom:4px;">
-                                🏷️ Кассета (когорта):
-                            </label>
-                            <select name="cohort_choice" style="width:100%; padding:8px 10px; font-size:13px; font-weight:bold; border:1.5px solid #3b82f6; border-radius:6px; background:#eff6ff; color:#1e40af;">
-                                <option value="auto" selected>🎯 Автоматически (распознать по ArUco-маркеру)</option>
-                                <option value="1">🌱 Кассета #1: Контроль (Этап 1)</option>
-                                <option value="2">🍂 Кассета #2: Засуха (Этап 1)</option>
-                                <option value="3">🧂 Кассета #3: Соль (Этап 1)</option>
-                                <option value="4">🌱 Кассета #4: Контроль (Этап 2)</option>
-                                <option value="5">💧 Кассета #5: Раннее спасение (Этап 2)</option>
-                                <option value="6">⏳ Кассета #6: Позднее спасение (Этап 2)</option>
-                            </select>
-                            <span style="font-size:11px; color:#64748b; display:block; margin-top:3px;">
-                                По умолчанию станция считает маркер сама. Если маркер стерт, помят или не читается — выберите кассету вручную.
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                            <span style="font-size:13px; font-weight:bold; color:#0f172a;">
+                                Установите любую кассету в бокс (Кадр #{step_idx + 1} из 3)
                             </span>
+                            <span style="background:#ecfdf5; color:#047857; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ Авто-ArUco</span>
                         </div>
-
-                        <span style="font-size:11px; font-weight:bold; color:#334155; text-transform:uppercase; display:block; margin-bottom:8px;">
-                            📝 Физиологические параметры для кадра #{step_idx + 1} (вводятся сразу при замере):
-                        </span>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; align-items:end;">
-                            <div style="display:flex; flex-direction:column;">
-                                <label style="font-size:11px; font-weight:bold; color:#0f766e; height:28px; display:flex; align-items:flex-end; margin:0 0 4px 0; line-height:1.2;">
-                                    ⚖️ Масса с весов, г:
-                                </label>
-                                <input type="text" name="weight_g" autofocus placeholder="напр. 405.0" style="width:100%; height:38px; padding:6px 10px; font-size:13px; font-weight:bold; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
-                            </div>
-                            <div style="display:flex; flex-direction:column;">
-                                <label style="font-size:11px; font-weight:bold; color:#d97706; height:28px; display:flex; align-items:flex-end; margin:0 0 4px 0; line-height:1.2;">
-                                    🌡️ T листа (UTi120S), °C:
-                                </label>
-                                <input type="number" step="0.1" name="t_leaf" placeholder="напр. 23.5" style="width:100%; height:38px; padding:6px 10px; font-size:13px; font-weight:bold; border:1.5px solid #f59e0b; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
-                            </div>
-                            <div style="display:flex; flex-direction:column;">
-                                <label style="font-size:11px; font-weight:bold; color:#0284c7; height:28px; display:flex; align-items:flex-end; margin:0 0 4px 0; line-height:1.2;">
-                                    💧 Влажность почвы, %:
-                                </label>
-                                <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="64.0" style="width:100%; height:38px; padding:6px 10px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
-                            </div>
-                        </div>
+                        <p style="margin:0 0 4px 0; font-size:11px; color:#64748b; line-height:1.3;">
+                            <b>Порядок установки не имеет значения.</b> Станция сама считает маркер ArUco со снимка и упорядочит замеры.
+                        </p>
+                        <ol style="margin:0; padding-left:16px; font-size:11px; color:#334155; line-height:1.35;">
+                            <li>Поставьте кассету в бокс на упоры.</li>
+                            <li>Нажмите кнопку ниже: спектральная вспышка NoIR + ArUco.</li>
+                            <li>Сделайте снимок курком тепловизора UTi120S в руках.</li>
+                        </ol>
                     </div>
 
-                    <button type="submit" class="btn-run" style="width:100%; padding:14px; font-size:15px; background:linear-gradient(135deg, #2563eb, #0d9488); cursor:pointer;">
-                        📸 СДЕЛАТЬ СНИМОК #{step_idx + 1} (Вспышка NoIR + ArUco + фиксация замеров)
-                    </button>
-                </form>
+                    <form action="/api/batch_capture_next" method="post">
+                        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:10px;">
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:11px; font-weight:bold; color:#1e40af; display:block; margin-bottom:2px;">
+                                    🏷️ Кассета (когорта):
+                                </label>
+                                <select name="cohort_choice" style="width:100%; padding:6px 8px; font-size:12px; font-weight:bold; border:1.5px solid #3b82f6; border-radius:6px; background:#eff6ff; color:#1e40af;">
+                                    <option value="auto" selected>🎯 Автоматически (распознать по ArUco-маркеру)</option>
+                                    <option value="1">🌱 Кассета #1: Контроль (Этап 1)</option>
+                                    <option value="2">🍂 Кассета #2: Засуха (Этап 1)</option>
+                                    <option value="3">🧂 Кассета #3: Соль (Этап 1)</option>
+                                    <option value="4">🌱 Кассета #4: Контроль (Этап 2)</option>
+                                    <option value="5">💧 Кассета #5: Раннее спасение (Этап 2)</option>
+                                    <option value="6">⏳ Кассета #6: Позднее спасение (Этап 2)</option>
+                                </select>
+                            </div>
 
-                <div style="margin-top:12px; text-align:center;">
-                    <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Прервать пакетную сессию</a>
+                            <span style="font-size:10px; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:6px;">
+                                📝 Физиологические параметры (вводятся сразу при замере):
+                            </span>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; align-items:end;">
+                                <div style="display:flex; flex-direction:column;">
+                                    <label style="font-size:11px; font-weight:bold; color:#0f766e; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
+                                        ⚖️ Масса, г:
+                                    </label>
+                                    <input type="text" name="weight_g" autofocus placeholder="напр. 405.0" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
+                                </div>
+                                <div style="display:flex; flex-direction:column;">
+                                    <label style="font-size:11px; font-weight:bold; color:#d97706; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
+                                        🌡️ T листа, °C:
+                                    </label>
+                                    <input type="number" step="0.1" name="t_leaf" placeholder="напр. 23.5" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #f59e0b; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
+                                </div>
+                                <div style="display:flex; flex-direction:column;">
+                                    <label style="font-size:11px; font-weight:bold; color:#0284c7; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
+                                        💧 Влажность, %:
+                                    </label>
+                                    <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="64.0" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-run" style="width:100%; padding:12px; font-size:14px; background:linear-gradient(135deg, #2563eb, #0d9488); cursor:pointer; margin-top:0;">
+                            📸 СДЕЛАТЬ СНИМОК #{step_idx + 1} (Вспышка NoIR + ArUco)
+                        </button>
+                    </form>
+                </div>
+
+                <div style="margin-top:8px; text-align:center;">
+                    <a href="/api/cancel_batch" style="color:#94a3b8; font-size:11px; text-decoration:none;">❌ Прервать пакетную сессию</a>
                 </div>
             </div>
         '''
@@ -2112,6 +2111,71 @@ def index(
 
         table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td class="col-actions" style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
 
+    is_active_wizard = bool(
+        stage in ('batch_shoot', 'batch_await_thermal', 'batch_verify', 'review')
+        or (stage == 'batch_shoot' and BATCH_STATE.get('active'))
+        or (stage == 'review' and PENDING_SESSION)
+    )
+
+    if is_active_wizard:
+        grid_top_content = f'''
+            <div style="display:flex; flex-direction:column; height:100%;">
+                {wizard_card}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:12px; height:100%;">
+                <div class="card" style="margin:0; padding:14px;">
+                    <h2 style="margin:0 0 8px 0; font-size:14px; border-bottom:1.5px solid #f1f5f9; padding-bottom:6px;">🔬 Мультиспектральная матрица исследования</h2>
+                    <div class="channels" style="gap:8px;">
+                        <div class="ch-box" style="padding:6px;">
+                            <div style="color:#dc2626; font-size:10px; font-weight:700; margin-bottom:2px;">Канал 1: 660 нм (Red)</div>
+                            <img src="/static/last_red.jpg?t={t_now}" class="preview-img" style="height:124px;">
+                        </div>
+                        <div class="ch-box" style="padding:6px;">
+                            <div style="color:#4f46e5; font-size:10px; font-weight:700; margin-bottom:2px;">Канал 2: 850 нм (NIR)</div>
+                            <img src="/static/last_nir.jpg?t={t_now}" class="preview-img" style="height:124px;">
+                        </div>
+                        <div class="ch-box" style="padding:6px;">
+                            <div style="color:#0d9488; font-size:10px; font-weight:700; margin-bottom:2px;">Канал 3: Карта NDVI (3×3)</div>
+                            <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img" style="height:124px;">
+                        </div>
+                        <div class="ch-box" style="padding:6px;">
+                            <div style="color:#d97706; font-size:10px; font-weight:700; margin-bottom:2px;">Канал 4: Термограмма UTi120S</div>
+                            <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img" style="height:124px;">
+                        </div>
+                    </div>
+                </div>
+                {summary_card}
+            </div>
+        '''
+    else:
+        grid_top_content = f'''
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                {wizard_card}
+                {summary_card}
+            </div>
+            <div class="card" style="display:flex; flex-direction:column; margin:0; justify-content:space-between;">
+                <h2>🔬 Мультиспектральная матрица исследования</h2>
+                <div class="channels" style="flex:1; gap:10px;">
+                    <div class="ch-box">
+                        <div style="color:#dc2626; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 1: 660 нм (Deep Red)</div>
+                        <img src="/static/last_red.jpg?t={t_now}" class="preview-img" style="height:175px;">
+                    </div>
+                    <div class="ch-box">
+                        <div style="color:#4f46e5; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 2: 850 нм (NIR Инфракрасный)</div>
+                        <img src="/static/last_nir.jpg?t={t_now}" class="preview-img" style="height:175px;">
+                    </div>
+                    <div class="ch-box">
+                        <div style="color:#0d9488; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 3: Карта NDVI (Сетка 3×3)</div>
+                        <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img" style="height:175px;">
+                    </div>
+                    <div class="ch-box">
+                        <div style="color:#d97706; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 4: Термограмма (UNI-T UTi120S)</div>
+                        <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img" style="height:175px;">
+                    </div>
+                </div>
+            </div>
+        '''
+
     html = f'''<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -2308,7 +2372,7 @@ def index(
             display: grid;
             grid-template-columns: 440px 1fr;
             gap: 16px;
-            align-items: start;
+            align-items: stretch;
             margin-bottom: 16px;
         }}
         .card {{
@@ -2524,39 +2588,8 @@ def index(
 
     {status_banner}
 
-    <!-- ВЕРХНИЙ БЛОК: Слева Управление | Справа Мультиспектральная матрица + Экспресс-сводка фаз -->
     <div class="grid-top">
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-            <!-- WIZARD ШАГ 1 ИЛИ ШАГ 2 -->
-            {wizard_card}
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-            <div class="card">
-                <h2>🔬 Мультиспектральная матрица исследования</h2>
-                <div class="channels">
-                    <div class="ch-box">
-                        <div style="color:#dc2626; font-size:11px; font-weight:700; margin-bottom:4px; letter-spacing:0.3px;">Канал 1: 660 нм (Deep Red)</div>
-                        <img src="/static/last_red.jpg?t={t_now}" class="preview-img">
-                    </div>
-                    <div class="ch-box">
-                        <div style="color:#4f46e5; font-size:11px; font-weight:700; margin-bottom:4px; letter-spacing:0.3px;">Канал 2: 850 нм (NIR Инфракрасный)</div>
-                        <img src="/static/last_nir.jpg?t={t_now}" class="preview-img">
-                    </div>
-                    <div class="ch-box">
-                        <div style="color:#0d9488; font-size:11px; font-weight:700; margin-bottom:4px; letter-spacing:0.3px;">Канал 3: Карта NDVI (Сетка 3×3)</div>
-                        <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img">
-                    </div>
-                    <div class="ch-box">
-                        <div style="color:#d97706; font-size:11px; font-weight:700; margin-bottom:4px; letter-spacing:0.3px;">Канал 4: Термограмма (UNI-T UTi120S)</div>
-                        <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img">
-                    </div>
-                </div>
-            </div>
-
-            <!-- ЭКСПРЕСС-СВОДКА (Правый нижний угол) -->
-            {summary_card}
-        </div>
+        {grid_top_content}
     </div>
 
     <!-- НИЖНИЙ БЛОК: ЖУРНАЛ ИЗМЕРЕНИЙ НА ВСЮ ШИРИНУ -->
