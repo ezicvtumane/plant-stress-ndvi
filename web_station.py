@@ -1456,18 +1456,24 @@ def index(
                         <span style="font-size:11px; font-weight:bold; color:#334155; text-transform:uppercase; display:block; margin-bottom:8px;">
                             📝 Физиологические параметры для кадра #{step_idx + 1} (вводятся сразу при замере):
                         </span>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
-                            <div>
-                                <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0f766e;">⚖️ Масса с весов, г:</label>
-                                <input type="text" name="weight_g" autofocus placeholder="напр. 405.0" style="width:100%; padding:8px; font-size:13px; font-weight:bold; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; align-items:end;">
+                            <div style="display:flex; flex-direction:column;">
+                                <label style="font-size:11px; font-weight:bold; color:#0f766e; height:28px; display:flex; align-items:flex-end; margin:0 0 4px 0; line-height:1.2;">
+                                    ⚖️ Масса с весов, г:
+                                </label>
+                                <input type="text" name="weight_g" autofocus placeholder="напр. 405.0" style="width:100%; height:38px; padding:6px 10px; font-size:13px; font-weight:bold; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                             </div>
-                            <div>
-                                <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#d97706;">🌡️ T листа с UTi120S (°C):</label>
-                                <input type="number" step="0.1" name="t_leaf" placeholder="напр. 23.5" style="width:100%; padding:8px; font-size:13px; font-weight:bold; border:1.5px solid #f59e0b; border-radius:6px; box-sizing:border-box;">
+                            <div style="display:flex; flex-direction:column;">
+                                <label style="font-size:11px; font-weight:bold; color:#d97706; height:28px; display:flex; align-items:flex-end; margin:0 0 4px 0; line-height:1.2;">
+                                    🌡️ T листа (UTi120S), °C:
+                                </label>
+                                <input type="number" step="0.1" name="t_leaf" placeholder="напр. 23.5" style="width:100%; height:38px; padding:6px 10px; font-size:13px; font-weight:bold; border:1.5px solid #f59e0b; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                             </div>
-                            <div>
-                                <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0284c7;">💧 Влажность почвы, %:</label>
-                                <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="64.0" style="width:100%; padding:8px; font-size:13px; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box;">
+                            <div style="display:flex; flex-direction:column;">
+                                <label style="font-size:11px; font-weight:bold; color:#0284c7; height:28px; display:flex; align-items:flex-end; margin:0 0 4px 0; line-height:1.2;">
+                                    💧 Влажность почвы, %:
+                                </label>
+                                <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="64.0" style="width:100%; height:38px; padding:6px 10px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                             </div>
                         </div>
                     </div>
@@ -1921,61 +1927,69 @@ def index(
             filtered_rows.append(r)
 
     summary_card = f'''
-        <div class="card" style="margin-top: 2px;">
+        <div class="card" style="margin-top: 0;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:8px; margin-bottom:10px;">
                 <h2 style="margin:0; font-size:15px; border:none; padding:0; color:var(--sirius-teal-dark);">📊 Экспресс-сводка фаз</h2>
                 <span style="background:#f0fdfa; border:1px solid var(--sirius-teal); color:var(--sirius-teal-dark); padding:2px 10px; border-radius:12px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
             </div>
 
-            <!-- ЭТАП 1: СКРИНИНГ -->
-            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 1: Скрининг стрессов (Кассеты 1–3)</div>
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:10px; text-align:center;">
-                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 3px;">
-                    <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль</div>
-                    <div style="font-size:16px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl}</div>
-                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl}</b></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+                <!-- ЭТАП 1: СКРИНИНГ -->
+                <div>
+                    <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 1: Скрининг стрессов (Кассеты 1–3)</div>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center;">
+                        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 2px;">
+                            <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль</div>
+                            <div style="font-size:15px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl}</div>
+                            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl}</b></div>
+                        </div>
+                        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:6px 2px;">
+                            <div style="font-size:10px; color:#92400e; font-weight:bold;">🍂 Засуха</div>
+                            <div style="font-size:15px; font-weight:bold; color:#b45309; margin:1px 0;">{cnt_drought}</div>
+                            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#d97706;">{m_drought}</b></div>
+                        </div>
+                        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:6px 2px;">
+                            <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🧂 Соль</div>
+                            <div style="font-size:15px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt}</div>
+                            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt}</b></div>
+                        </div>
+                    </div>
                 </div>
-                <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:6px 3px;">
-                    <div style="font-size:10px; color:#92400e; font-weight:bold;">🍂 Засуха</div>
-                    <div style="font-size:16px; font-weight:bold; color:#b45309; margin:1px 0;">{cnt_drought}</div>
-                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#d97706;">{m_drought}</b></div>
-                </div>
-                <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:6px 3px;">
-                    <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🧂 Соль</div>
-                    <div style="font-size:16px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt}</div>
-                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt}</b></div>
+
+                <!-- ЭТАП 2: РЕГИДРАТАЦИЯ -->
+                <div>
+                    <div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 2: Тест регидратации (Кассеты 4–6)</div>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center;">
+                        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 2px;">
+                            <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль-2</div>
+                            <div style="font-size:15px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl2}</div>
+                            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl2}</b></div>
+                        </div>
+                        <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:6px 2px;">
+                            <div style="font-size:10px; color:#0f766e; font-weight:bold;">💧 Раннее (~40ч)</div>
+                            <div style="font-size:13px; font-weight:bold; color:#0d9488; margin:2px 0;">{k_rec_early}</div>
+                            <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_early}</b></div>
+                        </div>
+                        <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 2px;">
+                            <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ Позднее (~72ч)</div>
+                            <div style="font-size:13px; font-weight:bold; color:#e11d48; margin:2px 0;">{k_rec_late}</div>
+                            <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_late}</b></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- ЭТАП 2: РЕГИДРАТАЦИЯ -->
-            <div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 2: Тест регидратации (Кассеты 4–6)</div>
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px; text-align:center;">
-                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 3px;">
-                    <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль-2</div>
-                    <div style="font-size:16px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl2}</div>
-                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl2}</b></div>
-                </div>
-                <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:6px 3px;">
-                    <div style="font-size:10px; color:#0f766e; font-weight:bold;">💧 Раннее (~40ч)</div>
-                    <div style="font-size:13px; font-weight:bold; color:#0d9488; margin:2px 0;">{k_rec_early}</div>
-                    <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_early}</b></div>
-                </div>
-                <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 3px;">
-                    <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ Позднее (~72ч)</div>
-                    <div style="font-size:13px; font-weight:bold; color:#e11d48; margin:2px 0;">{k_rec_late}</div>
-                    <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_late}</b></div>
-                </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+                <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
+                    📥 Экспорт базы (.CSV)
+                </a>
+                <a href="/download/images_zip" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; color:#15803d; text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#10b981';this.style.color='#fff';" onmouseout="this.style.background='#f0fdf4';this.style.color='#15803d';">
+                    📷 Скачать архив (.ZIP)
+                </a>
+                <a href="/download/aruco_pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:8px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';">
+                    🏷️ Печать ArUco (.PDF)
+                </a>
             </div>
-
-            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
-                📥 Экспорт базы данных (.CSV)
-            </a>
-            <a href="/download/images_zip" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; color:#15803d; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s;" onmouseover="this.style.background='#10b981';this.style.color='#fff';" onmouseout="this.style.background='#f0fdf4';this.style.color='#15803d';">
-                📷 Скачать архив всех снимков (.ZIP)
-            </a>
-            <a href="/download/aruco_pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:8px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';">
-                🏷️ Печать ArUco-маркеров кассет (.PDF)
-            </a>
         </div>
     '''
 
@@ -2292,9 +2306,9 @@ def index(
         /* СЕТКА И КАРТОЧКИ */
         .grid-top {{
             display: grid;
-            grid-template-columns: 420px 1fr;
+            grid-template-columns: 440px 1fr;
             gap: 16px;
-            align-items: stretch;
+            align-items: start;
             margin-bottom: 16px;
         }}
         .card {{
@@ -2389,7 +2403,7 @@ def index(
         }}
         .preview-img {{
             width: 100%;
-            height: 185px;
+            height: 155px;
             border-radius: 8px;
             border: 1px solid #e2e8f0;
             background: #f8fafc;
@@ -2510,18 +2524,15 @@ def index(
 
     {status_banner}
 
-    <!-- ВЕРХНИЙ БЛОК: Слева Управление + Сводка | Справа Мультиспектральная матрица -->
+    <!-- ВЕРХНИЙ БЛОК: Слева Управление | Справа Мультиспектральная матрица + Экспресс-сводка фаз -->
     <div class="grid-top">
         <div style="display: flex; flex-direction: column; gap: 14px;">
             <!-- WIZARD ШАГ 1 ИЛИ ШАГ 2 -->
             {wizard_card}
-
-            <!-- ЭКСПРЕСС-СВОДКА (Заполняет нижний левый угол) -->
-            {summary_card}
         </div>
 
-        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="card">
                 <h2>🔬 Мультиспектральная матрица исследования</h2>
                 <div class="channels">
                     <div class="ch-box">
@@ -2542,6 +2553,9 @@ def index(
                     </div>
                 </div>
             </div>
+
+            <!-- ЭКСПРЕСС-СВОДКА (Правый нижний угол) -->
+            {summary_card}
         </div>
     </div>
 
