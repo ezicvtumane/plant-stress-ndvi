@@ -29,7 +29,7 @@ try:
     HAS_GPIOD = True
 except ImportError:
     HAS_GPIOD = False
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -92,8 +92,11 @@ BATCH_STATE = {
     'verified_data': None
 }
 
+LAST_VALID_CLIMATE = (24.9, 65.7, 3.21)
+
 def read_xiaomi_climate():
-    """Автоматический опрос Sensirion SHT30 по локальному UDP протоколу."""
+    """Автоматический опрос Sensirion SHT30 по локальному UDP протоколу с фильтрацией некорректных кодов."""
+    global LAST_VALID_CLIMATE
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(0.7)
@@ -103,12 +106,20 @@ def read_xiaomi_climate():
         sock.close()
         dev_info = json.loads(data.decode('utf-8'))
         raw_data = json.loads(dev_info.get('data', '{}'))
-        t = round(float(raw_data.get('temperature', 2480)) / 100.0, 1)
-        rh = round(float(raw_data.get('humidity', 6500)) / 100.0, 1)
+        raw_t = float(raw_data.get('temperature', 2480))
+        raw_rh = float(raw_data.get('humidity', 6500))
         v_bat = round(float(raw_data.get('voltage', 3200)) / 1000.0, 2)
+
+        # 10000 / 0 - специальный код ожидания/ошибки шлюза Xiaomi (датчик спит или не ответил)
+        if raw_t >= 9000 or raw_t <= -4000 or raw_rh <= 0.0 or raw_rh > 10000:
+            return LAST_VALID_CLIMATE
+
+        t = round(raw_t / 100.0, 1)
+        rh = round(raw_rh / 100.0, 1)
+        LAST_VALID_CLIMATE = (t, rh, v_bat)
         return t, rh, v_bat
     except Exception:
-        return 24.8, 65.5, 3.21
+        return LAST_VALID_CLIMATE
 
 def calc_vpd(t_c: float, rh_pct: float) -> float:
     """Расчет дефицита упругости водяного пара (Vapor Pressure Deficit, кПа)."""
@@ -874,6 +885,51 @@ def handle_batch_link_thermal():
     BATCH_STATE['verified_data'] = paired_items
     return RedirectResponse(url='/?stage=batch_verify', status_code=303)
 
+@app.post('/api/batch_skip_thermal')
+def handle_batch_skip_thermal():
+    """Экспресс-пропуск подключения тепловизора: переход к быстрому ручному вводу температур 3 кассет."""
+    global BATCH_STATE
+    if not BATCH_STATE.get('active') or len(BATCH_STATE['sessions']) != 3:
+        return RedirectResponse(url='/?msg=err_no_session', status_code=303)
+
+    stage_key = BATCH_STATE.get('stage_key', 'stage1')
+    stage_cassettes = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])['cassettes']
+    stage_ids = [c['id'] for c in stage_cassettes]
+
+    paired_items = []
+    used_ids = set()
+    for i, s in enumerate(BATCH_STATE['sessions']):
+        detected_id = s.get('aruco_id')
+        assigned_id = None
+        if detected_id and detected_id in stage_ids and detected_id not in used_ids:
+            assigned_id = detected_id
+            used_ids.add(assigned_id)
+
+        paired_items.append({
+            'session': s,
+            'shot_order': s.get('shot_order', i + 1),
+            'thermal_filename': '',
+            'thermal_thumb': '',
+            'thermal_thumb_url': f"/static/{s.get('opt_file', 'last_ndvi.jpg')}",
+            't_ocr': round(s['t_air'], 1),
+            'dt_str': '--',
+            'detected_id': detected_id,
+            'assigned_id': assigned_id
+        })
+
+    remaining_ids = [cid for cid in stage_ids if cid not in used_ids]
+    for item in paired_items:
+        if item['assigned_id'] is None:
+            if remaining_ids:
+                item['assigned_id'] = remaining_ids.pop(0)
+            else:
+                item['assigned_id'] = stage_ids[0]
+
+    paired_items.sort(key=lambda x: x['assigned_id'])
+    BATCH_STATE['verified_data'] = paired_items
+    return RedirectResponse(url='/?stage=batch_verify', status_code=303)
+
+
 @app.post('/api/batch_save_final')
 def handle_batch_save_final(
     cassette_id_0: int = Form(1), weight_g_0: str = Form(''), pct_soil_0: str = Form(''), t_leaf_0: str = Form(''),
@@ -1015,10 +1071,11 @@ def handle_update_measurement(
     timestamp: str = Form(''),
     t_leaf: str = Form(''),
     weight_g: str = Form(''),
-    pct_soil: str = Form('')
+    pct_soil: str = Form(''),
+    thermal_file: UploadFile = File(None)
 ):
     """
-    Интерактивная коррекция параметров ранее сохраненного замера (T_leaf, Weight, Soil).
+    Интерактивная коррекция параметров ранее сохраненного замера (T_leaf, Weight, Soil, Thermal image).
     Автоматически пересчитывает Delta_T = T_leaf - T_air и сохраняет в measurements.csv.
     """
     meas_id = str(meas_id).strip()
@@ -1088,6 +1145,22 @@ def handle_update_measurement(
                         r[5] = str(ps)
                 except Exception:
                     pass
+
+            # Прикрепление файла термограммы, если загружен
+            if thermal_file and thermal_file.filename:
+                try:
+                    safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', os.path.basename(thermal_file.filename))
+                    if safe_name:
+                        out_fname = f"therm_{meas_id}_{safe_name}"
+                        out_path = os.path.join(STATIC_DIR, out_fname)
+                        with open(out_path, 'wb') as buf:
+                            shutil.copyfileobj(thermal_file.file, buf)
+                        if len(r) >= 24:
+                            r[15] = out_fname
+                        elif len(r) >= 20:
+                            r[10] = out_fname
+                except Exception as e:
+                    print('[Upload thermal error]:', e)
             break
 
     if found:
@@ -1285,7 +1358,13 @@ def index(
 
                 <form action="/api/batch_link_thermal" method="post">
                     <button type="submit" class="btn-confirm" style="width:100%; padding:14px; font-size:15px; background:linear-gradient(135deg, #10b981, #0d9488); cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.35);">
-                        🔌 СЧИТАТЬ И ОТСОРТИРОВАТЬ 3 СНИМКА ТЕПЛОВИЗОРА
+                        🔌 СЧИТАТЬ И ОТСОРТИРОВАТЬ 3 СНИМКА ТЕПЛОВИЗОРА (ЧЕРЕЗ USB)
+                    </button>
+                </form>
+
+                <form action="/api/batch_skip_thermal" method="post" style="margin-top:10px;">
+                    <button type="submit" style="width:100%; padding:12px; font-size:13.5px; background:#f0fdfa; color:#0f766e; border:2px dashed #14b8a6; border-radius:8px; font-weight:bold; cursor:pointer;" onmouseover="this.style.background='#ccfbf1'" onmouseout="this.style.background='#f0fdfa'">
+                        ⚡ БЕЗ КАБЕЛЯ: ВВЕСТИ 3 ТЕМПЕРАТУРЫ ВРУЧНУЮ (ЭКСПРЕСС-РЕЖИМ)
                     </button>
                 </form>
 
@@ -2319,7 +2398,7 @@ def index(
             <h3 id="editModalTitle" style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">✏️ Коррекция замера</h3>
             <button type="button" onclick="closeEditModal()" style="background:none; border:none; font-size:16px; cursor:pointer; color:#94a3b8;">✕</button>
         </div>
-        <form action="/api/update_measurement" method="post">
+        <form action="/api/update_measurement" method="post" enctype="multipart/form-data">
             <input type="hidden" name="meas_id" id="edit_meas_id">
             <input type="hidden" name="cohort" id="edit_cohort">
             <input type="hidden" name="timestamp" id="edit_timestamp">
@@ -2342,9 +2421,15 @@ def index(
                 <input type="text" name="weight_g" id="edit_weight" style="width:100%; padding:8px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
             </div>
 
-            <div style="margin-bottom:16px;">
+            <div style="margin-bottom:12px;">
                 <label style="font-size:11px; font-weight:bold; color:#0284c7; display:block; margin-bottom:4px;">💧 Влажность субстрата (%):</label>
                 <input type="number" step="0.1" min="0" max="100" name="pct_soil" id="edit_soil" style="width:100%; padding:8px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
+            </div>
+
+            <div style="margin-bottom:16px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:8px;">
+                <label style="font-size:11px; font-weight:bold; color:#d97706; display:block; margin-bottom:4px;">📷 Прикрепить снимок UTi120S (.jpg):</label>
+                <input type="file" name="thermal_file" accept=".jpg,.jpeg,.png" style="font-size:11px; width:100%; color:#475569;">
+                <span style="font-size:10px; color:#94a3b8; display:block; margin-top:2px;">(необязательно, можно загрузить фото позже)</span>
             </div>
 
             <div style="display:flex; gap:8px;">
