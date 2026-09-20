@@ -1690,7 +1690,10 @@ def index(
                 📷 Скачать архив всех снимков (.ZIP)
             </a>
             <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:linear-gradient(135deg, #00a499, #0d9488); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(0,164,153,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
-                📄 Научно-технический отчет (.PDF)
+                📄 Работа «Большие вызовы» Сириус (.PDF)
+            </a>
+            <a href="/download/spbu_paper" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:linear-gradient(135deg, #990000, #b91c1c); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(153,0,0,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
+                🏛️ Научная работа для СПбГУ (.PDF)
             </a>
             <a href="/download/aruco_pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:8px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';">
                 🏷️ Печать ArUco-маркеров кассет (.PDF)
@@ -2423,6 +2426,15 @@ def download_paper():
     if os.path.exists(pdf_path):
         return FileResponse(pdf_path, filename='Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
     return HTMLResponse('Файл работы не найден')
+
+@app.get('/download/spbu_paper')
+def download_spbu_paper():
+    pdf_path = os.path.join(STATIC_DIR, 'Научно_исследовательская_работа_СПбГУ_Ковалева_Алиса.pdf')
+    if not os.path.exists(pdf_path):
+        pdf_path = os.path.join(DOCS_DIR, 'Научно_исследовательская_работа_СПбГУ_Ковалева_Алиса.pdf')
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, filename='Научно_исследовательская_работа_СПбГУ_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл работы СПбГУ пока не сформирован')
 
 @app.get('/download/presentation')
 def download_presentation():
