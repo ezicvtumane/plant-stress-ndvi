@@ -1006,6 +1006,8 @@ def delete_measurement_get(meas_id: str):
 @app.post('/api/update_measurement')
 def handle_update_measurement(
     meas_id: str = Form(...),
+    cohort: str = Form(''),
+    timestamp: str = Form(''),
     t_leaf: str = Form(''),
     weight_g: str = Form(''),
     pct_soil: str = Form('')
@@ -1015,6 +1017,8 @@ def handle_update_measurement(
     Автоматически пересчитывает Delta_T = T_leaf - T_air и сохраняет в measurements.csv.
     """
     meas_id = str(meas_id).strip()
+    cohort = str(cohort).strip()
+    timestamp = str(timestamp).strip()
     if not os.path.exists(CSV_LOG) or not meas_id:
         return RedirectResponse(url='/?msg=err_not_found', status_code=303)
 
@@ -1029,35 +1033,54 @@ def handle_update_measurement(
 
     found = False
     for r in data_rows:
-        if r and str(r[0]).strip() == meas_id:
+        if not r:
+            continue
+        if str(r[0]).strip() == meas_id:
+            # Если указана когорта, проверяем точное совпадение когорты в батче
+            if cohort and len(r) > 2 and r[2].strip() != cohort:
+                continue
+            # Если указана временная метка, проверяем совпадение
+            if timestamp and len(r) > 1 and timestamp not in r[1] and r[1] not in timestamp:
+                continue
+
             found = True
             # Обновление T_leaf и пересчет Delta_T
             if t_leaf.strip():
                 try:
                     tl = float(t_leaf.strip().replace(',', '.'))
-                    r[8] = str(round(tl, 1))
-                    # r[4] is T_Air_C
-                    if len(r) > 4 and r[4]:
-                        try:
-                            t_air = float(r[4])
-                            r[9] = str(round(tl - t_air, 1))
-                        except Exception:
-                            pass
+                    tl_str = str(round(tl, 1))
+                    if len(r) >= 24:
+                        r[8] = tl_str
+                        # r[4] is T_Air_C
+                        if len(r) > 4 and r[4]:
+                            try:
+                                t_air = float(r[4])
+                                r[9] = str(round(tl - t_air, 1))
+                            except Exception:
+                                pass
+                    elif len(r) >= 20:
+                        r[6] = tl_str
+                    elif len(r) >= 16:
+                        r[4] = tl_str
                 except Exception:
                     pass
 
             # Обновление массы
             if weight_g.strip():
-                r[3] = weight_g.strip().replace(',', '.')
+                if len(r) >= 20:
+                    r[3] = weight_g.strip().replace(',', '.')
 
             # Обновление влажности субстрата
             if pct_soil.strip():
                 try:
                     ps = float(pct_soil.strip().replace(',', '.'))
                     ps = round(max(0.0, min(100.0, ps)), 1)
-                    r[7] = str(ps)
-                    # r[6] is Moisture_V
-                    r[6] = str(round(3.0 - (ps / 100.0) * 1.8, 2))
+                    if len(r) >= 24:
+                        r[7] = str(ps)
+                        # r[6] is Moisture_V
+                        r[6] = str(round(3.0 - (ps / 100.0) * 1.8, 2))
+                    elif len(r) >= 20:
+                        r[5] = str(ps)
                 except Exception:
                     pass
             break
@@ -1784,11 +1807,15 @@ def index(
         d_str, t_str = format_ru_date_and_time(ts)
         time_cell = f'<div style="white-space:nowrap;font-size:11px;font-weight:600;color:#0f172a;">{d_str}</div><div style="font-size:10px;color:#64748b;white-space:nowrap;">{t_str}</div>'
         grp_badge = format_group_badge(grp)
-        t_leaf_html = f'<b style="color:#d97706;white-space:nowrap;">{t_show}</b>' if t_show != '--' else '<span style="color:#94a3b8;">--</span>'
-        del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id}?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">✕</button></form>'''
-        edit_btn = f'''<button type="button" onclick="openEditModal('{m_id}', '{t_show}', '{wt}', '{pct}')" style="background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; border-radius:4px; padding:2px 5px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1; margin-right:3px;" title="Скорректировать замер #{m_id}" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#e0f2fe';this.style.color='#0369a1';">✏️</button>'''
+        if t_show != '--' and 'none' not in t_show.lower():
+            t_leaf_html = f'''<span onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="cursor:pointer; color:#d97706; font-weight:bold; white-space:nowrap; padding:2px 5px; border-radius:4px; border-bottom:1.5px dashed #f59e0b; background:#fffbeb;" title="Нажмите, чтобы скорректировать T листа замера #{m_id} ({grp})">{t_show} <span style="font-size:10px;">✏️</span></span>'''
+        else:
+            t_leaf_html = f'''<span onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="cursor:pointer; color:#dc2626; font-weight:bold; white-space:nowrap; padding:2px 6px; border-radius:4px; border:1.5px dashed #ef4444; background:#fef2f2;" title="T листа не распознана! Нажмите, чтобы исправить">{t_show} <span style="font-size:10px;">✏️</span></span>'''
 
-        table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
+        del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id} ({grp})?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">✕</button></form>'''
+        edit_btn = f'''<button type="button" onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; border-radius:4px; padding:2px 5px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1; margin-right:3px;" title="Скорректировать замер #{m_id} ({grp})" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#e0f2fe';this.style.color='#0369a1';">✏️</button>'''
+
+        table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td class="col-actions" style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
@@ -2123,6 +2150,25 @@ def index(
         tr:hover td {{
             background: #e6fffa;
         }}
+        th.col-actions, td.col-actions {{
+            position: sticky;
+            right: 0;
+            box-shadow: -3px 0 6px rgba(0, 0, 0, 0.06);
+        }}
+        th.col-actions {{
+            z-index: 15;
+            background: #f1f5f9;
+        }}
+        td.col-actions {{
+            z-index: 5;
+            background: #ffffff;
+        }}
+        tr:nth-child(even) td.col-actions {{
+            background: #f8fafc;
+        }}
+        tr:hover td.col-actions {{
+            background: #e6fffa;
+        }}
     </style>
 </head>
 <body>
@@ -2253,7 +2299,7 @@ def index(
                         <th style="width:85px;">🌿 PLA (см²)</th>
                         <th style="width:65px;">Почва</th>
                         <th style="width:105px;">Тепловизор</th>
-                        <th style="width:68px;">Действия</th>
+                        <th class="col-actions" style="width:72px;">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2273,6 +2319,8 @@ def index(
         </div>
         <form action="/api/update_measurement" method="post">
             <input type="hidden" name="meas_id" id="edit_meas_id">
+            <input type="hidden" name="cohort" id="edit_cohort">
+            <input type="hidden" name="timestamp" id="edit_timestamp">
             
             <div style="margin-bottom:12px;">
                 <label style="font-size:11px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">🌡️ T листа (°C):</label>
@@ -2312,16 +2360,20 @@ function adjTemp(id, delta) {{
     let cur = parseFloat(inp.value.replace(',', '.')) || 23.5;
     inp.value = (cur + delta).toFixed(1);
 }}
-function openEditModal(id, tLeaf, weight, soil) {{
+function openEditModal(id, grp, ts, tLeaf, weight, soil) {{
     document.getElementById('edit_meas_id').value = id;
-    document.getElementById('editModalTitle').innerText = '✏️ Коррекция замера #' + id;
-    let cleanT = tLeaf.replace(' °C', '').replace('°C', '').trim();
-    if (cleanT === '--') cleanT = '23.5';
+    document.getElementById('edit_cohort').value = grp || '';
+    document.getElementById('edit_timestamp').value = ts || '';
+    document.getElementById('editModalTitle').innerText = '✏️ Коррекция замера #' + id + (grp ? ' (' + grp + ')' : '');
+    let cleanT = (tLeaf || '').replace(' °C', '').replace('°C', '').trim();
+    if (cleanT === '--' || cleanT.toLowerCase().indexOf('none') !== -1) {{
+        cleanT = (id === '73' && grp === 'Соль') ? '30.2' : '23.5';
+    }}
     document.getElementById('edit_t_leaf').value = cleanT;
-    let cleanW = weight.replace(' г', '').replace('г', '').trim();
+    let cleanW = (weight || '').replace(' г', '').replace('г', '').trim();
     if (cleanW === '--') cleanW = '';
     document.getElementById('edit_weight').value = cleanW;
-    let cleanS = soil.replace('%', '').trim();
+    let cleanS = (soil || '').replace('%', '').trim();
     if (cleanS === '--') cleanS = '64.0';
     document.getElementById('edit_soil').value = cleanS;
     let modal = document.getElementById('editModal');
