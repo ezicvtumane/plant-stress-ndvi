@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лист ArUco-маркеров для кассет | Сириус Большие вызовы</title>
+    <style>
+        @page { size: A4 portrait; margin: 12mm 15mm; }
+        body { font-family: 'Segoe UI', -apple-system, Roboto, sans-serif; color: #0f172a; margin: 0; padding: 0; background: #ffffff; }
+        .header { text-align: center; border-bottom: 2px solid #00a499; padding-bottom: 10px; margin-bottom: 14px; }
+        .header h1 { font-size: 18px; margin: 0 0 4px 0; color: #008276; }
+        .header p { font-size: 11px; color: #475569; margin: 0; }
+        .instructions { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 11px; color: #0f766e; line-height: 1.45; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .marker-card { border: 1.5px dashed #94a3b8; border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 14px; background: #ffffff; box-sizing: border-box; page-break-inside: avoid; }
+        .marker-img-wrap { width: 85px; height: 85px; border: 1px solid #e2e8f0; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .marker-img-wrap img { width: 80px; height: 80px; image-rendering: pixelated; }
+        .marker-info { flex: 1; }
+        .marker-tag { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-bottom: 4px; color: #ffffff; }
+        .marker-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
+        .marker-desc { font-size: 11px; color: #64748b; margin-bottom: 6px; }
+        .marker-size-hint { font-size: 9.5px; color: #94a3b8; font-family: monospace; }
+        .cut-mark { font-size: 10px; color: #94a3b8; margin-top: 4px; font-family: monospace; }
+        .print-btn { display: block; margin: 0 auto 16px auto; padding: 10px 24px; background: #00a499; color: #ffffff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        @media print { .print-btn { display: none; } }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">🖨️ РАСПЕЧАТАТЬ МАРКЕРЫ НА А4 (Ctrl + P)</button>
+    <div class="header">
+        <h1>Фидуциальные ArUco-маркеры оптического позиционирования кассет</h1>
+        <p>Оптико-электронный комплекс · Всероссийский конкурс «Большие вызовы» (Сириус) · Трек «Агропромышленные и биотехнологии»</p>
+    </div>
+    <div class="instructions">
+        <b>Инструкция по маркировке кассет:</b><br>
+        1. Распечатайте этот лист на принтере в масштабе <b>100%</b> (без сжатия полей);<br>
+        2. Вырежьте маркеры по пунктирным линиям (внешний габарит ~22×22 мм);<br>
+        3. Наклейте маркер на левый верхний бортик соответствующей пластиковой кассеты 3×3;<br>
+        4. Защитите маркер прозрачной полоской скотча от попадания капель воды и влажного грунта;<br>
+        5. При установке кассеты в бокс NoIR-камера комплекса автоматически распознает маркер и привяжет замер к нужной когорте!
+    </div>
+    <div class="grid">
+
+        <div class="marker-card">
+            <div class="marker-img-wrap">
+                <img src="/static/aruco/aruco_1.png" alt="ArUco 1">
+            </div>
+            <div class="marker-info">
+                <span class="marker-tag" style="background:#059669;">ArUco ID #1 (DICT_4X4_50)</span>
+                <div class="marker-title">Кассета 1: КОНТРОЛЬ</div>
+                <div class="marker-desc">Этап 1: Оптимальный полив</div>
+                <div class="marker-size-hint">Размер: 20×20 мм (угол кассеты)</div>
+                <div class="cut-mark">✂ Вырезать по внешнему контуру</div>
+            </div>
+        </div>
+    
+        <div class="marker-card">
+            <div class="marker-img-wrap">
+                <img src="/static/aruco/aruco_2.png" alt="ArUco 2">
+            </div>
+            <div class="marker-info">
+                <span class="marker-tag" style="background:#d97706;">ArUco ID #2 (DICT_4X4_50)</span>
+                <div class="marker-title">Кассета 2: ЗАСУХА</div>
+                <div class="marker-desc">Этап 1: Без полива 0–96 ч</div>
+                <div class="marker-size-hint">Размер: 20×20 мм (угол кассеты)</div>
+                <div class="cut-mark">✂ Вырезать по внешнему контуру</div>
+            </div>
+        </div>
+    
+        <div class="marker-card">
+            <div class="marker-img-wrap">
+                <img src="/static/aruco/aruco_3.png" alt="ArUco 3">
+            </div>
+            <div class="marker-info">
+                <span class="marker-tag" style="background:#7c3aed;">ArUco ID #3 (DICT_4X4_50)</span>
+                <div class="marker-title">Кассета 3: СОЛЬ</div>
+                <div class="marker-desc">Этап 1: Раствор NaCl 1.0%</div>
+                <div class="marker-size-hint">Размер: 20×20 мм (угол кассеты)</div>
+                <div class="cut-mark">✂ Вырезать по внешнему контуру</div>
+            </div>
+        </div>
+    
+        <div class="marker-card">
+            <div class="marker-img-wrap">
+                <img src="/static/aruco/aruco_4.png" alt="ArUco 4">
+            </div>
+            <div class="marker-info">
+                <span class="marker-tag" style="background:#059669;">ArUco ID #4 (DICT_4X4_50)</span>
+                <div class="marker-title">Кассета 4: КОНТРОЛЬ-2</div>
+                <div class="marker-desc">Этап 2: Параллельный эталон</div>
+                <div class="marker-size-hint">Размер: 20×20 мм (угол кассеты)</div>
+                <div class="cut-mark">✂ Вырезать по внешнему контуру</div>
+            </div>
+        </div>
+    
+        <div class="marker-card">
+            <div class="marker-img-wrap">
+                <img src="/static/aruco/aruco_5.png" alt="ArUco 5">
+            </div>
+            <div class="marker-info">
+                <span class="marker-tag" style="background:#0d9488;">ArUco ID #5 (DICT_4X4_50)</span>
+                <div class="marker-title">Кассета 5: РАННЕЕ СПАСЕНИЕ</div>
+                <div class="marker-desc">Этап 2: Полив ~40 ч (сигнал)</div>
+                <div class="marker-size-hint">Размер: 20×20 мм (угол кассеты)</div>
+                <div class="cut-mark">✂ Вырезать по внешнему контуру</div>
+            </div>
+        </div>
+    
+        <div class="marker-card">
+            <div class="marker-img-wrap">
+                <img src="/static/aruco/aruco_6.png" alt="ArUco 6">
+            </div>
+            <div class="marker-info">
+                <span class="marker-tag" style="background:#e11d48;">ArUco ID #6 (DICT_4X4_50)</span>
+                <div class="marker-title">Кассета 6: ПОЗДНЕЕ СПАСЕНИЕ</div>
+                <div class="marker-desc">Этап 2: Полив ~72 ч (увядание)</div>
+                <div class="marker-size-hint">Размер: 20×20 мм (угол кассеты)</div>
+                <div class="cut-mark">✂ Вырезать по внешнему контуру</div>
+            </div>
+        </div>
+    
+    </div>
+    <div style="margin-top:20px; font-size:10px; color:#94a3b8; text-align:center; border-top:1px solid #e2e8f0; padding-top:8px;">
+        Алгоритм оптической субпиксельной привязки: OpenCV cv2.aruco · Словарь DICT_4X4_50 · Автор: Ковалева Алиса (10 класс)
+    </div>
+</body>
+</html>
