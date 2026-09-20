@@ -33,6 +33,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import shutil
+import zipfile
 from PIL import Image
 import pytesseract
 
@@ -1553,6 +1554,9 @@ def index(
             <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
                 📥 Экспорт базы данных (.CSV)
             </a>
+            <a href="/download/images_zip" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; color:#15803d; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s;" onmouseover="this.style.background='#10b981';this.style.color='#fff';" onmouseout="this.style.background='#f0fdf4';this.style.color='#15803d';">
+                📷 Скачать архив всех снимков (.ZIP)
+            </a>
             <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:linear-gradient(135deg, #00a499, #0d9488); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(0,164,153,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
                 📄 Научно-технический отчет (.PDF)
             </a>
@@ -1650,10 +1654,21 @@ def index(
             leaf_area_val = "--"
             th_name = r[9] if len(r)>9 else ""
 
+        # Оптический снимок NDVI
+        opt_f = r[14] if (len(r) >= 25 and r[14]) else (r[13] if (len(r) == 24 and '.jpg' in r[13]) else '')
+        if opt_f and os.path.exists(os.path.join(STATIC_DIR, opt_f)):
+            ndvi_cell = f'<a href="/static/{opt_f}" target="_blank" title="Открыть карту NDVI #{m_id}" style="color:var(--sirius-teal-dark);text-decoration:none;font-weight:600;"><span style="white-space:nowrap;font-family:monospace;font-size:11px;">{ndvi_txt}</span> 🔍</a>'
+        else:
+            ndvi_cell = f'<span style="white-space:nowrap;font-family:monospace;font-size:11px;color:#334155;">{ndvi_txt}</span>'
+
         if th_name:
             m_th = re.search(r'(IMG[_\s]\d+)', th_name)
             clean_th = m_th.group(1) if m_th else th_name
-            th_stat = f'<span style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;">✓ {clean_th}</span>'
+            th_file_path = os.path.join(STATIC_DIR, th_name)
+            if os.path.exists(th_file_path):
+                th_stat = f'<a href="/static/{th_name}" target="_blank" title="Открыть термограмму #{m_id}" style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;text-decoration:none;">✓ {clean_th} 🔍</a>'
+            else:
+                th_stat = f'<span style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;">✓ {clean_th}</span>'
         else:
             th_stat = '<span style="color:#d97706;font-size:11px;white-space:nowrap;font-weight:600;">⏳ Ожидает</span>'
 
@@ -1663,7 +1678,7 @@ def index(
         t_leaf_html = f'<b style="color:#d97706;white-space:nowrap;">{t_show}</b>' if t_show != '--' else '<span style="color:#94a3b8;">--</span>'
         del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id}?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">✕</button></form>'''
 
-        table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td><span style="white-space:nowrap;font-family:monospace;font-size:11px;color:#334155;">{ndvi_txt}</span></td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td>{del_btn}</td></tr>'
+        table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td>{del_btn}</td></tr>'
 
     html = f'''<!DOCTYPE html>
 <html lang="ru">
@@ -2147,6 +2162,21 @@ def download_csv():
     if os.path.exists(CSV_LOG):
         return FileResponse(CSV_LOG, filename='plant_stress_measurements.csv')
     return HTMLResponse('Файл пока пуст')
+
+@app.get('/download/images_zip')
+def download_images_zip():
+    """Скачать архив всех сохраненных снимков NDVI и термограмм."""
+    zip_path = os.path.join(DATA_DIR, 'plant_stress_gallery.zip')
+    with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        if os.path.exists(CSV_LOG):
+            zf.write(CSV_LOG, arcname='measurements.csv')
+        for fname in sorted(os.listdir(STATIC_DIR)):
+            if (fname.startswith(('opt_', 'therm_', 'ndvi_')) or fname in ('last_ndvi.jpg', 'last_thermal.jpg')) and fname.endswith(('.jpg', '.png')):
+                full_p = os.path.join(STATIC_DIR, fname)
+                zf.write(full_p, arcname=f'photos/{fname}')
+    if os.path.exists(zip_path):
+        return FileResponse(zip_path, filename='plant_stress_gallery.zip', media_type='application/zip')
+    return HTMLResponse('Снимков пока нет')
 
 @app.get('/download/pdf')
 def download_pdf():
