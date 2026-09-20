@@ -136,6 +136,7 @@ $$
 $$
 CWSI = \frac{(T_{\text{leaf}} - T_{\text{air}}) - (T_{\text{wet}} - T_{\text{air}})}{(T_{\text{dry}} - T_{\text{air}}) - (T_{\text{wet}} - T_{\text{air}})} = \frac{T_{\text{leaf}} - T_{\text{wet}}}{T_{\text{dry}} - T_{\text{wet}}}
 $$
+
 где:
 * $T_{\text{wet}}$ — влажный эталон (максимальное испарительное охлаждение при открытых устьицах, $T_{\text{air}} - 3.2$ °C);
 * $T_{\text{dry}}$ — неиспаряющий эталон (устьица закрыты, блокировка транспирации, $T_{\text{air}} + 2.0$ °C).
