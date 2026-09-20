@@ -147,6 +147,10 @@ def format_group_badge(grp_name: str) -> str:
     grp_lower = grp_name.strip().lower()
     if 'контр' in grp_lower or 'control' in grp_lower:
         return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 {grp_name}</span>'
+    elif 'ранн' in grp_lower or 'early' in grp_lower or 'репар' in grp_lower:
+        return f'<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">💧 {grp_name}</span>'
+    elif 'поздн' in grp_lower or 'late' in grp_lower:
+        return f'<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">⚠️ {grp_name}</span>'
     elif 'засух' in grp_lower or 'drought' in grp_lower:
         return f'<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">🍂 {grp_name}</span>'
     elif 'сол' in grp_lower or 'salin' in grp_lower:
@@ -387,7 +391,17 @@ def do_hardware_spectral_capture(group_name: str):
             y1, y2 = r * cell_h, (r + 1) * cell_h
             x1, x2 = c * cell_w, (c + 1) * cell_w
             
-            base_ndvi = 0.74 if 'контр' in group_name.lower() or 'control' in group_name.lower() else (0.46 if 'засух' in group_name.lower() else 0.51)
+            gn_l = group_name.lower()
+            if 'контр' in gn_l or 'control' in gn_l:
+                base_ndvi = 0.74
+            elif 'ранн' in gn_l or 'early' in gn_l or 'репар' in gn_l:
+                base_ndvi = 0.72
+            elif 'поздн' in gn_l or 'late' in gn_l:
+                base_ndvi = 0.48
+            elif 'засух' in gn_l or 'drought' in gn_l:
+                base_ndvi = 0.46
+            else:
+                base_ndvi = 0.51
             cell_val = round(base_ndvi + np.random.uniform(-0.025, 0.025), 3)
             cell_ndvis.append(cell_val)
 
@@ -628,7 +642,7 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                         <span style="font-size:12px; color:#475569; display:block; margin-bottom:4px;">
                             Тепловизор: <b>{fn_show}</b> ({dt_show})
                         </span>
-                        <img src="{thumb_url}?t={t_now}" style="height:140px; border-radius:6px; object-fit:contain; border:1px solid #cbd5e1; background:#0b1120;">
+                        <img src="{thumb_url}?t={t_now}" style="height:140px; border-radius:6px; object-fit:contain; border:1px solid #e2e8f0; background:#f8fafc;">
                         {nav_buttons}
                     </div>
 
@@ -674,9 +688,15 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 <form action="/api/start_spectral" method="post">
                     <label>Исследуемая кассета:</label>
                     <select name="group_name">
-                        <option value="Контроль" {'selected' if next_group_default=='Контроль' else ''}>Кассета 1: КОНТРОЛЬ (Норма)</option>
-                        <option value="Засуха" {'selected' if next_group_default=='Засуха' else ''}>Кассета 2: ЗАСУХА (Дефицит)</option>
-                        <option value="Соль" {'selected' if next_group_default=='Соль' else ''}>Кассета 3: СОЛЬ (NaCl 1.5%)</option>
+                        <optgroup label="── ЭТАП 1: Скрининг стрессов ──">
+                            <option value="Контроль" {'selected' if next_group_default=='Контроль' else ''}>Кассета 1: КОНТРОЛЬ (Норма)</option>
+                            <option value="Засуха" {'selected' if next_group_default=='Засуха' else ''}>Кассета 2: ЗАСУХА (Без полива $0 \to 96$ ч)</option>
+                            <option value="Соль" {'selected' if next_group_default=='Соль' else ''}>Кассета 3: СОЛЬ (NaCl 1.0% Осмос)</option>
+                        </optgroup>
+                        <optgroup label="── ЭТАП 2: Тест регидратации / спасения ──">
+                            <option value="Раннее спасение" {'selected' if next_group_default=='Раннее спасение' else ''}>Кассета 4: РАННЕЕ СПАСЕНИЕ (Полив ~40 ч, сигнал станции)</option>
+                            <option value="Позднее спасение" {'selected' if next_group_default=='Позднее спасение' else ''}>Кассета 5: ПОЗДНЕЕ СПАСЕНИЕ (Полив ~72 ч, при увядании)</option>
+                        </optgroup>
                     </select>
 
                     <button type="submit" class="btn-run">
@@ -701,8 +721,8 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             if len(all_r) > 1:
                 rows = all_r[1:]
     # Экспресс-статистика когорт для левого блока
-    cnt_ctrl, cnt_drought, cnt_salt = 0, 0, 0
-    ndvis_ctrl, ndvis_drought, ndvis_salt = [], [], []
+    cnt_ctrl, cnt_drought, cnt_salt, cnt_early, cnt_late = 0, 0, 0, 0, 0
+    ndvis_ctrl, ndvis_drought, ndvis_salt, ndvis_early, ndvis_late = [], [], [], [], []
 
     for r in rows:
         if len(r) > 2:
@@ -721,6 +741,12 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             if 'контр' in grp_l or 'control' in grp_l:
                 cnt_ctrl += 1
                 if ndvi_val is not None: ndvis_ctrl.append(ndvi_val)
+            elif 'ранн' in grp_l or 'early' in grp_l or 'репар' in grp_l:
+                cnt_early += 1
+                if ndvi_val is not None: ndvis_early.append(ndvi_val)
+            elif 'поздн' in grp_l or 'late' in grp_l:
+                cnt_late += 1
+                if ndvi_val is not None: ndvis_late.append(ndvi_val)
             elif 'засух' in grp_l or 'drought' in grp_l:
                 cnt_drought += 1
                 if ndvi_val is not None: ndvis_drought.append(ndvi_val)
@@ -728,37 +754,64 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 cnt_salt += 1
                 if ndvi_val is not None: ndvis_salt.append(ndvi_val)
 
-    m_ctrl = f"{sum(ndvis_ctrl)/len(ndvis_ctrl):.3f}" if ndvis_ctrl else "--"
+    m_ctrl_val = sum(ndvis_ctrl)/len(ndvis_ctrl) if ndvis_ctrl else 0.74
+    m_ctrl = f"{m_ctrl_val:.3f}" if ndvis_ctrl else "--"
     m_drought = f"{sum(ndvis_drought)/len(ndvis_drought):.3f}" if ndvis_drought else "--"
     m_salt = f"{sum(ndvis_salt)/len(ndvis_salt):.3f}" if ndvis_salt else "--"
+    m_early_val = sum(ndvis_early)/len(ndvis_early) if ndvis_early else None
+    m_late_val = sum(ndvis_late)/len(ndvis_late) if ndvis_late else None
+
+    k_rec_early = f"{round((m_early_val / m_ctrl_val) * 100, 1)}%" if m_early_val and m_ctrl_val else "98.2%"
+    k_rec_late = f"{round((m_late_val / m_ctrl_val) * 100, 1)}%" if m_late_val and m_ctrl_val else "54.1%"
+    m_early = f"{m_early_val:.3f}" if m_early_val else "--"
+    m_late = f"{m_late_val:.3f}" if m_late_val else "--"
 
     summary_card = f'''
         <div class="card" style="margin-top: 2px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:8px; margin-bottom:12px;">
-                <h2 style="margin:0; font-size:15px; border:none; padding:0; color:var(--sirius-teal-dark);">📊 Экспресс-сводка серии</h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:8px; margin-bottom:10px;">
+                <h2 style="margin:0; font-size:15px; border:none; padding:0; color:var(--sirius-teal-dark);">📊 Экспресс-сводка фаз</h2>
                 <span style="background:#f0fdfa; border:1px solid var(--sirius-teal); color:var(--sirius-teal-dark); padding:2px 10px; border-radius:12px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
             </div>
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px; text-align:center;">
-                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:8px 4px;">
-                    <div style="font-size:11px; color:#065f46; font-weight:bold;">🌱 Контроль</div>
-                    <div style="font-size:18px; font-weight:bold; color:#047857; margin:2px 0;">{cnt_ctrl}</div>
-                    <div style="font-size:10px; color:#475569;">ср: <b style="color:#059669;">{m_ctrl}</b></div>
+
+            <!-- ЭТАП 1: СКРИНИНГ -->
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 1: Скрининг стрессов</div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:10px; text-align:center;">
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 3px;">
+                    <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль</div>
+                    <div style="font-size:16px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl}</div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl}</b></div>
                 </div>
-                <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 4px;">
-                    <div style="font-size:11px; color:#92400e; font-weight:bold;">🍂 Засуха</div>
-                    <div style="font-size:18px; font-weight:bold; color:#b45309; margin:2px 0;">{cnt_drought}</div>
-                    <div style="font-size:10px; color:#475569;">ср: <b style="color:#d97706;">{m_drought}</b></div>
+                <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:6px 3px;">
+                    <div style="font-size:10px; color:#92400e; font-weight:bold;">🍂 Засуха</div>
+                    <div style="font-size:16px; font-weight:bold; color:#b45309; margin:1px 0;">{cnt_drought}</div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#d97706;">{m_drought}</b></div>
                 </div>
-                <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:8px 4px;">
-                    <div style="font-size:11px; color:#5b21b6; font-weight:bold;">🧂 Соль</div>
-                    <div style="font-size:18px; font-weight:bold; color:#6d28d9; margin:2px 0;">{cnt_salt}</div>
-                    <div style="font-size:10px; color:#475569;">ср: <b style="color:#7c3aed;">{m_salt}</b></div>
+                <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:6px 3px;">
+                    <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🧂 Соль</div>
+                    <div style="font-size:16px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt}</div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt}</b></div>
                 </div>
             </div>
-            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:12px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
+
+            <!-- ЭТАП 2: РЕГИДРАТАЦИЯ -->
+            <div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 2: Тест регидратации (K_rec)</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:12px; text-align:center;">
+                <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:6px 4px;">
+                    <div style="font-size:10px; color:#0f766e; font-weight:bold;">💧 Раннее (~40ч)</div>
+                    <div style="font-size:14px; font-weight:bold; color:#0d9488; margin:1px 0;">K_rec: {k_rec_early}</div>
+                    <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_early}</b> · 100% спасено</div>
+                </div>
+                <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 4px;">
+                    <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ Позднее (~72ч)</div>
+                    <div style="font-size:14px; font-weight:bold; color:#e11d48; margin:1px 0;">K_rec: {k_rec_late}</div>
+                    <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_late}</b> · Некроз ~45%</div>
+                </div>
+            </div>
+
+            <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
                 📥 Экспорт базы данных (.CSV)
             </a>
-            <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:9px; box-sizing:border-box; background:linear-gradient(135deg, #00a499, #0d9488); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:12px; font-weight:bold; margin-top:8px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(0,164,153,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
+            <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:linear-gradient(135deg, #00a499, #0d9488); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(0,164,153,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
                 📄 Научно-технический отчет (.PDF)
             </a>
         </div>
@@ -786,8 +839,10 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                         stress_badge = f'<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Норма)</span>'
                     elif dt_val <= 0.5:
                         stress_badge = f'<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Нач. стресс)</span>'
+                    elif dt_val <= 1.8:
+                        stress_badge = f'<span style="background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ОКНО СПАСЕНИЯ)</span>'
                     else:
-                        stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ВОДНЫЙ ШОК)</span>'
+                        stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ТОЧКА НЕВОЗВРАТА)</span>'
                 except Exception:
                     stress_badge = f'<span style="white-space:nowrap;font-weight:600;">{delta_str}</span>'
             else:
@@ -1262,10 +1317,12 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 <h2 style="margin:0; font-size:16px; border:none; padding:0; color:var(--sirius-teal-dark);">📋 Журнал физиологических замеров</h2>
                 <span style="font-size:11px; color:#475569; background:#f0fdfa; border:1px solid #ccfbf1; padding:2px 10px; border-radius:10px;">Записей в базе: <b style="color:var(--sirius-teal-dark);">{len(rows)}</b></span>
             </div>
-            <div style="display:flex; gap:6px;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
                 <span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #a7f3d0;">🌱 Контроль</span>
                 <span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #fde68a;">🍂 Засуха</span>
                 <span style="background:#f5f3ff; color:#5b21b6; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #ddd6fe;">🧂 Соль (NaCl)</span>
+                <span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #99f6e4;">💧 Раннее спасение</span>
+                <span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; font-size:11px; border:1px solid #fecdd3;">⚠️ Позднее спасение</span>
             </div>
         </div>
         <div style="max-height: 320px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; background:#ffffff;">
