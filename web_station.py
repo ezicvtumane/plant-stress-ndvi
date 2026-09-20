@@ -785,8 +785,13 @@ def handle_cancel_batch():
     return RedirectResponse(url='/?msg=cancelled', status_code=303)
 
 @app.post('/api/batch_capture_next')
-def handle_batch_capture_next(group_name: str = Form('')):
-    """Съемка очередной кассеты в боксе NoIR камерой с авто-детекцией ArUco."""
+def handle_batch_capture_next(
+    group_name: str = Form(''),
+    weight_g: str = Form(''),
+    t_leaf: str = Form(''),
+    pct_soil: str = Form('64.0')
+):
+    """Съемка очередной кассеты в боксе NoIR камерой с авто-детекцией ArUco, защитой от дубликатов и фиксацией замеров."""
     global BATCH_STATE
     if not BATCH_STATE.get('active'):
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -802,7 +807,35 @@ def handle_batch_capture_next(group_name: str = Form('')):
     
     try:
         session = do_hardware_spectral_capture(target_name)
+        detected_id = session.get('aruco_id')
+
+        # 1. ЗАЩИТА: ПРОВЕРКА НА ДУБЛИКАТ В ТЕКУЩЕЙ СЕРИИ ИЗ 3 КАССЕТ
+        if detected_id is not None:
+            for past_s in BATCH_STATE['sessions']:
+                if past_s.get('aruco_id') == detected_id:
+                    grp_name = session.get('group', f'Кассета #{detected_id}')
+                    print(f"[ArUco Warning] Заблокирован дубликат маркера #{detected_id} ({grp_name})")
+                    return RedirectResponse(
+                        url=f"/?stage=batch_shoot&msg=err_duplicate_aruco&dup_id={detected_id}&dup_name={grp_name}",
+                        status_code=303
+                    )
+
+        # 2. ЗАЩИТА: ПРОВЕРКА СООТВЕТСТВИЯ ВЫБРАННОМУ ЭТАПУ
+        stage_ids = [c['id'] for c in cassettes]
+        if detected_id is not None and detected_id not in stage_ids:
+            exp_str = ', '.join(str(i) for i in stage_ids)
+            print(f"[ArUco Warning] Маркер #{detected_id} не входит в текущий этап {stage_ids}")
+            return RedirectResponse(
+                url=f"/?stage=batch_shoot&msg=err_wrong_stage_aruco&wrong_id={detected_id}&expected={exp_str}",
+                status_code=303
+            )
+
+        # 3. ФИКСАЦИЯ РУЧНЫХ ЗАМЕРОВ ДЛЯ ЭТОЙ КАССЕТЫ
+        session['user_weight'] = weight_g.strip().replace(',', '.') if weight_g.strip() else ''
+        session['user_t_leaf'] = t_leaf.strip().replace(',', '.') if t_leaf.strip() else ''
+        session['user_pct_soil'] = pct_soil.strip().replace(',', '.') if pct_soil.strip() else '64.0'
         session['shot_order'] = len(BATCH_STATE['sessions']) + 1
+
         BATCH_STATE['sessions'].append(session)
         BATCH_STATE['current_step'] = len(BATCH_STATE['sessions'])
         if len(BATCH_STATE['sessions']) >= len(cassettes):
@@ -848,7 +881,11 @@ def handle_batch_link_thermal():
             except Exception:
                 pass
         
-        t_ocr = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else round(s['t_air'] + 0.5, 1)
+        # Если оператор уже ввел температуру листа на шаге замера - сохраняем её!
+        if s.get('user_t_leaf'):
+            t_val = s['user_t_leaf']
+        else:
+            t_val = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else round(s['t_air'] + 0.5, 1)
         
         detected_id = s.get('aruco_id')
         assigned_id = None
@@ -862,32 +899,24 @@ def handle_batch_link_thermal():
             'thermal_filename': fname,
             'thermal_thumb': thumb_jpg,
             'thermal_thumb_url': f'/static/uti_cache/{thumb_jpg}',
-            't_ocr': t_ocr,
+            't_ocr': t_val,
             'dt_str': format_ru_datetime(mtime),
             'detected_id': detected_id,
             'assigned_id': assigned_id
         })
     
-    # Для кассет, где ArUco не найден или повторился, берем оставшиеся неиспользованные ID этапа
     remaining_ids = [cid for cid in stage_ids if cid not in used_ids]
     for item in paired_items:
         if item['assigned_id'] is None:
-            if remaining_ids:
-                item['assigned_id'] = remaining_ids.pop(0)
-            else:
-                item['assigned_id'] = stage_ids[0]
+            item['assigned_id'] = remaining_ids.pop(0) if remaining_ids else stage_ids[0]
     
-    # АВТО-СОРТИРОВКА: Раскладываем пары строго по возрастанию ID кассеты (1 -> 2 -> 3 или 4 -> 5 -> 6)!
-    # Даже если оператор снял их в произвольном порядке (напр. 3 -> 1 -> 2),
-    # на экране верификации и в итоговой базе они встанут на свои законные места!
     paired_items.sort(key=lambda x: x['assigned_id'])
-    
     BATCH_STATE['verified_data'] = paired_items
     return RedirectResponse(url='/?stage=batch_verify', status_code=303)
 
-@app.post('/api/batch_skip_thermal')
-def handle_batch_skip_thermal():
-    """Экспресс-пропуск подключения тепловизора: переход к быстрому ручному вводу температур 3 кассет."""
+@app.post('/api/batch_save_manual')
+def handle_batch_save_manual():
+    """Мгновенное сохранение всей триады кассет с введенными ручными данными (экспресс-финиш без проводов)."""
     global BATCH_STATE
     if not BATCH_STATE.get('active') or len(BATCH_STATE['sessions']) != 3:
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -904,30 +933,73 @@ def handle_batch_skip_thermal():
         if detected_id and detected_id in stage_ids and detected_id not in used_ids:
             assigned_id = detected_id
             used_ids.add(assigned_id)
-
-        paired_items.append({
-            'session': s,
-            'shot_order': s.get('shot_order', i + 1),
-            'thermal_filename': '',
-            'thermal_thumb': '',
-            'thermal_thumb_url': f"/static/{s.get('opt_file', 'last_ndvi.jpg')}",
-            't_ocr': round(s['t_air'], 1),
-            'dt_str': '--',
-            'detected_id': detected_id,
-            'assigned_id': assigned_id
-        })
+        paired_items.append({'session': s, 'assigned_id': assigned_id})
 
     remaining_ids = [cid for cid in stage_ids if cid not in used_ids]
     for item in paired_items:
         if item['assigned_id'] is None:
-            if remaining_ids:
-                item['assigned_id'] = remaining_ids.pop(0)
-            else:
-                item['assigned_id'] = stage_ids[0]
+            item['assigned_id'] = remaining_ids.pop(0) if remaining_ids else stage_ids[0]
 
     paired_items.sort(key=lambda x: x['assigned_id'])
-    BATCH_STATE['verified_data'] = paired_items
-    return RedirectResponse(url='/?stage=batch_verify', status_code=303)
+
+    records_to_save = []
+    for item in paired_items:
+        s = item['session']
+        cid = item['assigned_id']
+        c_meta = CASSETTE_CATALOG.get(cid, {'name': s.get('group', f'Кассета #{cid}')})
+        group_name = c_meta['name']
+        meas_id = s['id']
+        ts_display = s['timestamp']
+
+        w_val = s.get('user_weight', '')
+        t_l_val = s.get('user_t_leaf', '')
+        if not t_l_val:
+            t_l_val = str(round(float(s['t_air']), 1))
+
+        pct_s = s.get('user_pct_soil', '64.0')
+        try:
+            ps = float(pct_s)
+            s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
+            s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+        except Exception:
+            pass
+
+        delta_t_val = ''
+        if t_l_val:
+            try:
+                dt = round(float(t_l_val) - float(s['t_air']), 1)
+                delta_t_val = str(dt)
+            except Exception:
+                pass
+
+        records_to_save.append([
+            meas_id, ts_display, group_name, w_val,
+            s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+            t_l_val, delta_t_val, s['vpd'],
+            s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
+            s['opt_file'], '',
+            *s['cell_ndvis']
+        ])
+
+    with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        for row in records_to_save:
+            writer.writerow(row)
+
+    stage_name = 'Этап 1 (Скрининг)' if stage_key == 'stage1' else 'Этап 2 (Регидратация)'
+    BATCH_STATE = {
+        'active': False,
+        'stage_key': 'stage1',
+        'current_step': 0,
+        'sessions': [],
+        'verified_data': None
+    }
+    return RedirectResponse(url=f'/?msg=batch_saved&stage_name={stage_name}', status_code=303)
+
+@app.post('/api/batch_skip_thermal')
+def handle_batch_skip_thermal():
+    """Экспресс-пропуск подключения тепловизора: переход к подтверждению триады."""
+    return handle_batch_save_manual()
 
 
 @app.post('/api/batch_save_final')
@@ -1182,7 +1254,11 @@ def index(
     upd_id: str = '',
     phase: str = 'all',
     found: str = '',
-    stage_name: str = ''
+    stage_name: str = '',
+    dup_id: str = '',
+    dup_name: str = '',
+    wrong_id: str = '',
+    expected: str = ''
 ):
     global PENDING_SESSION, BATCH_STATE
 
@@ -1236,6 +1312,13 @@ def index(
         f_cnt = found if found else '0'
         raw_banner = f'⚠️ На тепловизоре обнаружено только {f_cnt} снимка(ов). Сделайте щелчок курком для всех 3 кассет и убедитесь, что USB-кабель подключен.'
         banner_bg = '#ef4444'
+    elif msg == 'err_duplicate_aruco':
+        d_name_str = f' ({dup_name})' if dup_name else ''
+        raw_banner = f'⛔ ЗАБЛОКИРОВАН ДУБЛИКАТ: Кассета с ArUco #{dup_id}{d_name_str} УЖЕ была снята в этой серии! Вы забыли заменить кассету на упорах. Пожалуйста, смените кассету.'
+        banner_bg = '#dc2626'
+    elif msg == 'err_wrong_stage_aruco':
+        raw_banner = f'⚠️ ДРУГОЙ ЭТАП: Обнаружен ArUco #{wrong_id}, а для выбранного этапа нужны кассеты: {expected}. Проверьте номер кассеты.'
+        banner_bg = '#f59e0b'
 
     status_banner = ''
     if raw_banner:
@@ -1322,8 +1405,28 @@ def index(
                 </div>
 
                 <form action="/api/batch_capture_next" method="post">
+                    <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:12px;">
+                        <span style="font-size:11px; font-weight:bold; color:#334155; text-transform:uppercase; display:block; margin-bottom:8px;">
+                            📝 Физиологические параметры для кадра #{step_idx + 1} (вводятся сразу при замере):
+                        </span>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                            <div>
+                                <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0f766e;">⚖️ Масса с весов, г:</label>
+                                <input type="text" name="weight_g" autofocus placeholder="напр. 405.0" style="width:100%; padding:8px; font-size:13px; font-weight:bold; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#d97706;">🌡️ T листа с UTi120S (°C):</label>
+                                <input type="number" step="0.1" name="t_leaf" placeholder="напр. 23.5" style="width:100%; padding:8px; font-size:13px; font-weight:bold; border:1.5px solid #f59e0b; border-radius:6px; box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0284c7;">💧 Влажность почвы, %:</label>
+                                <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="64.0" style="width:100%; padding:8px; font-size:13px; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box;">
+                            </div>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn-run" style="width:100%; padding:14px; font-size:15px; background:linear-gradient(135deg, #2563eb, #0d9488); cursor:pointer;">
-                        📸 СДЕЛАТЬ СНИМОК #{step_idx + 1} (Вспышка NoIR + распознавание ArUco)
+                        📸 СДЕЛАТЬ СНИМОК #{step_idx + 1} (Вспышка NoIR + ArUco + фиксация замеров)
                     </button>
                 </form>
 
@@ -1334,7 +1437,7 @@ def index(
         '''
 
     elif stage == 'batch_await_thermal' and BATCH_STATE.get('active'):
-        # ПАКЕТНЫЙ ШАГ 2: Все 3 кассеты сняты NoIR, втыкаем кабель тепловизора ОДИН РАЗ
+        # ПАКЕТНЫЙ ШАГ 2: Все 3 кассеты сняты NoIR, выбор сохранения
         stage_key = BATCH_STATE.get('stage_key', 'stage1')
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
 
@@ -1343,12 +1446,15 @@ def index(
             m_id = s.get('aruco_id')
             grp = s.get('group', f'Кадр #{i+1}')
             m_badge = f'🏷️ ArUco #{m_id}' if m_id else '⚠️ Ручная привязка'
+            w_disp = f"{s.get('user_weight')} г" if s.get('user_weight') else "--"
+            t_disp = f"{s.get('user_t_leaf')} °C" if s.get('user_t_leaf') else "--"
             cards_summary += f'''
                 <div style="flex:1; background:#ffffff; border:1px solid #a7f3d0; border-radius:8px; padding:10px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                    <span style="font-size:10px; color:#64748b; display:block;">Снято #{i+1} по очереди</span>
+                    <span style="font-size:10px; color:#64748b; display:block;">Кассета #{i+1}</span>
                     <span style="font-size:12px; color:#065f46; font-weight:bold; display:block;">{grp}</span>
                     <span style="background:#e0f2fe; color:#0369a1; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; margin:2px 0;">{m_badge}</span>
-                    <div style="font-size:12px; color:#047857; font-weight:bold; margin-top:2px;">NDVI: {s.get("mean_ndvi", "--")} · PLA: {s.get("leaf_area_cm2", "--")} см²</div>
+                    <div style="font-size:11px; color:#0f766e; margin-top:3px;"><b>⚖️ {w_disp}</b> · <b>🌡️ {t_disp}</b></div>
+                    <div style="font-size:11px; color:#047857; font-weight:bold; margin-top:2px;">NDVI: {s.get("mean_ndvi", "--")} · PLA: {s.get("leaf_area_cm2", "--")} см²</div>
                     <img src="/static/{s.get('opt_file', 'last_ndvi.jpg')}?t={t_now}" style="height:65px; border-radius:4px; margin-top:6px; object-fit:cover; width:100%; border:1px solid #e2e8f0;">
                 </div>
             '''
@@ -1357,7 +1463,7 @@ def index(
             <div class="card" style="border: 2px solid #10b981; background: #ffffff;">
                 <div style="text-align:center; padding:6px 0 10px 0;">
                     <div style="font-size:28px; margin-bottom:2px;">🎉</div>
-                    <h2 style="margin:0; color:#065f46; font-size:17px;">Все 3 кассеты успешно отсняты NoIR-камерой!</h2>
+                    <h2 style="margin:0; color:#065f46; font-size:17px;">Все 3 кассеты успешно отсняты и измерены!</h2>
                     <span style="font-size:12px; color:#047857;">{conf["title"]}</span>
                 </div>
 
@@ -1365,26 +1471,20 @@ def index(
                     {cards_summary}
                 </div>
 
-                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:14px; margin-bottom:14px; text-align:center;">
-                    <p style="margin:0 0 6px 0; font-size:14px; color:#15803d; font-weight:bold;">
-                        🔌 Вставьте USB-кабель тепловизора UTi120S в Orange Pi (один раз)!
-                    </p>
-                    <p style="margin:0; font-size:12px; color:#166534; line-height:1.4;">
-                        Станция считает 3 последних снимка с тепловизора, выполнит Tesseract OCR и автоматически расставит их по ArUco-номерам кассет.
-                    </p>
+                <form action="/api/batch_save_manual" method="post">
+                    <button type="submit" class="btn-confirm" style="width:100%; padding:15px; font-size:16px; background:linear-gradient(135deg, #059669, #00a499); cursor:pointer; box-shadow:0 4px 14px rgba(0,164,153,0.35);">
+                        ✅ ВСЁ ГОТОВО — СОХРАНИТЬ ВСЮ ТРИАДУ В ЖУРНАЛ (БЕЗ ТЕПЛОВИЗОРА)
+                    </button>
+                </form>
+
+                <div style="margin-top:14px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; text-align:center;">
+                    <span style="font-size:12px; color:#475569; display:block; margin-bottom:8px;">Есть свободное время? Можете подтянуть файлы снимков тепловизора:</span>
+                    <form action="/api/batch_link_thermal" method="post">
+                        <button type="submit" style="padding:10px 18px; font-size:13px; background:#0284c7; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">
+                            🔌 Вставить USB-кабель тепловизора и прикрепить фото
+                        </button>
+                    </form>
                 </div>
-
-                <form action="/api/batch_link_thermal" method="post">
-                    <button type="submit" class="btn-confirm" style="width:100%; padding:14px; font-size:15px; background:linear-gradient(135deg, #10b981, #0d9488); cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.35);">
-                        🔌 СЧИТАТЬ И ОТСОРТИРОВАТЬ 3 СНИМКА ТЕПЛОВИЗОРА (ЧЕРЕЗ USB)
-                    </button>
-                </form>
-
-                <form action="/api/batch_skip_thermal" method="post" style="margin-top:10px;">
-                    <button type="submit" style="width:100%; padding:12px; font-size:13.5px; background:#f0fdfa; color:#0f766e; border:2px dashed #14b8a6; border-radius:8px; font-weight:bold; cursor:pointer;" onmouseover="this.style.background='#ccfbf1'" onmouseout="this.style.background='#f0fdfa'">
-                        ⚡ БЕЗ КАБЕЛЯ: ВВЕСТИ 3 ТЕМПЕРАТУРЫ ВРУЧНУЮ (ЭКСПРЕСС-РЕЖИМ)
-                    </button>
-                </form>
 
                 <div style="margin-top:12px; text-align:center;">
                     <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Отменить сессию</a>
