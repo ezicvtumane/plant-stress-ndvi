@@ -2035,7 +2035,7 @@ def index(
             </div>
             <div class="header-status">
                 <div class="status-online"><span class="pulsing-dot"></span> СТАНЦИЯ ОНЛАЙН</div>
-                <div class="station-hw">Orange Pi 4 Pro · sun60iw2</div>
+                <div class="station-hw">Orange Pi 4 Pro · Wi-Fi: <b>PlantStation</b> (192.168.4.1)</div>
             </div>
         </div>
         <div class="header-subnote">
