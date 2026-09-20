@@ -264,15 +264,15 @@ HTML_NOTE = """<!DOCTYPE html>
         </tr>
         <tr>
             <td class="passport-label">Автор работы:</td>
-            <td><b>Ковалева Алиса Сергеевна</b>, 10 класс, ГБОУ СОШ №282 Кировского района Санкт-Петербурга (<i>ezicvtumane@gmail.com</i>)</td>
+            <td><b>Ковалева Алиса Ивановна</b>, 10 класс, ГБОУ СОШ №282 Кировского района Санкт-Петербурга (<i>ezicvtumane@gmail.com</i>)</td>
             <td class="passport-label" style="width: 18%;">Шифр / УДК:</td>
             <td style="width: 22%;"><b>УДК 581.1.032 : 681.785</b></td>
         </tr>
         <tr>
             <td class="passport-label">Научный руководитель:</td>
-            <td>Учитель биологии / наставник проекта, ГБОУ СОШ №282 Санкт-Петербурга</td>
-            <td class="passport-label">Репозиторий:</td>
-            <td><a href="https://github.com/ezicvtumane/plant-stress-ndvi" style="color:#0284c7;text-decoration:none;">github.com/.../plant-stress-ndvi</a></td>
+            <td><b>Смирнова Татьяна Николаевна</b>, учитель биологии ГБОУ СОШ №282 Санкт-Петербурга</td>
+            <td class="passport-label">Инж. консультант:</td>
+            <td><b>Ковалев Иван Викторович</b>, инженерно-технический консультант (ПО и аппаратура)</td>
         </tr>
     </table>
 
