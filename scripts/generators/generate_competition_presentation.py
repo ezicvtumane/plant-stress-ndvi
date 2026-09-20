@@ -53,9 +53,10 @@ slides_data = [
         <h1 style="font-size: 23pt; line-height: 1.3; color: #ffffff; max-width: 1050px; margin: 0 auto 30px auto; text-transform: uppercase;">
             Оптико-электронный комплекс активной двухволновой спектрофотометрии и термографии для ранней индикации водного и осмотического стресса растений
         </h1>
-        <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(0, 164, 153, 0.4); border-radius: 12px; padding: 16px 24px; display: inline-block; text-align: left; font-size: 13pt;">
-            <b>Автор:</b> Ковалева Алиса, учащаяся 10 класса<br>
-            <b>ОУ:</b> ГБОУ СОШ №282 Кировского района Санкт-Петербурга<br>
+        <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(0, 164, 153, 0.4); border-radius: 12px; padding: 14px 22px; display: inline-block; text-align: left; font-size: 11.5pt; line-height: 1.4;">
+            <b>Автор:</b> Ковалева Алиса Ивановна, учащаяся 10 класса (ГБОУ СОШ №282 СПб)<br>
+            <b>Научный руководитель:</b> Смирнова Татьяна Николаевна, учитель биологии ГБОУ СОШ №282<br>
+            <b>Инженерный консультант:</b> Ковалев Иван Викторович, консультант по ПО и аппаратуре<br>
             <b>GitHub:</b> <span style="color:#38bdf8;">github.com/ezicvtumane/plant-stress-ndvi</span>
         </div>
     </div>
@@ -502,8 +503,10 @@ slides_data = [
         <div style="font-size: 14pt; color: #38bdf8; font-weight: bold; margin-bottom: 25px;">
             <a href="https://github.com/ezicvtumane/plant-stress-ndvi" style="color: #38bdf8; text-decoration: none;">https://github.com/ezicvtumane/plant-stress-ndvi</a>
         </div>
-        <div style="font-size: 13pt; color: #94a3b8;">
-            <b>Автор:</b> Ковалева Алиса | ГБОУ СОШ №282 Кировского района Санкт-Петербурга<br>
+        <div style="font-size: 11.5pt; color: #94a3b8; line-height: 1.45;">
+            <b>Автор:</b> Ковалева Алиса Ивановна (10 класс, ГБОУ СОШ №282 Санкт-Петербурга)<br>
+            <b>Научный руководитель:</b> Смирнова Татьяна Николаевна (учитель биологии ГБОУ СОШ №282)<br>
+            <b>Инженерно-технический консультант:</b> Ковалев Иван Викторович<br>
             <i>Email: ezicvtumane@gmail.com</i>
         </div>
     </div>
