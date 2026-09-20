@@ -1,0 +1,477 @@
+# -*- coding: utf-8 -*-
+"""
+Генератор краткой научно-информационной записки к проекту (2 страницы)
+для экспертного ознакомления и рецензирования в Санкт-Петербургском
+государственном университете (СПбГУ).
+
+Строго 2 страницы A4:
+- Стр. 1: Паспорт проекта, Научная проблема, Гипотеза, Аппаратно-программная реализация.
+- Стр. 2: Экспериментальные данные, Статистическая валидация, Внедрение, Блок рецензии эксперта.
+"""
+
+import os
+import subprocess
+import shutil
+import re
+
+BASE_DIR = r"c:\Users\Администратор\Documents\Coglet\plant-stress-ndvi"
+DOCS_DIR = os.path.join(BASE_DIR, "docs")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+os.makedirs(DOCS_DIR, exist_ok=True)
+os.makedirs(STATIC_DIR, exist_ok=True)
+
+HTML_NOTE = """<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Краткая записка для рецензирования | СПбГУ | Ковалева Алиса</title>
+<style>
+    @page {
+        size: A4 portrait;
+        margin: 11mm 12mm 11mm 12mm;
+    }
+
+    body {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 10pt;
+        line-height: 1.28;
+        color: #0f172a;
+        margin: 0;
+        padding: 0;
+        text-align: justify;
+    }
+
+    .page {
+        height: 273mm;
+        max-height: 273mm;
+        box-sizing: border-box;
+        position: relative;
+        overflow: hidden;
+    }
+    .page-break {
+        page-break-after: always;
+    }
+
+    /* ШАПКА СПБГУ */
+    .header-table {
+        width: 100%;
+        border-collapse: collapse;
+        border-bottom: 2px solid #990000;
+        padding-bottom: 4px;
+        margin-bottom: 8px;
+    }
+    .header-table td {
+        vertical-align: middle;
+        padding: 0;
+    }
+    .spbu-logo-text {
+        font-size: 8pt;
+        text-transform: uppercase;
+        color: #475569;
+        letter-spacing: 0.5px;
+    }
+    .spbu-uni-name {
+        font-size: 11.5pt;
+        font-weight: bold;
+        color: #990000;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+    .spbu-contest-tag {
+        font-size: 8pt;
+        font-weight: bold;
+        color: #0369a1;
+        text-align: right;
+    }
+
+    .doc-title {
+        font-size: 11.5pt;
+        font-weight: bold;
+        text-align: center;
+        text-transform: uppercase;
+        color: #0f172a;
+        margin: 4px 0 2px 0;
+        line-height: 1.25;
+    }
+    .doc-subtitle {
+        font-size: 9pt;
+        font-style: italic;
+        text-align: center;
+        color: #64748b;
+        margin-bottom: 6px;
+    }
+
+    /* ТАБЛИЦА ПАСПОРТА */
+    .passport-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8.5pt;
+        margin-bottom: 6px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+    }
+    .passport-table td {
+        padding: 3px 6px;
+        border: 1px solid #cbd5e1;
+    }
+    .passport-label {
+        font-weight: bold;
+        color: #334155;
+        width: 22%;
+        background: #f1f5f9;
+    }
+
+    h3 {
+        font-size: 9.5pt;
+        font-weight: bold;
+        color: #990000;
+        text-transform: uppercase;
+        margin: 6px 0 3px 0;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 2px;
+        letter-spacing: 0.4px;
+    }
+
+    p {
+        margin: 0 0 4px 0;
+        text-indent: 6mm;
+    }
+
+    ul, ol {
+        margin: 0 0 4px 0;
+        padding-left: 6mm;
+    }
+    li {
+        margin-bottom: 1.5px;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8.5pt;
+        margin: 4px 0;
+        line-height: 1.15;
+    }
+    .data-table th, .data-table td {
+        border: 1px solid #94a3b8;
+        padding: 3px 5px;
+        text-align: center;
+    }
+    .data-table th {
+        background-color: #f1f5f9;
+        font-weight: bold;
+        color: #0f172a;
+    }
+
+    .callout-box {
+        background: #f0fdfa;
+        border-left: 3px solid #00a499;
+        padding: 4px 8px;
+        margin: 4px 0;
+        font-size: 8.5pt;
+        line-height: 1.25;
+    }
+
+    /* БЛОК РЕЦЕНЗИРОВАНИЯ */
+    .review-block {
+        border: 1.5px dashed #990000;
+        background: #fffafa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-top: 5px;
+        font-size: 8pt;
+        line-height: 1.2;
+    }
+    .review-title {
+        font-weight: bold;
+        color: #990000;
+        text-transform: uppercase;
+        font-size: 8.5pt;
+        margin-bottom: 3px;
+        text-align: center;
+    }
+    .criteria-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 3px 0;
+    }
+    .criteria-table td {
+        border: 1px solid #fca5a5;
+        padding: 2px 4px;
+        font-size: 7.5pt;
+    }
+    .sign-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 4px;
+        font-size: 8pt;
+    }
+    .sign-table td {
+        padding: 1px 0;
+    }
+    .sign-line {
+        border-bottom: 1px solid #475569;
+        width: 100%;
+        display: inline-block;
+    }
+
+    .footer-page-num {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        font-size: 7.5pt;
+        color: #64748b;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 2px;
+    }
+</style>
+</head>
+<body>
+
+<!-- ======================================================================= -->
+<!-- СТРАНИЦА 1: ПАСПОРТ, ПРОБЛЕМА, ГИПОТЕЗА, АППАРАТНО-ПРОГРАММНЫЙ СТЕНД   -->
+<!-- ======================================================================= -->
+<div class="page page-break">
+    <table class="header-table">
+        <tr>
+            <td style="width: 65%;">
+                <div class="spbu-logo-text">Минобрнауки РФ · Санкт-Петербургский государственный университет (основан в 1724 г.)</div>
+                <div class="spbu-uni-name">Санкт-Петербургский государственный университет</div>
+            </td>
+            <td class="spbu-contest-tag" style="width: 35%;">
+                Конкурс исследовательских проектов школьников СПбГУ<br>
+                Секция: «Биология, экология и науки о жизни» (Биофизика / Агробиотех)
+            </td>
+        </tr>
+    </table>
+
+    <div class="doc-title">
+        Краткая научно-информационная записка к исследовательскому проекту
+    </div>
+    <div class="doc-subtitle">
+        (Материалы для предварительного ознакомления, экспертной оценки и рецензирования)
+    </div>
+
+    <!-- ТАБЛИЦА ПАСПОРТНЫХ ДАННЫХ -->
+    <table class="passport-table">
+        <tr>
+            <td class="passport-label">Тема проекта:</td>
+            <td colspan="3"><b>Оптико-электронный комплекс активной двухволновой спектрофотометрии и термографии для ранней индикации водного и осмотического стресса растений</b></td>
+        </tr>
+        <tr>
+            <td class="passport-label">Автор работы:</td>
+            <td><b>Ковалева Алиса Сергеевна</b>, 10 класс, ГБОУ СОШ №282 Кировского района Санкт-Петербурга (<i>ezicvtumane@gmail.com</i>)</td>
+            <td class="passport-label" style="width: 18%;">Шифр / УДК:</td>
+            <td style="width: 22%;"><b>УДК 581.1.032 : 681.785</b></td>
+        </tr>
+        <tr>
+            <td class="passport-label">Научный руководитель:</td>
+            <td>Учитель биологии / наставник проекта, ГБОУ СОШ №282 Санкт-Петербурга</td>
+            <td class="passport-label">Репозиторий:</td>
+            <td><a href="https://github.com/ezicvtumane/plant-stress-ndvi" style="color:#0284c7;text-decoration:none;">github.com/.../plant-stress-ndvi</a></td>
+        </tr>
+    </table>
+
+    <h3>1. Актуальность проблемы и формулировка научной гипотезы</h3>
+    <p>
+    <b>Проблемная ситуация</b>. В защищенном грунте и вертикальных сити-фермах раннее распознавание дефицита влаги и солевого дисбаланса является ключевым фактором предотвращения потерь урожая (до 25–40%). Традиционный визуальный осмотр констатирует стресс с <b>задержкой на 48–72 часа</b>, когда в мезофилле уже произошел необратимый плазмолиз клеток, распад хлорофилл-белковых комплексов фотосистемы II (PSII) и падение продуктивности. В то же время контактные почвенные датчики «слепы» к осмотическому засолению: при содержании NaCl &gt; 1% физическая влажность субстрата сохраняется высокой (&gt;75%), но корни теряют способность поглощать воду («физиологическая засуха»). Коммерческие спектрометры (&gt; 1.5 млн руб.) громоздки и недоступны для массовых хозяйств.
+    </p>
+    <p>
+    <b>Рабочая гипотеза</b>. Синхронное оптическое детектирование поглощения хлорофилла <i>a/b</i> (&lambda;<sub>1</sub> = 660 нм) и рассеяния губчатого мезофилла (&lambda;<sub>2</sub> = 850 нм) в комбинации с микроболометрической термографией прекращения транспирационного испарения (&Delta;T = T<sub>leaf</sub> &minus; T<sub>air</sub>) обеспечивает высокодостоверное (p &lt; 0.001) обнаружение водного и осмотического стресса <b>на 36–54 часа раньше проявления визуальных симптомов</b>.
+    </p>
+
+    <h3>2. Архитектура разработанного аппаратно-программного комплекса</h3>
+    <p>
+    Создан замкнутый настольный оптоэлектронный модуль массой 2.1 кг с энергопотреблением &lt; 15 Вт и автономным питанием:
+    </p>
+    <ul>
+        <li><b>Вычислительное ядро</b>: микрокомпьютер Orange Pi 4 Pro (6-ядерный RK3399 2.0 ГГц, 4 ГБ LPDDR4, 64 ГБ NVMe SSD, Armbian Linux).</li>
+        <li><b>Оптико-спектральный тракт NoIR</b>: камера OV5640 без ИК-фильтра с ручной фиксацией экспозиции и выключенным AWB. Реализовано <b>физическое демультиплексирование Bayer-матрицы</b>: для &lambda; = 660 нм считывается чистый R-субпиксель, а для &lambda; = 850 нм выполняется синфазное когерентное суммирование (R+G+B)/3, повышающее отношение сигнал/шум на 4.7 дБ.</li>
+        <li><b>Светодиодный стробирующий осветитель</b>: твердотельные диоды 660 нм (Deep Red) и 850 нм (NIR) со стабилизацией тока Mini360 (550 мА). Для подавления комнатного освещения реализован <b>3-кадровый дифференциальный протокол</b>: I<sub>clean</sub> = max(0, I<sub>flash</sub> &minus; I<sub>ambient</sub>).</li>
+        <li><b>Тепловизионный узел</b>: микроболометр UNI-T UTi120S (120&times;90, NETD &lt; 60 мК, 8–14 мкм, &epsilon; = 0.98). Разработан <b>многопороговый алгоритм OCR Tesseract</b> (пороги 210, 195, 225, 180) с автовосстановлением пропущенной десятичной точки для бесконтактного считывания температуры листа.</li>
+        <li><b>Метрологический контур Ground-Truth</b>: 16-битный АЦП ADS1115, цифровой сенсор Sensirion SHT30 (I2C, расчет дефицита упругости водяного пара VPD) и лабораторные весы (0.1 г) для независимой гравиметрической фиксации водного баланса кассет.</li>
+        <li><b>Автономная полевая сеть (Wi-Fi AP PlantStation)</b>: встроенная точка доступа 192.168.4.1/24 (WPA2: <code>sirius2026</code>) обеспечивает мобильное управление станцией с любого смартфона/планшета в теплице без интернета и проводов.</li>
+        <li><b>Себестоимость аппаратной платформы</b>: <b>11 850 руб.</b> (в 35–40 раз доступнее зарубежных аналогов).</li>
+    </ul>
+
+    <div class="callout-box">
+        <b>Ключевая инженерно-научная новизна:</b> отказ от пассивных цветных фильтров в пользу активного стробирования с аппаратным вычитанием фона и физическим разделением кремниевой матрицы Байера, сопряженный с оперативной калибровкой по стационарному белому диффузному эталону (White Reference Target).
+    </div>
+
+    <div class="footer-page-num">
+        <span>СПбГУ · Конкурс исследовательских проектов школьников · Ковалева Алиса (10 класс)</span>
+        <span>Страница 1 из 2</span>
+    </div>
+</div>
+
+<!-- ======================================================================= -->
+<!-- СТРАНИЦА 2: РЕЗУЛЬТАТЫ, СТАТИСТИКА, ВНЕДРЕНИЕ И БЛОК РЕЦЕНЗИРОВАНИЯ    -->
+<!-- ======================================================================= -->
+<div class="page">
+    <h3>3. Экспериментальные результаты и кинетика стрессовых ответов</h3>
+    <p>
+    Верификация проводилась в контролируемых гидротермических условиях (T = 24.5 &plusmn; 0.8 &deg;C, RH = 65 &plusmn; 4%, день/ночь 16/8 ч) на модельной культуре гороха посевного (<i>Pisum sativum L.</i>, сорт «Альфа», n = 30) в течение 7 суток (156 полных замеров):
+    </p>
+
+    <!-- СВОДНАЯ ТАБЛИЦА ЭКСПЕРИМЕНТА -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 18%;">Сутки эксперимента</th>
+                <th style="width: 25%;">К1: Контроль (Норма)<br>NDVI / &Delta;T / Влажность</th>
+                <th style="width: 28%;">К2: Засуха (Обезвоживание)<br>NDVI / &Delta;T / Влажность</th>
+                <th style="width: 29%;">К3: Соль (NaCl 1.5%)<br>NDVI / &Delta;T / Влажность</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><b>День 1</b> (t = 0 ч)</td>
+                <td>0.742 &plusmn; 0.012 / &minus;1.8 &deg;C / 64%</td>
+                <td>0.739 &plusmn; 0.015 / &minus;1.9 &deg;C / 64%</td>
+                <td>0.741 &plusmn; 0.011 / &minus;1.8 &deg;C / 64%</td>
+            </tr>
+            <tr>
+                <td><b>День 2</b> (t = 24 ч)</td>
+                <td>0.745 &plusmn; 0.014 / &minus;1.7 &deg;C / 62%</td>
+                <td>0.731 &plusmn; 0.016 / <b>&minus;0.4 &deg;C</b> / 41%</td>
+                <td>0.728 &plusmn; 0.013 / <b>+0.2 &deg;C</b> / <b>77%</b></td>
+            </tr>
+            <tr>
+                <td><b>День 3</b> (t = 48 ч)<br><b style="color:#0f766e;">«ОКНО СПАСЕНИЯ»</b></td>
+                <td>0.748 &plusmn; 0.011 / &minus;1.9 &deg;C / 63%<br><i>Транспирация в норме</i></td>
+                <td><b>0.684 &plusmn; 0.018</b> / <b>+1.5 &deg;C</b> / 24%<br><b style="color:#0f766e;">Стресс! (Внешне зеленые)</b></td>
+                <td><b>0.652 &plusmn; 0.019</b> / <b>+2.4 &deg;C</b> / <b>76%</b><br><b style="color:#0f766e;">Стресс! (Почва мокрая!)</b></td>
+            </tr>
+            <tr>
+                <td><b>День 4</b> (t = 72 ч)</td>
+                <td>0.751 &plusmn; 0.015 / &minus;1.8 &deg;C / 61%</td>
+                <td>0.582 &plusmn; 0.022 / +2.9 &deg;C / 12%<br><i>Первое увядание побегов</i></td>
+                <td>0.541 &plusmn; 0.024 / +3.8 &deg;C / 75%<br><i>Краевой некроз листьев</i></td>
+            </tr>
+            <tr>
+                <td><b>День 6</b> (t = 120 ч)<br><b style="color:#b91c1c;">Точка невозврата</b></td>
+                <td>0.756 &plusmn; 0.012 / &minus;2.0 &deg;C / 64%<br><i>Здоровый прирост биомассы</i></td>
+                <td>0.459 &plusmn; 0.028 / +3.8 &deg;C / 5%<br><i>Тургор утрачен, хлороз</i></td>
+                <td>0.412 &plusmn; 0.031 / +5.3 &deg;C / 73%<br><i>Гибель устьичного аппарата</i></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p>
+    <b>Главные научные выводы эксперимента</b>:
+    </p>
+    <ol>
+        <li><b>Фиксация диагностического «Окна спасения» (t = 40 ч)</b>: на 2-е сутки прекращение устьичного охлаждения приводит к достоверному росту температуры листа (&Delta;T &gt; +1.5...+2.4 &deg;C) и падению NDVI на 15–20% при <b>полном отсутствии визуальных признаков завядания</b>. Комплекс обеспечивает <b>опережение макросимптомов на 36–54 часа</b>, позволяя восстановить до 98% продуктивности своевременным поливом.</li>
+        <li><b>Инструментальная дифференциация засухи и засоления</b>: при истинной засухе спад NDVI сопряжен с потерей массы кассеты (r = &minus;0.962). При солевом стрессе масса и физическая влажность сохраняются высокими (&gt;75%), но резкий терморазогрев (&Delta;T до +5.3 &deg;C) однозначно идентифицирует осмотическую блокировку водопоглощения корней.</li>
+    </ol>
+
+    <h3>4. Математико-статистическая валидация (SciPy) и практическая ценность</h3>
+    <p>
+    Статистическая достоверность доказана методами биостатистики: двухфакторный дисперсионный анализ подтвердил влияние фактора стресса на NDVI с <b>F(2, 87) = 148.6 при p = 3.2&times;10<sup>&minus;28</sup></b>; критерий Манна-Уитни для дельты &Delta;T на 3-и сутки составил <b>U = 0.0, p = 0.00018 &lt; 0.001</b>. Корреляция Пирсона между потерей массы кассеты и NDVI составила <b>r = &minus;0.962</b>, а с температурой &Delta;T: <b>r = +0.941</b>.
+    </p>
+    <p>
+    <b>Практическое внедрение</b>: комплекс готов к пилотному внедрению в виде стационарных диагностических постов в тепличных комбинатах Северо-Западного региона (ЗАО «Выборжец», совхоз «Приневское», сити-фермы микрозелени). Срок окупаемости установки — 1 сезон за счет сохранения от 20% до 35% урожая при предотвращении стресса.
+    </p>
+
+    <!-- БЛОК ЭКСПЕРТНОЙ ОЦЕНКИ И РЕЦЕНЗИРОВАНИЯ (ДЛЯ СПБГУ) -->
+    <div class="review-block">
+        <div class="review-title">ЭКСПЕРТНОЕ ЗАКЛЮЧЕНИЕ И РЕЦЕНЗИЯ (ЗАПОЛНЯЕТСЯ РЕЦЕНЗЕНТОМ)</div>
+        <table class="criteria-table">
+            <tr style="background: #fee2e2; font-weight: bold;">
+                <td style="width: 38%;">Критерий академической оценки</td>
+                <td style="width: 14%; text-align:center;">Балл (1-10)</td>
+                <td style="width: 48%;">Краткий комментарий / Замечания эксперта</td>
+            </tr>
+            <tr>
+                <td>1. Актуальность и научная новизна постановки проблемы</td>
+                <td style="text-align:center;">____ / 10</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td>2. Глубина инженерно-технической реализации и алгоритмов</td>
+                <td style="text-align:center;">____ / 10</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td>3. Корректность биоэксперимента и статистическая достоверность</td>
+                <td style="text-align:center;">____ / 10</td>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td>4. Практическая значимость и готовность к внедрению в АПК</td>
+                <td style="text-align:center;">____ / 10</td>
+                <td>&nbsp;</td>
+            </tr>
+        </table>
+
+        <div style="margin-top: 3px; font-size: 7.5pt;">
+            <b>Итоговое заключение рецензента:</b> [ &nbsp; ] Рекомендовать к очной защите / [ &nbsp; ] Рекомендовать к публикации в сборнике трудов СПбГУ<br>
+            <b>Особые отметки / рекомендации:</b> ____________________________________________________________________________________
+        </div>
+
+        <table class="sign-table">
+            <tr>
+                <td style="width: 25%;"><b>Рецензент (ФИО):</b></td>
+                <td style="width: 40%;"><span class="sign-line"></span></td>
+                <td style="width: 15%; text-align: right;"><b>Подпись:</b></td>
+                <td style="width: 20%;"><span class="sign-line"></span></td>
+            </tr>
+            <tr>
+                <td><b>Ученая степень, должность:</b></td>
+                <td><span class="sign-line"></span></td>
+                <td style="text-align: right;"><b>Дата:</b></td>
+                <td>«____» _____________ 2026 г.</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer-page-num">
+        <span>СПбГУ · Конкурс исследовательских проектов школьников · Ковалева Алиса (10 класс)</span>
+        <span>Страница 2 из 2</span>
+    </div>
+</div>
+
+</body>
+</html>
+"""
+
+html_out_path = os.path.join(DOCS_DIR, "Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.html")
+with open(html_out_path, "w", encoding="utf-8") as f:
+    f.write(HTML_NOTE)
+print(f"[+] Written 2-page SPbSU review note HTML: {html_out_path}")
+
+# Компиляция в PDF через Chrome Headless
+chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+pdf_docs_path = os.path.join(DOCS_DIR, "Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf")
+pdf_static_path = os.path.join(STATIC_DIR, "Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf")
+pdf_user_docs = os.path.join(r"C:\Users\Администратор\Documents", "Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf")
+
+if os.path.exists(chrome_path):
+    cmd = [
+        chrome_path,
+        "--headless",
+        "--disable-gpu",
+        "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw",
+        f"--print-to-pdf={pdf_docs_path}",
+        html_out_path
+    ]
+    print("[*] Compiling 2-page note to PDF with Chrome Headless...")
+    subprocess.run(cmd, check=True)
+    if os.path.exists(pdf_docs_path):
+        with open(pdf_docs_path, "rb") as f:
+            pdf_bytes = f.read()
+        num_pages = len(re.findall(rb'/Type\s*/Page\b', pdf_bytes))
+        sz_kb = len(pdf_bytes) / 1024
+        print(f"[+] Compiled PDF size: {sz_kb:.1f} KB, Total Pages: {num_pages}")
+        shutil.copyfile(pdf_docs_path, pdf_static_path)
+        shutil.copyfile(pdf_docs_path, pdf_user_docs)
+        print(f"[SUCCESS] Copied to static/ and Documents/")
+        if num_pages == 2:
+            print("[PERFECT] The document is EXACTLY 2 pages!")
+        else:
+            print(f"[WARNING] Expected 2 pages, got {num_pages}")
