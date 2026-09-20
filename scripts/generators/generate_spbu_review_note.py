@@ -269,10 +269,10 @@ HTML_NOTE = """<!DOCTYPE html>
             <td style="width: 22%;"><b>УДК 581.1.032 : 681.785</b></td>
         </tr>
         <tr>
-            <td class="passport-label">Научный руководитель:</td>
-            <td><b>Смирнова Татьяна Николаевна</b>, учитель биологии ГБОУ СОШ №282 Санкт-Петербурга</td>
-            <td class="passport-label">Инж. консультант:</td>
-            <td><b>Ковалев Иван Викторович</b>, инженерно-технический консультант (ПО и аппаратура)</td>
+            <td class="passport-label">Руководитель проекта:</td>
+            <td><b>Ковалев Иван Викторович</b>, научно-технический руководитель проекта</td>
+            <td class="passport-label">Репозиторий:</td>
+            <td><a href="https://github.com/ezicvtumane/plant-stress-ndvi" style="color:#0284c7;text-decoration:none;">github.com/.../plant-stress-ndvi</a></td>
         </tr>
     </table>
 
