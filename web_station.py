@@ -240,7 +240,43 @@ def extract_temperature_from_thermal(img_path: str) -> float:
             return float(m.group(1).replace(',', '.'))
     except Exception as e:
         print('OCR Error:', e)
-    return 23.5
+ARUCO_CASSETTE_MAP = {
+    1: 'Контроль',
+    2: 'Засуха',
+    3: 'Соль',
+    4: 'Контроль (Этап 2)',
+    5: 'Раннее спасение',
+    6: 'Позднее спасение'
+}
+
+def detect_aruco_in_image(img_bgr):
+    """
+    Субпиксельное оптическое распознавание фидуциальных ArUco-маркеров кассеты.
+    Возвращает (marker_id, group_name, corners).
+    """
+    if not hasattr(cv2, 'aruco'):
+        return None, None, None
+    try:
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        aruco_dict = (
+            cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+            if hasattr(cv2.aruco, 'getPredefinedDictionary')
+            else cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
+        )
+        if hasattr(cv2.aruco, 'ArucoDetector'):
+            detector = cv2.aruco.ArucoDetector(aruco_dict)
+            corners, ids, _ = detector.detectMarkers(gray)
+        else:
+            params = cv2.aruco.DetectorParameters_create() if hasattr(cv2.aruco, 'DetectorParameters_create') else cv2.aruco.DetectorParameters()
+            corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=params)
+
+        if ids is not None and len(ids) > 0:
+            m_id = int(ids[0][0])
+            grp = ARUCO_CASSETTE_MAP.get(m_id, f'Кассета #{m_id}')
+            return m_id, grp, corners[0]
+    except Exception as e:
+        print('[ArUco Detect Error]:', e)
+    return None, None, None
 
 def auto_mount_uti():
     """Монтирование USB накопителя тепловизора UTi120S по аппаратному ID."""
@@ -359,6 +395,12 @@ def do_hardware_spectral_capture(group_name: str):
 
     cap.release()
 
+    # Оптическая детекция ArUco-маркера кассеты NoIR-камерой
+    aruco_id, aruco_group, aruco_corners = detect_aruco_in_image(frame_flash)
+    if aruco_id is not None:
+        group_name = aruco_group
+        print(f'[ArUco Optical Link] Авто-привязка кассеты: Маркер #{aruco_id} -> {group_name}')
+
     red_channel = frame_flash[:, :, 2].astype(np.float32)
     nir_channel = (frame_flash[:, :, 0].astype(np.float32) * 0.2 + 
                    frame_flash[:, :, 1].astype(np.float32) * 0.4 + 
@@ -387,6 +429,17 @@ def do_hardware_spectral_capture(group_name: str):
     cell_h, cell_w = h // 3, w // 3
     cell_ndvis = []
     annotated_ndvi = vis_ndvi_color.copy()
+
+    # Отрисовка обнаруженного фидуциального маркера ArUco
+    if aruco_corners is not None and aruco_id is not None:
+        pts = aruco_corners.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.polylines(annotated_ndvi, [pts], True, (0, 255, 128), 3)
+        cx = int(np.mean(pts[:, 0, 0]))
+        cy = int(np.mean(pts[:, 0, 1]))
+        cv2.putText(annotated_ndvi, f'ArUco #{aruco_id}: {group_name}', (max(10, cx - 60), max(30, cy - 12)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 3)
+        cv2.putText(annotated_ndvi, f'ArUco #{aruco_id}: {group_name}', (max(10, cx - 60), max(30, cy - 12)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 128), 2)
 
     for r in range(3):
         for c in range(3):
@@ -430,6 +483,7 @@ def do_hardware_spectral_capture(group_name: str):
         'id': meas_id,
         'timestamp': ts_display,
         'group': group_name,
+        'aruco_id': aruco_id,
         't_air': live_t,
         'rh_air': live_rh,
         'vpd': cur_vpd,
@@ -633,16 +687,29 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
                 </div>
             '''
 
+        aruco_badge = f'<span style="background:#059669; color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold; box-shadow:0 2px 6px rgba(5,150,105,0.3);">🎯 ArUco #{s["aruco_id"]}: {s["group"]}</span>' if s.get('aruco_id') else f'<span style="background:var(--sirius-teal); color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">{s["group"]}</span>'
+        
+        if s.get('aruco_id'):
+            step1_note = f'''
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#065f46;">
+                    🎯 <b>ArUco-маркер #{s['aruco_id']} обнаружен NoIR-камерой:</b> когорта <b>«{s['group']}»</b> определена автоматически без участия оператора. Переставьте кассету на весы и подключите тепловизор.
+                </div>
+            '''
+        else:
+            step1_note = f'''
+                <div style="background:#f0fdfa; border:1px solid #ccfbf1; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#0f766e;">
+                    ✓ <b>Спектральный замер выполнен (ручной выбор когорты).</b> Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.
+                </div>
+            '''
+
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); background: #ffffff;">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
                     <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">Шаг 2: Подтверждение замера #{s['id']}</h2>
-                    <span style="background:var(--sirius-teal); color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">{s['group']}</span>
+                    {aruco_badge}
                 </div>
 
-                <div style="background:#f0fdfa; border:1px solid #ccfbf1; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#0f766e;">
-                    ✓ <b>Спектральный замер выполнен.</b> Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.
-                </div>
+                {step1_note}
 
                 <form action="/api/save_final_measurement" method="post">
                     <!-- СНИМОК ТЕПЛОВИЗОРА -->
@@ -849,6 +916,9 @@ def index(stage: str = 'idle', offset: int = 0, msg: str = '', last_grp: str = '
             </a>
             <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:linear-gradient(135deg, #00a499, #0d9488); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(0,164,153,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
                 📄 Научно-технический отчет (.PDF)
+            </a>
+            <a href="/download/aruco_pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:8px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';">
+                🏷️ Печать ArUco-маркеров кассет (.PDF)
             </a>
         </div>
     '''
@@ -1421,7 +1491,15 @@ def download_presentation():
     pdf_path = os.path.join(STATIC_DIR, 'Презентация_Большие_Вызовы_Ковалева_Алиса.pdf')
     if os.path.exists(pdf_path):
         return FileResponse(pdf_path, filename='Презентация_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
-    return HTMLResponse('Файл презентации не найден')
+@app.get('/download/aruco_pdf')
+def download_aruco_pdf():
+    pdf_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.pdf')
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, filename='aruco_markers_cassettes.pdf', media_type='application/pdf')
+    html_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.html')
+    if os.path.exists(html_path):
+        return FileResponse(html_path, filename='aruco_markers_cassettes.html', media_type='text/html')
+    return HTMLResponse('Лист маркеров не найден')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
