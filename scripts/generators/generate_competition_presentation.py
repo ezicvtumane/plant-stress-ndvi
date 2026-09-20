@@ -248,7 +248,7 @@ slides_data = [
                                          16-bit АЦП ADS1115 + емкостные датчики субстрата v1.2
         </div>
         <div style="margin-top: 15px; font-size: 13pt; color: #94a3b8;">
-            Центральный вычислительный модуль: <b>Orange Pi 4 Pro</b> (8 ядер Cortex-A76/A55, 4 ГБ RAM, Linux Armbian).
+            Центральный вычислительный модуль: <b>Orange Pi 4 Pro</b> (8-ядерный SoC Allwinner A733: 2× Cortex-A76 @ 2.0 ГГц + 6× Cortex-A55 @ 1.8 ГГц, 4 ГБ LPDDR4, NVMe SSD, Armbian Linux).
         </div>
     </div>
     ''',
