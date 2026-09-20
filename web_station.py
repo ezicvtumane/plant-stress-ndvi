@@ -1692,6 +1692,9 @@ def index(
             <a href="/download/pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:linear-gradient(135deg, #00a499, #0d9488); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(0,164,153,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
                 📄 Работа «Большие вызовы» Сириус (.PDF)
             </a>
+            <a href="/download/spbu_note" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:linear-gradient(135deg, #7f1d1d, #990000); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(127,29,29,0.3);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
+                📑 Записка для рецензии (2 стр. PDF)
+            </a>
             <a href="/download/spbu_paper" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:8px; box-sizing:border-box; background:linear-gradient(135deg, #990000, #b91c1c); border:none; border-radius:8px; color:#fff; text-decoration:none; font-size:11px; font-weight:bold; margin-top:6px; transition:all 0.2s; box-shadow: 0 2px 8px rgba(153,0,0,0.25);" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='brightness(1.0)';">
                 🏛️ Научная работа для СПбГУ (.PDF)
             </a>
@@ -2435,6 +2438,15 @@ def download_spbu_paper():
     if os.path.exists(pdf_path):
         return FileResponse(pdf_path, filename='Научно_исследовательская_работа_СПбГУ_Ковалева_Алиса.pdf', media_type='application/pdf')
     return HTMLResponse('Файл работы СПбГУ пока не сформирован')
+
+@app.get('/download/spbu_note')
+def download_spbu_note():
+    pdf_path = os.path.join(STATIC_DIR, 'Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf')
+    if not os.path.exists(pdf_path):
+        pdf_path = os.path.join(DOCS_DIR, 'Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf')
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, filename='Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл записки для рецензирования пока не найден')
 
 @app.get('/download/presentation')
 def download_presentation():
