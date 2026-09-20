@@ -50,3 +50,13 @@ data/triptychs/*
 *.swo
 .DS_Store
 Thumbs.db
+
+# Logs and runtime captures
+*.log
+last_*.jpg
+ambient_*.jpg
+diff_*.jpg
+flash_*.jpg
+test_camera_snap.jpg
+wiring_*.png
+measurements_latest.csv
