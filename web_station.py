@@ -331,6 +331,7 @@ def extract_temperature_from_thermal(img_path: str) -> float:
 def detect_aruco_in_image(img_bgr):
     """
     Субпиксельное оптическое распознавание фидуциальных ArUco-маркеров кассеты.
+    Устойчиво к монохроматическому 660нм/850нм освещению и цветным контурам фломастера.
     Возвращает (marker_id, group_name, corners).
     """
     if not hasattr(cv2, 'aruco') or img_bgr is None:
@@ -343,14 +344,49 @@ def detect_aruco_in_image(img_bgr):
             cv2.aruco.DICT_4X4_250,
             cv2.aruco.DICT_5X5_50
         ]
-        
-        # Подготовка вариантов изображения (оригинал и CLAHE контрастированный)
+
+        # Настройка гибких параметров детектора (адаптивные окна, допуск к границам)
+        params = (
+            cv2.aruco.DetectorParameters()
+            if hasattr(cv2.aruco, 'DetectorParameters')
+            else cv2.aruco.DetectorParameters_create()
+        )
+        params.adaptiveThreshWinSizeMin = 3
+        params.adaptiveThreshWinSizeMax = 53
+        params.adaptiveThreshWinSizeStep = 4
+        params.minMarkerPerimeterRate = 0.01
+        params.maxMarkerPerimeterRate = 4.0
+        params.polygonalApproxAccuracyRate = 0.05
+        params.maxErroneousBitsInBorderRate = 0.45
+        params.perspectiveRemoveIgnoredMarginPerCell = 0.13
+        params.errorCorrectionRate = 0.8
+        if hasattr(cv2.aruco, 'CORNER_REFINE_SUBPIX'):
+            params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+
+        # Подготовка вариантов изображения для надежного распознавания:
+        # 1. Оригинал в градациях серого
+        # 2. Бинаризация по Оцу (идеально для монохромной подсветки 660 нм и цветных меток)
+        # 3. CLAHE (адаптивное контрастирование)
+        # 4. Фиксированные пороги для экстремальной экспозиции
         images_to_try = [gray]
+        try:
+            _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            images_to_try.append(otsu)
+        except Exception:
+            pass
+
         try:
             clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
             images_to_try.append(clahe.apply(gray))
         except Exception:
             pass
+
+        for t_val in [100, 120, 140]:
+            try:
+                _, b_fix = cv2.threshold(gray, t_val, 255, cv2.THRESH_BINARY)
+                images_to_try.append(b_fix)
+            except Exception:
+                pass
 
         for d_type in dict_candidates:
             aruco_dict = (
@@ -360,10 +396,9 @@ def detect_aruco_in_image(img_bgr):
             )
             for img_trial in images_to_try:
                 if hasattr(cv2.aruco, 'ArucoDetector'):
-                    detector = cv2.aruco.ArucoDetector(aruco_dict)
+                    detector = cv2.aruco.ArucoDetector(aruco_dict, params)
                     corners, ids, _ = detector.detectMarkers(img_trial)
                 else:
-                    params = cv2.aruco.DetectorParameters_create() if hasattr(cv2.aruco, 'DetectorParameters_create') else cv2.aruco.DetectorParameters()
                     corners, ids, _ = cv2.aruco.detectMarkers(img_trial, aruco_dict, parameters=params)
 
                 if ids is not None and len(ids) > 0:
