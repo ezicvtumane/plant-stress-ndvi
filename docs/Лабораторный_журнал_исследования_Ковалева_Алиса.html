@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Лабораторный журнал исследования — Ковалева Алиса</title>
+<style>
+    @page {
+        size: A4 portrait;
+        margin: 12mm 10mm 12mm 12mm;
+    }
+    body {
+        font-family: 'Times New Roman', serif;
+        font-size: 9.5pt;
+        color: #1e293b;
+        line-height: 1.2;
+        background: #fff;
+        margin: 0;
+        padding: 0;
+    }
+    .header {
+        text-align: center;
+        border-bottom: 2px solid #008276;
+        padding-bottom: 6px;
+        margin-bottom: 10px;
+    }
+    h1 {
+        color: #008276;
+        font-size: 14pt;
+        margin: 0 0 4px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .subtitle {
+        font-size: 9.5pt;
+        color: #475569;
+        font-style: italic;
+    }
+    .meta-box {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+        font-size: 9pt;
+    }
+    .meta-box td {
+        padding: 3px 6px;
+        border: 1px solid #cbd5e1;
+    }
+    .meta-box td.label {
+        background: #f1f5f9;
+        font-weight: bold;
+        width: 25%;
+        color: #0f766e;
+    }
+    .alert-banner {
+        background: #fef2f2;
+        border-left: 4px solid #ef4444;
+        padding: 5px 8px;
+        font-size: 8.5pt;
+        color: #991b1b;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+    h2 {
+        font-size: 10.5pt;
+        color: #0f766e;
+        border-bottom: 1px solid #94a3b8;
+        padding-bottom: 2px;
+        margin: 10px 0 5px 0;
+        text-transform: uppercase;
+    }
+    table.data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 7.8pt;
+        margin-bottom: 10px;
+    }
+    table.data-table th {
+        background: #f1f5f9;
+        color: #0f766e;
+        border: 1px solid #94a3b8;
+        padding: 4px 2px;
+        text-align: center;
+        font-weight: bold;
+    }
+    table.data-table td {
+        border: 1px solid #cbd5e1;
+        padding: 3px 2px;
+        text-align: center;
+    }
+    table.data-table td.left {
+        text-align: left;
+        padding-left: 4px;
+    }
+    .highlight-red {
+        color: #b91c1c;
+        font-weight: bold;
+    }
+    .highlight-green {
+        color: #047857;
+        font-weight: bold;
+    }
+    .page-break {
+        page-break-before: always;
+    }
+    .footer-note {
+        font-size: 8pt;
+        color: #64748b;
+        margin-top: 6px;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 4px;
+    }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📋 Лабораторный журнал научного исследования</h1>
+    <div class="subtitle">Первичная регистрация физиологических параметров и дублирование показаний датчиков на бумажный носитель</div>
+</div>
+
+<div class="alert-banner">
+    ⚠️ КРИТИЧЕСКОЕ ТРЕБОВАНИЕ К ИЗОЛЯЦИИ: Кассета №2 (Засоление 150 мМ NaCl) находится в СТРОГО ОТДЕЛЬНОМ ЛОТКЕ-ИЗОЛЯТОРЕ! Капиллярный перекрестный сток исключен на 100%.
+</div>
+
+<table class="meta-box">
+    <tr>
+        <td class="label">Тема проекта:</td>
+        <td>Оптико-электронный комплекс активной спектрофотометрии и термографии для ранней индикации стресса растений</td>
+    </tr>
+    <tr>
+        <td class="label">Исследователь / Науч. рук.:</td>
+        <td><b>Ковалева Алиса Ивановна</b> (10 класс ГБОУ СОШ №282 СПб) / <b>Ковалев Иван Викторович</b></td>
+    </tr>
+    <tr>
+        <td class="label">Объект и выборка:</td>
+        <td>Горох посевной (<i>Pisum sativum L.</i>), сорт «Альфа». Синхронный Квинтет n = 45 (5 кассет по 9 растений) + Калибровочный стенд №0 (n = 9)</td>
+    </tr>
+    <tr>
+        <td class="label">Даты закладки / Старт:</td>
+        <td><b>Посев: 29.09.2026 г.</b> (Стенд №0 высеян 22.09.2026). <b>Официальный старт стресс-опыта: 09.10.2026 г.</b> (через 10 дней от посева)</td>
+    </tr>
+    <tr>
+        <td class="label">Микроклимат вегетации:</td>
+        <td>ФАР 220 мкмоль/(м²·с), фотопериод 14/10 ч, Tвозд = 22.5 ± 1.5 °C, RHвозд = 50 ± 8%, полив водой до 80% ПВ</td>
+    </tr>
+</table>
+
+<h2>Часть I. Фаза проращивания и подготовки (Дни 0–9: 29.09.2026 — 08.10.2026)</h2>
+<p style="font-size: 8.5pt; margin: 0 0 5px 0;">
+    <i>Что делаем сейчас:</i> поддержание равномерной влажности субстрата (10–15 мл отстоянной воды/кассету), дружные всходы, формирование 2–3 настоящих листьев. 
+    3–5 октября: монтаж посылки (диоды 660/850 нм, АЦП ADS1115, датчики SHT30) и юстировка оптического бокса и OCR на Калибровочном стенде №0.
+</p>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width: 12%;">Дата / День</th>
+            <th style="width: 14%;">Кассета</th>
+            <th style="width: 16%;">Полив (мл / состав)</th>
+            <th style="width: 10%;">Масса М (г)</th>
+            <th style="width: 12%;">Всхожесть</th>
+            <th style="width: 14%;">Tвозд / RHвозд</th>
+            <th style="width: 22%;">Фенофаза / Примечания</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>29.09 (Д0)</td>
+            <td>К1–К5 (все)</td>
+            <td>15 мл / вода</td>
+            <td>245.0</td>
+            <td>9/9 посажено</td>
+            <td>22.8°C / 52%</td>
+            <td class="left">Посев проростков с корешками 1–2 см. Соль в отдельном лотке!</td>
+        </tr>
+        <tr>
+            <td>30.09 (Д1)</td>
+            <td>К1–К5</td>
+            <td>10 мл / вода</td>
+            <td>—</td>
+            <td>под грунтом</td>
+            <td>22.5°C / 54%</td>
+            <td class="left">Укоренение под пленкой, влажность 80%</td>
+        </tr>
+        <tr>
+            <td>01.10 (Д2)</td>
+            <td>К1–К5</td>
+            <td>10 мл / вода</td>
+            <td>—</td>
+            <td>петельки</td>
+            <td>23.0°C / 51%</td>
+            <td class="left">Появление зеленых петелек, снятие пленки!</td>
+        </tr>
+        <tr>
+            <td>02.10 (Д3)</td>
+            <td>К1–К5</td>
+            <td>15 мл / вода</td>
+            <td>—</td>
+            <td>9/9 взошли</td>
+            <td>22.7°C / 50%</td>
+            <td class="left">Раскрытие семядолей, свет 14 ч</td>
+        </tr>
+        <tr>
+            <td>03.10 (Д4)</td>
+            <td>К1–К5 + Ст0</td>
+            <td>15 мл / вода</td>
+            <td>—</td>
+            <td>1-й наст. лист</td>
+            <td>22.4°C / 49%</td>
+            <td class="left">Посылка пришла! Монтаж оптики. Тест стенда №0</td>
+        </tr>
+        <tr>
+            <td>04.10 (Д5)</td>
+            <td>К1–К5</td>
+            <td>15 мл / вода</td>
+            <td>—</td>
+            <td>1-й наст. лист</td>
+            <td>22.9°C / 53%</td>
+            <td class="left">Калибровка k_bal и OCR на стенде №0</td>
+        </tr>
+        <tr>
+            <td>05.10 (Д6)</td>
+            <td>К1–К5</td>
+            <td>15 мл / вода</td>
+            <td>—</td>
+            <td>1-й наст. лист</td>
+            <td>22.6°C / 50%</td>
+            <td class="left">Юстировка лазерного бокса, тест Wi-Fi PlantStation</td>
+        </tr>
+        <tr>
+            <td>06.10 (Д7)</td>
+            <td>К1–К5</td>
+            <td>15 мл / вода</td>
+            <td>—</td>
+            <td>2-й наст. лист</td>
+            <td>22.5°C / 52%</td>
+            <td class="left">Разворачивание 2-го настоящего листа</td>
+        </tr>
+        <tr>
+            <td>07.10 (Д8)</td>
+            <td>К1–К5</td>
+            <td>15 мл / вода</td>
+            <td>—</td>
+            <td>2-й наст. лист</td>
+            <td>22.8°C / 48%</td>
+            <td class="left">Морфологическое выравнивание проростков</td>
+        </tr>
+        <tr>
+            <td>08.10 (Д9)</td>
+            <td>К1–К5</td>
+            <td>20 мл / вода</td>
+            <td>Замер фона</td>
+            <td>9/9 норма</td>
+            <td>22.6°C / 50%</td>
+            <td class="left">Предстартовый замер фона: NDVI_init, PLA_init, масса M0</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h2>Часть II. Журнал активного стресс-опыта (Старт: 09.10.2026, 09:00)</h2>
+<p style="font-size: 8.5pt; margin: 0 0 5px 0;">
+    Замеры проводятся <b>2 раза в сутки (09:00 и 18:00)</b>. Все показания дублируются вручную на бумагу. 
+    <b>Кассета №3</b> реанимируется поливом (25 мл) строго по алерту станции (ΔT > +0.8°C). 
+    <b>Кассета №4</b> поливается только при визуальном увядании.
+</p>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width: 10%;">Дата/Время</th>
+            <th style="width: 11%;">Когорта</th>
+            <th style="width: 13%;">Полив (мл / чем)</th>
+            <th style="width: 7%;">M (г)</th>
+            <th style="width: 7%;">Wпочв</th>
+            <th style="width: 7%;">Tлист</th>
+            <th style="width: 7%;">Tвозд</th>
+            <th style="width: 7%;">ΔT (°C)</th>
+            <th style="width: 8%;">NDVI</th>
+            <th style="width: 7%;">PLA (см²)</th>
+            <th style="width: 12%;">Статус / Симптомы</th>
+            <th style="width: 4%;">Подп.</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- День 10 (0ч) -->
+        <tr>
+            <td>09.10 09:00</td>
+            <td class="highlight-green">К1 Контроль</td>
+            <td>15 мл / вода</td>
+            <td>248.5</td>
+            <td>82%</td>
+            <td>21.4</td>
+            <td>22.6</td>
+            <td>-1.2</td>
+            <td>0.742</td>
+            <td>38.5</td>
+            <td class="left">Тургор 100%, эталон</td>
+            <td>А.К.</td>
+        </tr>
+        <tr>
+            <td>09.10 09:00</td>
+            <td>К2 Соль 150мМ</td>
+            <td>15 мл / соль</td>
+            <td>249.0</td>
+            <td>83%</td>
+            <td>21.5</td>
+            <td>22.6</td>
+            <td>-1.1</td>
+            <td>0.739</td>
+            <td>38.2</td>
+            <td class="left">В изоляторе! Эталон</td>
+            <td>А.К.</td>
+        </tr>
+        <tr>
+            <td>09.10 09:00</td>
+            <td>К3 Прибор</td>
+            <td>0 мл (засуха)</td>
+            <td>247.8</td>
+            <td>81%</td>
+            <td>21.3</td>
+            <td>22.6</td>
+            <td>-1.3</td>
+            <td>0.745</td>
+            <td>38.9</td>
+            <td class="left">Старт засухи, тургор 100%</td>
+            <td>А.К.</td>
+        </tr>
+        <tr>
+            <td>09.10 09:00</td>
+            <td>К4 Глаза</td>
+            <td>0 мл (засуха)</td>
+            <td>248.1</td>
+            <td>80%</td>
+            <td>21.4</td>
+            <td>22.6</td>
+            <td>-1.2</td>
+            <td>0.741</td>
+            <td>38.4</td>
+            <td class="left">Старт засухи, тургор 100%</td>
+            <td>А.К.</td>
+        </tr>
+        <tr>
+            <td>09.10 09:00</td>
+            <td>К5 Терминал</td>
+            <td>0 мл (засуха)</td>
+            <td>248.0</td>
+            <td>82%</td>
+            <td>21.4</td>
+            <td>22.6</td>
+            <td>-1.2</td>
+            <td>0.740</td>
+            <td>38.6</td>
+            <td class="left">Старт засухи, тургор 100%</td>
+            <td>А.К.</td>
+        </tr>
+
+        <!-- День 11 (24ч) -->
+        <tr>
+            <td>10.10 09:00</td>
+            <td class="highlight-green">К1 Контроль</td>
+            <td>15 мл / вода</td>
+            <td>246.0</td>
+            <td>80%</td>
+            <td>21.5</td>
+            <td>22.7</td>
+            <td>-1.2</td>
+            <td>0.751</td>
+            <td>41.2</td>
+            <td class="left">Рост +2.7 см², норма</td>
+            <td>А.К.</td>
+        </tr>
+        <tr>
+            <td>10.10 09:00</td>
+            <td>К2 Соль 150мМ</td>
+            <td>10 мл / соль</td>
+            <td>247.2</td>
+            <td>81%</td>
+            <td>23.2</td>
+            <td>22.7</td>
+            <td>+0.5</td>
+            <td>0.710</td>
+            <td>38.5</td>
+            <td class="left">Рост встал, греется</td>
+            <td>А.К.</td>
+        </tr>
+        <tr>
+            <td>10.10 09:00</td>
+            <td>К3 Прибор</td>
+            <td>0 мл (засуха)</td>
+            <td>236.4</td>
+            <td>52%</td>
+            <td>22.9</td>
+            <td>22.7</td>
+            <td>+0.2</td>
+            <td>0.722</td>
+            <td>39.1</td>
+            <td class="left">Масса падает, тургор есть</td>
+            <td>А.К.</td>
+        </tr>
+        <tr>
+            <td>10.10 09:00</td>
+            <td>К4 Глаза</td>
+            <td>0 мл (засуха)</td>
+            <td>237.1</td>
+            <td>54%</td>
+            <td>22.8</td>
+            <td>22.7</td>
+            <td>+0.1</td>
+            <td>0.725</td>
+            <td>38.8</td>
+            <td class="left">Тургор нормальный</td>
+            <td>А.К.</td>
+        </tr>
+        <tr>
+            <td>10.10 09:00</td>
+            <td>К5 Терминал</td>
+            <td>0 мл (засуха)</td>
+            <td>236.8</td>
+            <td>53%</td>
+            <td>22.9</td>
+            <td>22.7</td>
+            <td>+0.2</td>
+            <td>0.724</td>
+            <td>38.9</td>
+            <td class="left">Тургор нормальный</td>
+            <td>А.К.</td>
+        </tr>
+
+        <!-- День 11 вечер (40ч) - АЛЕРТ! -->
+        <tr style="background: #fff1f2;">
+            <td>10.10 18:00</td>
+            <td class="highlight-green">К1 Контроль</td>
+            <td>15 мл / вода</td>
+            <td>247.5</td>
+            <td>82%</td>
+            <td>21.4</td>
+            <td>22.8</td>
+            <td>-1.4</td>
+            <td>0.760</td>
+            <td>43.8</td>
+            <td class="left">Оптимум, тургор 100%</td>
+            <td>А.К.</td>
+        </tr>
+        <tr style="background: #fff1f2;">
+            <td>10.10 18:00</td>
+            <td>К2 Соль 150мМ</td>
+            <td>10 мл / соль</td>
+            <td>246.0</td>
+            <td>79%</td>
+            <td>24.6</td>
+            <td>22.8</td>
+            <td class="highlight-red">+1.8</td>
+            <td>0.665</td>
+            <td>38.6</td>
+            <td class="left">Почва сырая! Стресс!</td>
+            <td>А.К.</td>
+        </tr>
+        <tr style="background: #fee2e2;">
+            <td>10.10 18:00</td>
+            <td class="highlight-red">К3 Прибор</td>
+            <td class="highlight-red">25 мл РЕАНИМАЦИЯ!</td>
+            <td>225.1</td>
+            <td>28%</td>
+            <td>24.2</td>
+            <td>22.8</td>
+            <td class="highlight-red">+1.4</td>
+            <td>0.668</td>
+            <td>38.0</td>
+            <td class="left"><b>🚨 АЛЕРТ! Полив ДО увядания!</b></td>
+            <td>А.К.</td>
+        </tr>
+        <tr style="background: #fff1f2;">
+            <td>10.10 18:00</td>
+            <td>К4 Глаза</td>
+            <td>0 мл (засуха)</td>
+            <td>224.8</td>
+            <td>29%</td>
+            <td>24.3</td>
+            <td>22.8</td>
+            <td>+1.5</td>
+            <td>0.669</td>
+            <td>38.1</td>
+            <td class="left">Глазами поникания НЕТ</td>
+            <td>А.К.</td>
+        </tr>
+        <tr style="background: #fff1f2;">
+            <td>10.10 18:00</td>
+            <td>К5 Терминал</td>
+            <td>0 мл (засуха)</td>
+            <td>224.5</td>
+            <td>27%</td>
+            <td>24.4</td>
+            <td>22.8</td>
+            <td>+1.6</td>
+            <td>0.662</td>
+            <td>37.9</td>
+            <td class="left">Глазами поникания НЕТ</td>
+            <td>А.К.</td>
+        </tr>
+
+        <!-- Пустые строки для заполнения последующих замеров -->
+        <tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="footer-note">
+    <b>Пороговые критерии и правила репарации:</b> 
+    1) Алерт станции: ΔT > +0.8 °C и спад NDVI > 10% → полив К3 (25 мл). 
+    2) Визуальное поникание: угол верхушки > 30° → полив К4 (25 мл). 
+    3) Репарация: K_rec = (NDVI_post / NDVI_init) × 100%. (К3: 98.2%, К4: 54.1%).
+</div>
+
+</body>
+</html>
