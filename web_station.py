@@ -2151,6 +2151,9 @@ def index(
 
         table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td class="col-actions" style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
 
+    if not table_html:
+        table_html = '<tr><td colspan="12" style="text-align:center; padding:35px 20px; color:#64748b; font-size:14px;">🌱 <b>Журнал физиологических замеров пуст.</b><br><span style="font-size:12px; color:#94a3b8;">Запустите пакетный замер кассет 1–5, чтобы начать фиксацию данных нового эксперимента.</span></td></tr>'
+
     grid_top_content = f'''
         <div style="display:flex; flex-direction:column; gap:12px;">
             {wizard_card}
