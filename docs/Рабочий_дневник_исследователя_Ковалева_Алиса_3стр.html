@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Рабочий дневник исследователя (3 страницы) — Ковалева Алиса</title>
+<style>
+    @page {
+        size: A4 landscape;
+        margin: 6mm 8mm 6mm 8mm;
+    }
+    body {
+        font-family: Arial, sans-serif;
+        font-size: 7.5pt;
+        color: #0f172a;
+        line-height: 1.1;
+        background: #fff;
+        margin: 0;
+        padding: 0;
+    }
+    .page-break {
+        page-break-before: always;
+    }
+    h1 {
+        color: #008276;
+        font-size: 10.5pt;
+        margin: 0 0 2px 0;
+        text-align: center;
+        text-transform: uppercase;
+    }
+    .subtitle {
+        text-align: center;
+        font-size: 7.2pt;
+        color: #475569;
+        margin-bottom: 3px;
+        font-style: italic;
+    }
+    .guide-box {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 3px;
+        font-size: 6.8pt;
+    }
+    .guide-box td {
+        padding: 3px 5px;
+        vertical-align: top;
+        border: 1px solid #0f766e;
+    }
+    .guide-left {
+        background: #f0fdf4;
+        width: 50%;
+    }
+    .guide-right {
+        background: #fef2f2;
+        width: 50%;
+    }
+    table.data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 6.8pt;
+        margin-bottom: 2px;
+    }
+    table.data-table th {
+        background: #e2e8f0;
+        color: #0f766e;
+        border: 1px solid #94a3b8;
+        padding: 2px 1px;
+        text-align: center;
+        font-weight: bold;
+    }
+    table.data-table td {
+        border: 1px solid #94a3b8;
+        padding: 2px 1px;
+        text-align: center;
+        height: 13px;
+    }
+    .h2-title {
+        font-size: 8.2pt;
+        color: #0f766e;
+        margin: 2px 0 2px 0;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+</style>
+</head>
+<body>
+
+<!-- СТРАНИЦА 1 -->
+<h1>📋 РАБОЧИЙ ДНЕВНИК ИССЛЕДОВАТЕЛЯ — КОМПЛЕКС ИНДИКАЦИИ СТРЕССА РАСТЕНИЙ</h1>
+<div class="subtitle">
+    Исследователь: <b>Ковалева Алиса</b> (10 кл., ГБОУ СОШ №282 СПб) | Науч. рук.: Ковалев И. В. | Посев: <b>29.09.2026</b> | Старт стресс-опыта: <b>09.10.2026</b>
+</div>
+
+<table class="guide-box">
+    <tr>
+        <td class="guide-left">
+            <b style="color: #047857;">🌱 ФАЗА 0: ПРОРАЩИВАНИЕ (29.09 — 08.10) — ЧТО ДЕЛАТЬ И СМОТРЕТЬ:</b><br>
+            • <b>29.09 (Д0)</b>: Посев проростков с корешками 1–2 см. Полив отстоянной водой (15 мл). Кассета №2 СРАЗУ в отдельный лоток!<br>
+            • <b>30.09 (Д1)</b>: Влажность под пленкой. При подсыхании — сбрызнуть из пульверизатора (5–10 мл).<br>
+            • <b>01.10 (Д2)</b>: СМОТРЕТЬ ПЕТЕЛЬКИ! При появлении зеленых всходов — <b>СРАЗУ СНЯТЬ ПЛЕНКУ</b>!<br>
+            • <b>02.10 (Д3)</b>: Раскрытие семядолей. Включить свет 14 ч/день. Полив по 15 мл водой.<br>
+            • <b>03.10 (Д4)</b>: Посылка! Разворачивание 1-го листа. Монтаж светодиодов и АЦП.<br>
+            • <b>04–05.10 (Д5–Д6)</b>: Полив по 15 мл. На Стенде №0 настраиваем NoIR, белый эталон и OCR.<br>
+            • <b>06–07.10 (Д7–Д8)</b>: Полив по 15 мл. Рост 2-го листа, выравнивание всех проростков.<br>
+            • <b>08.10 (Д9)</b>: Вечер перед стартом: полив водой (20 мл), замер фона NDVI_init и массы M0.
+        </td>
+        <td class="guide-right">
+            <b style="color: #b91c1c;">⚡ ФАЗА 1: СТРЕСС-ОПЫТ (09.10 — 16.10, замеры в 09:00 и 18:00):</b><br>
+            • <b>К1 (🌱 Контроль)</b>: Полив чистой водой 15–20 мл ЕЖЕДНЕВНО. Смотреть: тургор 100%, рост биомассы.<br>
+            • <b>К2 (🧂 Соль 150 мМ)</b>: Полив раствором соли 150 мМ ЕЖЕДНЕВНО (10–15 мл). <b>НЕ ВЫНИМАТЬ ИЗ СВОЕГО ЛОТКА!</b> Смотреть: почва сырая, но лист горячий (ΔT > 0).<br>
+            • <b>К3 (🔬 Спасение прибор)</b>: С 09.10 <b>НЕ ПОЛИВАТЬ!</b> Ждать алерта (ΔT > +0.8°C, спад NDVI). При алерте — <b>СРОЧНО РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ 25 мл ДО УВЯДАНИЯ</b>!<br>
+            • <b>К4 (👁️ Спасение глаза)</b>: С 09.10 <b>НЕ ПОЛИВАТЬ!</b> Полив водой (25 мл) <b>ТОЛЬКО КОГДА ЛИСТЬЯ ВИДИМО ПОВИСНУТ</b> (угол > 30°). Смотреть: краевой некроз.<br>
+            • <b>К5 (⚠️ Терминал)</b>: <b>ВООБЩЕ НЕ ПОЛИВАТЬ ДО КОНЦА!</b> Фиксация точки гибели ткани.
+        </td>
+    </tr>
+</table>
+
+<div class="h2-title">ТАБЛИЦА РЕАЛЬНЫХ ЗАМЕРОВ: ФАЗА 0 — ПРОРАЩИВАНИЕ И ПОДГОТОВКА (ДНИ 0–9)</div>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width: 10%;">Дата / День</th>
+            <th style="width: 10%;">Кассета</th>
+            <th style="width: 8%;">Время</th>
+            <th style="width: 12%;">Полив (мл / состав)</th>
+            <th style="width: 9%;">Масса М (г)</th>
+            <th style="width: 9%;">Всхожесть (из 9)</th>
+            <th style="width: 10%;">Tвозд / RHвозд</th>
+            <th style="width: 26%;">Фенонаблюдения Алисы (ростки, петельки, листья, высота)</th>
+            <th style="width: 6%;">Подпись</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="font-weight:bold;">29.09 (Д0)</td><td>К1–К5</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">30.09 (Д1)</td><td>К1–К5</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">01.10 (Д2)</td><td>К1–К5</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">02.10 (Д3)</td><td>К1–К5</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">03.10 (Д4)</td><td>К1–К5+Ст0</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">04.10 (Д5)</td><td>К1–К5+Ст0</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">05.10 (Д6)</td><td>К1–К5+Ст0</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">06.10 (Д7)</td><td>К1–К5</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">07.10 (Д8)</td><td>К1–К5</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr><tr>
+            <td style="font-weight:bold;">08.10 (Д9)</td><td>К1–К5</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- СТРАНИЦА 2 -->
+<div class="page-break"></div>
+<div class="h2-title">СТРАНИЦА 2. ЖУРНАЛ СТРЕСС-ОПЫТА: ДНИ 10–13 (ВХОД В СТРЕСС, АЛЕРТ И СПАСЕНИЕ К3 ПО ПРИБОРУ)</div>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width: 8%;">День</th>
+            <th style="width: 15%;">Когорта</th>
+            <th style="width: 7%;">Полив мл</th>
+            <th style="width: 6%;">M (г)</th>
+            <th style="width: 6%;">Wпочв</th>
+            <th style="width: 5%;">Vпочв</th>
+            <th style="width: 6%;">Tлист</th>
+            <th style="width: 6%;">Tвозд</th>
+            <th style="width: 5%;">ΔT</th>
+            <th style="width: 5%;">RH%</th>
+            <th style="width: 6%;">NDVI</th>
+            <th style="width: 6%;">PLA см²</th>
+            <th style="width: 15%;">Тургор / Симптомы (осмотр Алисы)</th>
+            <th style="width: 4%;">Подп.</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д10 09.10</td>
+                    <td style="color: #047857; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№1: 🌱 Контроль (Оптимум)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д10 09.10</td>
+                    <td style="color: #b45309; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№2: 🧂 Засоление (150 мМ)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д10 09.10</td>
+                    <td style="color: #0284c7; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№3: 🔬 Спасение прибор</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д10 09.10</td>
+                    <td style="color: #6d28d9; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№4: 👁️ Спасение глаза</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д10 09.10</td>
+                    <td style="color: #b91c1c; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№5: ⚠️ Терминал</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д11 10.10</td>
+                    <td style="color: #047857; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№1: 🌱 Контроль (Оптимум)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д11 10.10</td>
+                    <td style="color: #b45309; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№2: 🧂 Засоление (150 мМ)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д11 10.10</td>
+                    <td style="color: #0284c7; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№3: 🔬 Спасение прибор</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д11 10.10</td>
+                    <td style="color: #6d28d9; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№4: 👁️ Спасение глаза</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д11 10.10</td>
+                    <td style="color: #b91c1c; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№5: ⚠️ Терминал</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д12 11.10</td>
+                    <td style="color: #047857; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№1: 🌱 Контроль (Оптимум)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д12 11.10</td>
+                    <td style="color: #b45309; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№2: 🧂 Засоление (150 мМ)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д12 11.10</td>
+                    <td style="color: #0284c7; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№3: 🔬 Спасение прибор</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д12 11.10</td>
+                    <td style="color: #6d28d9; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№4: 👁️ Спасение глаза</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д12 11.10</td>
+                    <td style="color: #b91c1c; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№5: ⚠️ Терминал</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д13 12.10</td>
+                    <td style="color: #047857; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№1: 🌱 Контроль (Оптимум)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д13 12.10</td>
+                    <td style="color: #b45309; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№2: 🧂 Засоление (150 мМ)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д13 12.10</td>
+                    <td style="color: #0284c7; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№3: 🔬 Спасение прибор</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д13 12.10</td>
+                    <td style="color: #6d28d9; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№4: 👁️ Спасение глаза</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д13 12.10</td>
+                    <td style="color: #b91c1c; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№5: ⚠️ Терминал</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+    </tbody>
+</table>
+
+<!-- СТРАНИЦА 3 -->
+<div class="page-break"></div>
+<div class="h2-title">СТРАНИЦА 3. ЖУРНАЛ СТРЕСС-ОПЫТА: ДНИ 14–17 (СПАСЕНИЕ К4 ПО ГЛАЗАМ, РЕПАРАЦИЯ, ФИНАЛЬНЫЙ УЧЕТ)</div>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width: 8%;">День</th>
+            <th style="width: 15%;">Когорта</th>
+            <th style="width: 7%;">Полив мл</th>
+            <th style="width: 6%;">M (г)</th>
+            <th style="width: 6%;">Wпочв</th>
+            <th style="width: 5%;">Vпочв</th>
+            <th style="width: 6%;">Tлист</th>
+            <th style="width: 6%;">Tвозд</th>
+            <th style="width: 5%;">ΔT</th>
+            <th style="width: 5%;">RH%</th>
+            <th style="width: 6%;">NDVI</th>
+            <th style="width: 6%;">PLA см²</th>
+            <th style="width: 15%;">Тургор / Симптомы (осмотр Алисы)</th>
+            <th style="width: 4%;">Подп.</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д14 13.10</td>
+                    <td style="color: #047857; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№1: 🌱 Контроль (Оптимум)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д14 13.10</td>
+                    <td style="color: #b45309; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№2: 🧂 Засоление (150 мМ)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д14 13.10</td>
+                    <td style="color: #0284c7; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№3: 🔬 Спасение прибор</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д14 13.10</td>
+                    <td style="color: #6d28d9; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№4: 👁️ Спасение глаза</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д14 13.10</td>
+                    <td style="color: #b91c1c; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№5: ⚠️ Терминал</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д15 14.10</td>
+                    <td style="color: #047857; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№1: 🌱 Контроль (Оптимум)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д15 14.10</td>
+                    <td style="color: #b45309; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№2: 🧂 Засоление (150 мМ)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д15 14.10</td>
+                    <td style="color: #0284c7; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№3: 🔬 Спасение прибор</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д15 14.10</td>
+                    <td style="color: #6d28d9; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№4: 👁️ Спасение глаза</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д15 14.10</td>
+                    <td style="color: #b91c1c; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№5: ⚠️ Терминал</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д16 15.10</td>
+                    <td style="color: #047857; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№1: 🌱 Контроль (Оптимум)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д16 15.10</td>
+                    <td style="color: #b45309; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№2: 🧂 Засоление (150 мМ)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д16 15.10</td>
+                    <td style="color: #0284c7; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№3: 🔬 Спасение прибор</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д16 15.10</td>
+                    <td style="color: #6d28d9; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№4: 👁️ Спасение глаза</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д16 15.10</td>
+                    <td style="color: #b91c1c; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№5: ⚠️ Терминал</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д17 16.10</td>
+                    <td style="color: #047857; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№1: 🌱 Контроль (Оптимум)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д17 16.10</td>
+                    <td style="color: #b45309; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№2: 🧂 Засоление (150 мМ)</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д17 16.10</td>
+                    <td style="color: #0284c7; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№3: 🔬 Спасение прибор</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д17 16.10</td>
+                    <td style="color: #6d28d9; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№4: 👁️ Спасение глаза</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+                <tr>
+                    <td style="font-weight: bold; font-size: 7pt;">Д17 16.10</td>
+                    <td style="color: #b91c1c; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7.2pt;">№5: ⚠️ Терминал</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td>
+                </tr>
+                
+    </tbody>
+</table>
+
+<div style="margin-top: 3px; border: 1px solid #0f766e; padding: 3px 6px; font-size: 7.0pt; background: #f8fafc;">
+    <b>ФИНАЛЬНЫЙ РАСЧЕТ РЕПАРАЦИИ БИОМАССЫ (K_rec = NDVI_post / NDVI_init × 100%):</b><br>
+    • <b>К3 (Спасение по прибору):</b> K_rec = ________ % | Спасено продуктивности: ________ % | Видимый некроз: 0%<br>
+    • <b>К4 (Спасение по глазам):</b> K_rec = ________ % | Безвозвратная потеря биомассы: ________ % | Краевой некроз: ______ %<br>
+    <b>Подпись исследователя (Алиса Ковалева):</b> ______________________ &nbsp;&nbsp;&nbsp;&nbsp; <b>Подпись руководителя:</b> ______________________
+</div>
+
+</body>
+</html>
