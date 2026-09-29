@@ -220,12 +220,13 @@ c.drawString(margin_x + 10, box_top - 33, "2. Вырежьте маркеры п
 c.drawString(margin_x + 10, box_top - 43, "3. Наклейте поверх полоску скотча от влаги. При установке кассеты в бокс камера автоматически распознает когорту!")
 
 # 5. Сетка из 5 горизонтальных карточек для 5 кассет
-card_h = 100
+card_h = 110
 card_gap = 14
-start_y = box_top - box_h - 14  # ~ 709 pt
+start_y = box_top - box_h - 14  # ~ 709 pt (верх первой карточки)
 
 for idx, (m_id, name, desc, reg, hex_c, rep_color, _) in enumerate(ARUCO_CASSETTES):
-    cy = start_y - (idx + 1) * card_h - idx * card_gap + card_h
+    # Нижняя координата карточки (в ReportLab отсчет снизу вверх)
+    cy = start_y - (idx + 1) * card_h - idx * card_gap
     cx = margin_x
 
     # Пунктирная рамка карточки во всю ширину (525 pt)
@@ -235,62 +236,62 @@ for idx, (m_id, name, desc, reg, hex_c, rep_color, _) in enumerate(ARUCO_CASSETT
     c.roundRect(cx, cy, content_w, card_h, 5, fill=0, stroke=1)
     c.setDash()
 
-    # Слева: Основной маркер (размер 66x66 pt ~ 23x23 мм)
+    # Слева: Основной маркер (размер 70x70 pt ~ 25x25 мм)
     img_p = os.path.join(ARUCO_DIR, f'aruco_{m_id}.png')
-    m_size = 66
+    m_size = 70
     if os.path.exists(img_p):
-        c.drawImage(img_p, cx + 12, cy + 20, width=m_size, height=m_size)
+        c.drawImage(img_p, cx + 12, cy + 22, width=m_size, height=m_size)
         c.setStrokeColor(colors.HexColor('#e2e8f0'))
         c.setLineWidth(0.5)
-        c.rect(cx + 12, cy + 20, m_size, m_size, fill=0, stroke=1)
+        c.rect(cx + 12, cy + 22, m_size, m_size, fill=0, stroke=1)
     
     # Подпись под левым маркером
     c.setFillColor(colors.HexColor('#64748b'))
     c.setFont(font_name, 7)
-    c.drawCentredString(cx + 12 + m_size / 2, cy + 9, f"Маркер №{m_id} (Основной)")
+    c.drawCentredString(cx + 12 + m_size / 2, cy + 10, f"Маркер №{m_id} (Основной)")
 
-    # Справа: Резервный маркер-дубликат (размер 66x66 pt)
+    # Справа: Резервный маркер-дубликат (размер 70x70 pt)
     rx = cx + content_w - 12 - m_size
     if os.path.exists(img_p):
-        c.drawImage(img_p, rx, cy + 20, width=m_size, height=m_size)
+        c.drawImage(img_p, rx, cy + 22, width=m_size, height=m_size)
         c.setStrokeColor(colors.HexColor('#e2e8f0'))
         c.setLineWidth(0.5)
-        c.rect(rx, cy + 20, m_size, m_size, fill=0, stroke=1)
+        c.rect(rx, cy + 22, m_size, m_size, fill=0, stroke=1)
     
     # Подпись под правым маркером
     c.setFillColor(colors.HexColor('#64748b'))
     c.setFont(font_name, 7)
-    c.drawCentredString(rx + m_size / 2, cy + 9, f"Маркер №{m_id} (Резерв)")
+    c.drawCentredString(rx + m_size / 2, cy + 10, f"Маркер №{m_id} (Резерв)")
 
-    # В центре: Информационный блок (ширина 330 pt, свободно и без наездов)
-    tx = cx + 90
+    # В центре: Информационный блок (ширина ~330 pt, свободно и без наездов)
+    tx = cx + 96
     
     # Бейдж ID
     c.setFillColor(rep_color)
-    c.roundRect(tx, cy + 74, 115, 15, 3, fill=1, stroke=0)
+    c.roundRect(tx, cy + 84, 115, 15, 3, fill=1, stroke=0)
     c.setFillColor(colors.white)
     c.setFont(font_bold, 8)
-    c.drawString(tx + 7, cy + 78, f"ArUco ID #{m_id} (DICT_4X4_50)")
+    c.drawString(tx + 7, cy + 88, f"ArUco ID #{m_id} (DICT_4X4_50)")
 
     # Название кассеты (крупно и четко)
     c.setFillColor(colors.HexColor('#0f172a'))
-    c.setFont(font_bold, 10.5)
-    c.drawString(tx, cy + 58, name)
+    c.setFont(font_bold, 11)
+    c.drawString(tx, cy + 67, name)
 
     # Описание воздействия
     c.setFillColor(colors.HexColor('#334155'))
-    c.setFont(font_name, 8)
-    c.drawString(tx, cy + 44, desc)
+    c.setFont(font_name, 8.5)
+    c.drawString(tx, cy + 51, desc)
 
     # Регламент полива
     c.setFillColor(rep_color)
-    c.setFont(font_bold, 7.5)
-    c.drawString(tx, cy + 31, reg)
+    c.setFont(font_bold, 8)
+    c.drawString(tx, cy + 35, reg)
 
     # Подсказка по наклейке
     c.setFillColor(colors.HexColor('#94a3b8'))
     c.setFont(font_name, 7)
-    c.drawString(tx, cy + 18, "✂ Вырезать по внешнему контуру · Наклеить на бортик кассеты и защитить скотчем")
+    c.drawString(tx, cy + 20, "✂ Вырезать по внешнему контуру · Наклеить на бортик кассеты и защитить скотчем")
 
 # Футер
 c.setStrokeColor(colors.HexColor('#e2e8f0'))
