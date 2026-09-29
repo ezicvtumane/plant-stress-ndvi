@@ -42,7 +42,8 @@ for m_id, name, desc, hex_color, _ in ARUCO_CASSETTES:
         marker_raw, 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=255
     )
     png_path = os.path.join(ARUCO_DIR, f'aruco_{m_id}.png')
-    cv2.imwrite(png_path, marker_with_border)
+    _, buf = cv2.imencode('.png', marker_with_border)
+    buf.tofile(png_path)
     print(f'Created {png_path}')
 
 # Создаем HTML-версию листа
