@@ -2715,22 +2715,24 @@ def download_paper():
         return FileResponse(pdf_path, filename='Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
     return HTMLResponse('Файл работы не найден')
 
+@app.get('/download/research_paper')
 @app.get('/download/spbu_paper')
-def download_spbu_paper():
-    pdf_path = os.path.join(STATIC_DIR, 'Научно_исследовательская_работа_СПбГУ_Ковалева_Алиса.pdf')
+def download_research_paper():
+    pdf_path = os.path.join(STATIC_DIR, 'Научно_исследовательская_работа_Ковалева_Алиса.pdf')
     if not os.path.exists(pdf_path):
-        pdf_path = os.path.join(DOCS_DIR, 'Научно_исследовательская_работа_СПбГУ_Ковалева_Алиса.pdf')
+        pdf_path = os.path.join(DOCS_DIR, 'Научно_исследовательская_работа_Ковалева_Алиса.pdf')
     if os.path.exists(pdf_path):
-        return FileResponse(pdf_path, filename='Научно_исследовательская_работа_СПбГУ_Ковалева_Алиса.pdf', media_type='application/pdf')
-    return HTMLResponse('Файл работы СПбГУ пока не сформирован')
+        return FileResponse(pdf_path, filename='Научно_исследовательская_работа_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл научно-исследовательской статьи пока не сформирован')
 
+@app.get('/download/review_note')
 @app.get('/download/spbu_note')
-def download_spbu_note():
-    pdf_path = os.path.join(STATIC_DIR, 'Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf')
+def download_review_note():
+    pdf_path = os.path.join(STATIC_DIR, 'Краткая_записка_для_рецензирования_Ковалева_Алиса.pdf')
     if not os.path.exists(pdf_path):
-        pdf_path = os.path.join(DOCS_DIR, 'Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf')
+        pdf_path = os.path.join(DOCS_DIR, 'Краткая_записка_для_рецензирования_Ковалева_Алиса.pdf')
     if os.path.exists(pdf_path):
-        return FileResponse(pdf_path, filename='Краткая_записка_для_рецензирования_СПбГУ_Ковалева_Алиса.pdf', media_type='application/pdf')
+        return FileResponse(pdf_path, filename='Краткая_записка_для_рецензирования_Ковалева_Алиса.pdf', media_type='application/pdf')
     return HTMLResponse('Файл записки для рецензирования пока не найден')
 
 @app.get('/download/presentation')
