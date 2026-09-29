@@ -427,8 +427,14 @@ def main():
                 markdown_to_docx(src_path, out_docs_path, item['name'])
                 
             # Дублируем файл в пользовательскую папку Документы
-            shutil.copy2(out_docs_path, out_user_path)
-            print(f"  [OK] Скопировано в Документы: {out_user_path}")
+            try:
+                shutil.copy2(out_docs_path, out_user_path)
+                print(f"  [OK] Скопировано в Документы: {out_user_path}")
+            except PermissionError:
+                base, ext = os.path.splitext(out_user_path)
+                fallback_user_path = f"{base}_обновленный{ext}"
+                shutil.copy2(out_docs_path, fallback_user_path)
+                print(f"  [Warn] Файл занят в Word. Скопировано как: {fallback_user_path}")
             
             success_count += 1
             generated_files.append((out_name, os.path.getsize(out_docs_path)))
