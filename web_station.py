@@ -62,28 +62,29 @@ XIAOMI_SENSOR_SID = '158d0001576282'
 PENDING_SESSION = None
 
 # Каталог 5 ключевых когорт единого эксперимента (+ калибровочный стенд №0)
+# Цвета строго синхронизированы с цветной рамкой ArUco-маркеров на кассетах:
 CASSETTE_CATALOG = {
-    1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив (100% ПВ)', 'color': '#0d9488', 'stage': 'batch5'},
+    1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив (100% ПВ)', 'color': '#059669', 'stage': 'batch5'},
     2: {'id': 2, 'name': 'Засоление (NaCl)', 'desc': 'NaCl 150 мМ, отдельный лоток', 'color': '#7c3aed', 'stage': 'batch5'},
-    3: {'id': 3, 'name': 'Спасение по прибору', 'desc': 'Полив по алерту станции (ΔT > +0.8°C)', 'color': '#059669', 'stage': 'batch5'},
-    4: {'id': 4, 'name': 'Спасение по глазам', 'desc': 'Полив при явном увядании листьев', 'color': '#d97706', 'stage': 'batch5'},
+    3: {'id': 3, 'name': 'Спасение по прибору', 'desc': 'Полив по алерту станции (ΔT > +0.8°C)', 'color': '#eab308', 'stage': 'batch5'},
+    4: {'id': 4, 'name': 'Спасение по глазам', 'desc': 'Полив при явном увядании листьев', 'color': '#2563eb', 'stage': 'batch5'},
     5: {'id': 5, 'name': 'Терминальная засуха', 'desc': 'Без полива до гибели (некроз)', 'color': '#dc2626', 'stage': 'batch5'},
     6: {'id': 6, 'name': 'Калибровка (Стенд №0)', 'desc': 'Калибровочный стенд (посев 22.09)', 'color': '#64748b', 'stage': 'batch5'}
 }
 ARUCO_CASSETTE_MAP = {cid: data['name'] for cid, data in CASSETTE_CATALOG.items()}
 
-# Конфигурация пакетного замера квинтета (5 кассет за один сеанс)
+# Конфигурация пакетного замера 5 кассет (5 кассет за один сеанс)
 BATCH_CONFIG = {
     'batch5': {
-        'title': 'Пакетный замер квинтета (Кассеты 1–5)',
+        'title': 'Пакетный замер 5 кассет (Кассеты 1–5)',
         'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
     },
     'stage1': {
-        'title': 'Пакетный замер квинтета (Кассеты 1–5)',
+        'title': 'Пакетный замер 5 кассет (Кассеты 1–5)',
         'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
     },
     'stage2': {
-        'title': 'Пакетный замер квинтета (Кассеты 1–5)',
+        'title': 'Пакетный замер 5 кассет (Кассеты 1–5)',
         'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
     }
 }
@@ -1009,7 +1010,7 @@ async def handle_batch_save_manual(request: Request):
         for r in records_to_save:
             writer.writerow(r['row'])
 
-    stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', 'Квинтет (5-в-1)')
+    stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', 'Серия 5 кассет (5-в-1)')
     BATCH_STATE = {
         'active': False,
         'stage_key': 'batch5',
@@ -1376,16 +1377,21 @@ def index(
                 m_id = s_done.get('aruco_id')
                 grp_name = s_done.get('group', f'Кадр #{i+1}')
                 if m_id:
-                    badge = f'<span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">🏷️ ArUco #{m_id}</span>'
+                    c_col = CASSETTE_CATALOG.get(m_id, {}).get('color', '#059669')
+                    badge = f'<span style="background:{c_col}18; color:{c_col}; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px; border:1px solid {c_col}50;">🏷️ ArUco #{m_id}</span>'
                     slot_title = f"Кассета #{m_id}"
+                    slot_border = f"2px solid {c_col}"
+                    slot_bg = f"{c_col}0d"
                 else:
                     badge = '<span style="background:#fffbeb; color:#b45309; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">⚠️ Ручная</span>'
                     slot_title = f"Кадр #{i+1}"
+                    slot_border = "2px solid #cbd5e1"
+                    slot_bg = "#f8fafc"
                 slots_html += f'''
-                    <div style="flex:1; background:#ecfdf5; border:2px solid #10b981; border-radius:8px; padding:6px 4px; text-align:center;">
-                        <span style="font-size:10px; color:#065f46; font-weight:bold; display:block;">✓ Снято #{i+1}</span>
-                        <span style="font-size:11px; color:#047857; font-weight:bold; display:block;">{slot_title}</span>
-                        <span style="font-size:10px; color:#059669; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{grp_name}</span>
+                    <div style="flex:1; background:{slot_bg}; border:{slot_border}; border-radius:8px; padding:6px 4px; text-align:center;">
+                        <span style="font-size:10px; color:#475569; font-weight:bold; display:block;">✓ Снято #{i+1}</span>
+                        <span style="font-size:11px; color:#0f172a; font-weight:bold; display:block;">{slot_title}</span>
+                        <span style="font-size:10px; color:#475569; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{grp_name}</span>
                         {badge}
                     </div>
                 '''
@@ -1410,7 +1416,7 @@ def index(
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
                         <div>
-                            <span style="font-size:10px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер квинтета (без проводов)</span>
+                            <span style="font-size:10px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер 5 кассет (без проводов)</span>
                             <h2 style="margin:2px 0 0 0; color:#1e40af; font-size:15px;">{conf["title"]}</h2>
                         </div>
                         <span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Кадр {step_idx + 1} из {total_steps}</span>
@@ -1425,10 +1431,10 @@ def index(
                             <span style="font-size:13px; font-weight:bold; color:#0f172a;">
                                 Установите любую кассету в бокс (Кадр #{step_idx + 1} из {total_steps})
                             </span>
-                            <span style="background:#ecfdf5; color:#047857; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ Авто-ArUco</span>
+                            <span style="background:#ecfdf5; color:#047857; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ Цветной ArUco</span>
                         </div>
                         <p style="margin:0 0 4px 0; font-size:11px; color:#64748b; line-height:1.3;">
-                            <b>Порядок установки не имеет значения.</b> Станция сама считает маркер ArUco со снимка и упорядочит замеры.
+                            <b>Порядок установки не имеет значения.</b> Станция сама считает маркер ArUco со снимка и упорядочит замеры по цвету кассеты.
                         </p>
                         <ol style="margin:0; padding-left:16px; font-size:11px; color:#334155; line-height:1.35;">
                             <li>Поставьте кассету в бокс на упоры.</li>
@@ -1444,13 +1450,13 @@ def index(
                                     🏷️ Кассета (когорта):
                                 </label>
                                 <select name="cohort_choice" style="width:100%; padding:6px 8px; font-size:12px; font-weight:bold; border:1.5px solid #3b82f6; border-radius:6px; background:#eff6ff; color:#1e40af;">
-                                    <option value="auto" selected>🎯 Автоматически (распознать по ArUco-маркеру)</option>
-                                    <option value="1">🌱 Кассета #1: Контроль (Этап 1)</option>
-                                    <option value="2">🍂 Кассета #2: Засуха (Этап 1)</option>
-                                    <option value="3">🧂 Кассета #3: Соль (Этап 1)</option>
-                                    <option value="4">🌱 Кассета #4: Эталон (Оптимум)</option>
-                                    <option value="5">💧 Кассета #5: Репарация (~40ч)</option>
-                                    <option value="6">⚠️ Кассета #6: Критический стресс (~72ч)</option>
+                                    <option value="auto" selected>🎯 Автоматически (распознать по цветному ArUco-маркеру)</option>
+                                    <option value="1">🟢 Кассета #1: Контроль (Оптимум 100% ПВ)</option>
+                                    <option value="2">🟣 Кассета #2: Засоление (NaCl 150 мМ, изолятор)</option>
+                                    <option value="3">🟡 Кассета #3: Спасение по прибору (Доклинический полив)</option>
+                                    <option value="4">🔵 Кассета #4: Спасение по глазам (Поздний полив)</option>
+                                    <option value="5">🔴 Кассета #5: Терминальная засуха (Точка невозврата)</option>
+                                    <option value="6">⚙️ Кассета #6: Калибровка (Стенд №0, посев 22.09)</option>
                                 </select>
                             </div>
 
@@ -1798,22 +1804,22 @@ def index(
         '''
 
     else:
-        # ЭТАП IDLE: ВЫБОР РЕЖИМА ЗАМЕРА (ЕДИНЫЙ КВИНТЕТ 5-В-1 ИЛИ ОДИНОЧНЫЙ)
+        # ЭТАП IDLE: ВЫБОР РЕЖИМА ЗАМЕРА (ПАКЕТНЫЙ ЗАМЕР 5 КАССЕТ 5-В-1 ИЛИ ОДИНОЧНЫЙ)
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); margin:0;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:15px;">🚀 Единый пакетный замер квинтета (5-в-1)</h2>
+                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:15px;">🚀 Единый пакетный замер 5 кассет (5-в-1)</h2>
                     <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">1 подключение кабеля</span>
                 </div>
                 <p style="font-size: 11px; color: #475569; margin: 0 0 10px 0; line-height:1.35;">
-                    Станция последовательно снимет все 5 кассет (NoIR + ArUco), а провод тепловизора подключается <b>всего один раз в конце серии</b>:
+                    Станция последовательно снимет все 5 кассет (NoIR + цветные ArUco-маркеры), а провод тепловизора подключается <b>всего один раз в конце серии</b>:
                 </p>
 
-                <!-- Главная кнопка запуска квинтета -->
+                <!-- Главная кнопка запуска замера 5 кассет -->
                 <a href="/api/start_batch?stage=batch5" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488 0%, #059669 45%, #2563eb 100%); color:white; padding:12px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.3); transition:all 0.2s;">
                     <span style="font-size:18px; display:block; margin-bottom:2px;">🌿🔬</span>
-                    <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР КВИНТЕТА (5-В-1)</b>
-                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">К1 Контроль • К2 Соль • К3 Прибор • К4 Глаза • К5 Гибель</span>
+                    <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР 5 КАССЕТ (5-В-1)</b>
+                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Соль • 🟡 К3 Прибор • 🔵 К4 Глаза • 🔴 К5 Гибель</span>
                 </a>
 
                 <!-- Памятка по изолятору соли -->
@@ -1828,12 +1834,12 @@ def index(
                     </summary>
                     <form action="/api/start_spectral" method="post" style="margin-top:8px;">
                         <select name="group_name" style="margin-bottom:6px; font-size:12px;">
-                            <option value="Контроль">Кассета 1: 🌱 Контроль (Оптимум 100% ПВ)</option>
-                            <option value="Засоление (NaCl)">Кассета 2: 🧂 Засоление (NaCl 150 мМ, изолятор)</option>
-                            <option value="Спасение по прибору">Кассета 3: 🔬 Спасение по прибору (Доклинический полив)</option>
-                            <option value="Спасение по глазам">Кассета 4: 👁️ Спасение по глазам (Поздний полив)</option>
-                            <option value="Терминальная засуха">Кассета 5: ⚠️ Терминальная засуха (Точка невозврата)</option>
-                            <option value="Калибровка (Стенд №0)">Кассета 6: 🛠️ Калибровка (Стенд №0, посев 22.09)</option>
+                            <option value="Контроль">🟢 Кассета 1: Контроль (Оптимум 100% ПВ)</option>
+                            <option value="Засоление (NaCl)">🟣 Кассета 2: Засоление (NaCl 150 мМ, изолятор)</option>
+                            <option value="Спасение по прибору">🟡 Кассета 3: Спасение по прибору (Доклинический полив)</option>
+                            <option value="Спасение по глазам">🔵 Кассета 4: Спасение по глазам (Поздний полив)</option>
+                            <option value="Терминальная засуха">🔴 Кассета 5: Терминальная засуха (Точка невозврата)</option>
+                            <option value="Калибровка (Стенд №0)">⚙️ Кассета 6: Калибровка (Стенд №0, посев 22.09)</option>
                         </select>
                         <button type="submit" class="btn-run" style="padding:8px; font-size:12px; margin-top:0;">
                             📸 Снять выбранную кассету в боксе
@@ -1910,18 +1916,18 @@ def index(
 
             <!-- ВЕРХНИЙ РЯД: 3 БАЗОВЫХ СОСТОЯНИЯ -->
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:8px;">
-                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 2px; text-align:center;">
-                    <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 К1: Контроль</div>
+                <div style="background:#ecfdf5; border:1.5px solid #059669; border-radius:8px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:10px; color:#065f46; font-weight:bold;">🟢 К1: Контроль</div>
                     <div style="font-size:14px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl}</div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl_ndvi}</b></div>
                 </div>
-                <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:6px 2px; text-align:center;">
-                    <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🧂 К2: Засоление</div>
+                <div style="background:#f5f3ff; border:1.5px solid #7c3aed; border-radius:8px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🟣 К2: Засоление</div>
                     <div style="font-size:14px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt}</div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt_ndvi}</b></div>
                 </div>
-                <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 2px; text-align:center;">
-                    <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ К5: Гибель</div>
+                <div style="background:#fff1f2; border:1.5px solid #dc2626; border-radius:8px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:10px; color:#be123c; font-weight:bold;">🔴 К5: Гибель</div>
                     <div style="font-size:14px; font-weight:bold; color:#e11d48; margin:1px 0;">{cnt_term}</div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#dc2626;">{m_term_ndvi}</b></div>
                 </div>
@@ -1934,17 +1940,17 @@ def index(
                     <span style="background:#ecfdf5; color:#047857; font-size:9px; font-weight:bold; padding:1px 5px; border-radius:4px; border:1px solid #a7f3d0;">{eff_badge}</span>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; text-align:center;">
-                    <div style="background:#ffffff; border:1.5px solid #10b981; border-radius:6px; padding:5px 4px;">
-                        <div style="font-size:10px; color:#047857; font-weight:bold;">🔬 К3: Спасение прибором</div>
-                        <div style="font-size:13px; font-weight:bold; color:#059669; margin:1px 0;">{cnt_inst} <span style="font-size:10px; font-weight:normal; color:#64748b;">зам.</span></div>
-                        <div style="font-size:10px; color:#334155;">NDVI: <b style="color:#059669;">{m_inst_ndvi}</b></div>
-                        <div style="font-size:9px; color:#047857; font-weight:600; margin-top:2px;">Доклинический полив</div>
+                    <div style="background:#fefce8; border:1.5px solid #eab308; border-radius:6px; padding:5px 4px;">
+                        <div style="font-size:10px; color:#854d0e; font-weight:bold;">🟡 К3: Спасение прибором</div>
+                        <div style="font-size:13px; font-weight:bold; color:#ca8a04; margin:1px 0;">{cnt_inst} <span style="font-size:10px; font-weight:normal; color:#64748b;">зам.</span></div>
+                        <div style="font-size:10px; color:#334155;">NDVI: <b style="color:#ca8a04;">{m_inst_ndvi}</b></div>
+                        <div style="font-size:9px; color:#854d0e; font-weight:600; margin-top:2px;">Доклинический полив</div>
                     </div>
-                    <div style="background:#ffffff; border:1.5px solid #f59e0b; border-radius:6px; padding:5px 4px;">
-                        <div style="font-size:10px; color:#b45309; font-weight:bold;">👁️ К4: Спасение глазами</div>
-                        <div style="font-size:13px; font-weight:bold; color:#d97706; margin:1px 0;">{cnt_eye} <span style="font-size:10px; font-weight:normal; color:#64748b;">зам.</span></div>
-                        <div style="font-size:10px; color:#334155;">NDVI: <b style="color:#d97706;">{m_eye_ndvi}</b></div>
-                        <div style="font-size:9px; color:#b45309; font-weight:600; margin-top:2px;">Визуальное увядание</div>
+                    <div style="background:#eff6ff; border:1.5px solid #2563eb; border-radius:6px; padding:5px 4px;">
+                        <div style="font-size:10px; color:#1e40af; font-weight:bold;">🔵 К4: Спасение глазами</div>
+                        <div style="font-size:13px; font-weight:bold; color:#2563eb; margin:1px 0;">{cnt_eye} <span style="font-size:10px; font-weight:normal; color:#64748b;">зам.</span></div>
+                        <div style="font-size:10px; color:#334155;">NDVI: <b style="color:#2563eb;">{m_eye_ndvi}</b></div>
+                        <div style="font-size:9px; color:#1e40af; font-weight:600; margin-top:2px;">Визуальное увядание</div>
                     </div>
                 </div>
             </div>
