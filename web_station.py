@@ -61,32 +61,36 @@ XIAOMI_SENSOR_SID = '158d0001576282'
 # Текущая активная сессия одиночного замера
 PENDING_SESSION = None
 
-# Каталог всех 6 кассет двух этапов эксперимента
+# Каталог 5 ключевых когорт единого эксперимента (+ калибровочный стенд №0)
 CASSETTE_CATALOG = {
-    1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив', 'color': '#0d9488', 'stage': 'stage1'},
-    2: {'id': 2, 'name': 'Засуха', 'desc': '0 -> 96 ч без полива', 'color': '#f59e0b', 'stage': 'stage1'},
-    3: {'id': 3, 'name': 'Соль', 'desc': 'NaCl 1.0% Осмос', 'color': '#dc2626', 'stage': 'stage1'},
-    4: {'id': 4, 'name': 'Эталон (Оптимум)', 'desc': 'Параллельный эталон', 'color': '#0d9488', 'stage': 'stage2'},
-    5: {'id': 5, 'name': 'Репарация (~40ч)', 'desc': 'Полив ~40 ч, сигнал станции', 'color': '#059669', 'stage': 'stage2'},
-    6: {'id': 6, 'name': 'Критический стресс (~72ч)', 'desc': 'Полив ~72 ч, при увядании', 'color': '#b45309', 'stage': 'stage2'}
+    1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив (100% ПВ)', 'color': '#0d9488', 'stage': 'batch5'},
+    2: {'id': 2, 'name': 'Засоление (NaCl)', 'desc': 'NaCl 150 мМ, отдельный лоток', 'color': '#7c3aed', 'stage': 'batch5'},
+    3: {'id': 3, 'name': 'Спасение по прибору', 'desc': 'Полив по алерту станции (ΔT > +0.8°C)', 'color': '#059669', 'stage': 'batch5'},
+    4: {'id': 4, 'name': 'Спасение по глазам', 'desc': 'Полив при явном увядании листьев', 'color': '#d97706', 'stage': 'batch5'},
+    5: {'id': 5, 'name': 'Терминальная засуха', 'desc': 'Без полива до гибели (некроз)', 'color': '#dc2626', 'stage': 'batch5'},
+    6: {'id': 6, 'name': 'Калибровка (Стенд №0)', 'desc': 'Калибровочный стенд (посев 22.09)', 'color': '#64748b', 'stage': 'batch5'}
 }
 ARUCO_CASSETTE_MAP = {cid: data['name'] for cid, data in CASSETTE_CATALOG.items()}
 
-# Конфигурация двухэтапного пакетного замера (по 3 кассеты на этап)
+# Конфигурация пакетного замера квинтета (5 кассет за один сеанс)
 BATCH_CONFIG = {
+    'batch5': {
+        'title': 'Пакетный замер квинтета (Кассеты 1–5)',
+        'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
+    },
     'stage1': {
-        'title': 'Этап 1: Скрининг стрессов (Кассеты 1–3)',
-        'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3]]
+        'title': 'Пакетный замер квинтета (Кассеты 1–5)',
+        'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
     },
     'stage2': {
-        'title': 'Этап 2: Тест регидратации и репарации (Кассеты 4–6)',
-        'cassettes': [CASSETTE_CATALOG[4], CASSETTE_CATALOG[5], CASSETTE_CATALOG[6]]
+        'title': 'Пакетный замер квинтета (Кассеты 1–5)',
+        'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
     }
 }
 
 BATCH_STATE = {
     'active': False,
-    'stage_key': 'stage1',
+    'stage_key': 'batch5',
     'current_step': 0,
     'sessions': [],
     'verified_data': None
@@ -189,18 +193,24 @@ def format_group_badge(grp_name: str) -> str:
     if not grp_name:
         return '--'
     grp_lower = grp_name.strip().lower()
-    if 'эталон' in grp_lower or 'оптимум' in grp_lower or (('контр' in grp_lower or 'control' in grp_lower) and ('2' in grp_lower or 'этап 2' in grp_lower)):
-        return '<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Эталон (Оптимум)</span>'
-    elif 'контр' in grp_lower or 'control' in grp_lower:
+    if 'прибор' in grp_lower or 'станци' in grp_lower:
+        return '<span style="background:#ecfdf5; color:#047857; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🔬 Спасение по прибору</span>'
+    elif 'глаз' in grp_lower or 'визуал' in grp_lower:
+        return '<span style="background:#fffbeb; color:#b45309; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">👁️ Спасение по глазам</span>'
+    elif 'терминал' in grp_lower or 'гибель' in grp_lower or 'некроз' in grp_lower:
+        return '<span style="background:#fee2e2; color:#b91c1c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fca5a5; font-size:11px; white-space:nowrap;">⚠️ Терминальная засуха</span>'
+    elif 'сол' in grp_lower or 'salin' in grp_lower:
+        return '<span style="background:#f5f3ff; color:#6d28d9; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #ddd6fe; font-size:11px; white-space:nowrap;">🧂 Засоление (NaCl)</span>'
+    elif 'калибро' in grp_lower or 'стенд' in grp_lower:
+        return '<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #cbd5e1; font-size:11px; white-space:nowrap;">🛠️ Калибровка (Стенд №0)</span>'
+    elif 'контр' in grp_lower or 'control' in grp_lower or 'эталон' in grp_lower or 'оптимум' in grp_lower:
         return '<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Контроль</span>'
-    elif 'репар' in grp_lower or 'ранн' in grp_lower or 'early' in grp_lower:
-        return '<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">💧 Репарация (~40ч)</span>'
-    elif 'критич' in grp_lower or 'поздн' in grp_lower or 'late' in grp_lower:
-        return '<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">⚠️ Критический стресс (~72ч)</span>'
+    elif 'репар' in grp_lower or 'ранн' in grp_lower:
+        return '<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">💧 Репарация</span>'
+    elif 'критич' in grp_lower or 'поздн' in grp_lower:
+        return '<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">⚠️ Крит. стресс</span>'
     elif 'засух' in grp_lower or 'drought' in grp_lower:
         return f'<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">🍂 {grp_name}</span>'
-    elif 'сол' in grp_lower or 'salin' in grp_lower:
-        return f'<span style="background:#f5f3ff; color:#5b21b6; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #ddd6fe; font-size:11px; white-space:nowrap;">🧂 {grp_name}</span>'
     else:
         return f'<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #e2e8f0; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
@@ -863,28 +873,29 @@ def handle_batch_capture_next(
 
 @app.post('/api/batch_link_thermal')
 def handle_batch_link_thermal():
-    """Считывание 3 последних термограмм с флешки тепловизора и авто-привязка к 3 кассетам с сортировкой по ArUco."""
+    """Считывание последних термограмм с флешки тепловизора и авто-привязка к кассетам с сортировкой по ArUco."""
     global BATCH_STATE
-    if not BATCH_STATE.get('active') or len(BATCH_STATE['sessions']) != 3:
+    stage_key = BATCH_STATE.get('stage_key', 'batch5')
+    stage_cassettes = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['batch5'])['cassettes']
+    expected_count = len(stage_cassettes)
+    
+    if not BATCH_STATE.get('active') or len(BATCH_STATE.get('sessions', [])) != expected_count:
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
     
     auto_mount_uti()
     files = get_uti_sorted_files()
-    if len(files) < 3:
+    if len(files) < expected_count:
         return RedirectResponse(url=f'/?stage=batch_await_thermal&msg=err_thermal_count&found={len(files)}', status_code=303)
     
-    # Берем 3 самых свежих файла и сортируем хронологически: [0] = самый ранний, [2] = самый поздний
-    recent_3 = files[:3]
-    recent_3.sort(key=os.path.getmtime)
+    # Берем N самых свежих файлов и сортируем хронологически
+    recent_files = files[:expected_count]
+    recent_files.sort(key=os.path.getmtime)
     
-    stage_key = BATCH_STATE.get('stage_key', 'stage1')
-    stage_cassettes = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])['cassettes']
     stage_ids = [c['id'] for c in stage_cassettes]
-    
     paired_items = []
     used_ids = set()
     for i, s in enumerate(BATCH_STATE['sessions']):
-        fp = recent_3[i]
+        fp = recent_files[i]
         fname = os.path.basename(fp)
         mtime = os.path.getmtime(fp)
         thumb_jpg = f'{int(mtime)}_{fname}.jpg'
@@ -930,43 +941,39 @@ def handle_batch_link_thermal():
     return RedirectResponse(url='/?stage=batch_verify', status_code=303)
 
 @app.post('/api/batch_save_manual')
-def handle_batch_save_manual(
-    cassette_id_0: int = Form(None), weight_g_0: str = Form(''), pct_soil_0: str = Form(''), t_leaf_0: str = Form(''),
-    cassette_id_1: int = Form(None), weight_g_1: str = Form(''), pct_soil_1: str = Form(''), t_leaf_1: str = Form(''),
-    cassette_id_2: int = Form(None), weight_g_2: str = Form(''), pct_soil_2: str = Form(''), t_leaf_2: str = Form('')
-):
-    """Мгновенное сохранение всей триады кассет с подтвержденными ручными данными (экспресс-финиш без проводов)."""
+async def handle_batch_save_manual(request: Request):
+    """Мгновенное сохранение всей серии кассет с подтвержденными ручными данными (экспресс-финиш без проводов)."""
     global BATCH_STATE
-    if not BATCH_STATE.get('active') or len(BATCH_STATE['sessions']) != 3:
+    if not BATCH_STATE.get('active') or not BATCH_STATE.get('sessions'):
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
 
-    stage_key = BATCH_STATE.get('stage_key', 'stage1')
-    stage_cassettes = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])['cassettes']
+    form = await request.form()
+    stage_key = BATCH_STATE.get('stage_key', 'batch5')
+    stage_cassettes = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['batch5'])['cassettes']
     stage_ids = [c['id'] for c in stage_cassettes]
-
-    form_cids = [cassette_id_0, cassette_id_1, cassette_id_2]
-    form_weights = [weight_g_0, weight_g_1, weight_g_2]
-    form_pcts = [pct_soil_0, pct_soil_1, pct_soil_2]
-    form_tleafs = [t_leaf_0, t_leaf_1, t_leaf_2]
 
     records_to_save = []
     for i, s in enumerate(BATCH_STATE['sessions']):
-        # Приоритет выбора: подтвержденный ID из формы -> распознанный ArUco -> кассета по умолчанию этапа
-        cid = form_cids[i] if (i < len(form_cids) and form_cids[i] is not None) else s.get('aruco_id')
+        cid_str = form.get(f'cassette_id_{i}')
+        cid = int(cid_str) if (cid_str and str(cid_str).isdigit()) else s.get('aruco_id')
         if not cid or cid not in CASSETTE_CATALOG:
-            cid = stage_ids[i] if i < len(stage_ids) else 1
+            cid = stage_ids[i] if i < len(stage_ids) else (i + 1)
 
         c_meta = CASSETTE_CATALOG.get(cid, {'name': f'Кассета #{cid}'})
         group_name = c_meta['name']
         meas_id = s['id']
         ts_display = s['timestamp']
 
-        w_val = form_weights[i].strip().replace(',', '.') if (i < len(form_weights) and form_weights[i].strip()) else s.get('user_weight', '')
-        t_l_val = form_tleafs[i].strip().replace(',', '.') if (i < len(form_tleafs) and form_tleafs[i].strip()) else s.get('user_t_leaf', '')
+        w_raw = form.get(f'weight_g_{i}', '')
+        w_val = str(w_raw).strip().replace(',', '.') if str(w_raw).strip() else s.get('user_weight', '')
+
+        t_raw = form.get(f't_leaf_{i}', '')
+        t_l_val = str(t_raw).strip().replace(',', '.') if str(t_raw).strip() else s.get('user_t_leaf', '')
         if not t_l_val:
             t_l_val = str(round(float(s['t_air']), 1))
 
-        pct_s = form_pcts[i].strip().replace(',', '.') if (i < len(form_pcts) and form_pcts[i].strip()) else s.get('user_pct_soil', '64.0')
+        pct_raw = form.get(f'pct_soil_{i}', '')
+        pct_s = str(pct_raw).strip().replace(',', '.') if str(pct_raw).strip() else s.get('user_pct_soil', '64.0')
         try:
             ps = float(pct_s)
             s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
@@ -994,7 +1001,7 @@ def handle_batch_save_manual(
             ]
         })
 
-    # Сортируем записи по ID кассеты перед записью в журнал (Контроль, Засуха, Соль)
+    # Сортируем записи по ID кассеты перед записью в журнал
     records_to_save.sort(key=lambda x: x['cid'])
 
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
@@ -1002,10 +1009,10 @@ def handle_batch_save_manual(
         for r in records_to_save:
             writer.writerow(r['row'])
 
-    stage_name = 'Этап 1 (Скрининг)' if stage_key == 'stage1' else 'Этап 2 (Регидратация)'
+    stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', 'Квинтет (5-в-1)')
     BATCH_STATE = {
         'active': False,
-        'stage_key': 'stage1',
+        'stage_key': 'batch5',
         'current_step': 0,
         'sessions': [],
         'verified_data': None
@@ -1013,48 +1020,44 @@ def handle_batch_save_manual(
     return RedirectResponse(url=f'/?msg=batch_saved&stage_name={stage_name}', status_code=303)
 
 @app.post('/api/batch_skip_thermal')
-def handle_batch_skip_thermal():
-    """Экспресс-пропуск подключения тепловизора: переход к подтверждению триады."""
-    return handle_batch_save_manual()
-
+async def handle_batch_skip_thermal(request: Request):
+    """Экспресс-пропуск подключения тепловизора: переход к подтверждению серии."""
+    return await handle_batch_save_manual(request)
 
 @app.post('/api/batch_save_final')
-def handle_batch_save_final(
-    cassette_id_0: int = Form(1), weight_g_0: str = Form(''), pct_soil_0: str = Form(''), t_leaf_0: str = Form(''),
-    cassette_id_1: int = Form(2), weight_g_1: str = Form(''), pct_soil_1: str = Form(''), t_leaf_1: str = Form(''),
-    cassette_id_2: int = Form(3), weight_g_2: str = Form(''), pct_soil_2: str = Form(''), t_leaf_2: str = Form('')
-):
-    """Окончательное групповое сохранение всей триады кассет с учетом выбранных/распознанных ID."""
+async def handle_batch_save_final(request: Request):
+    """Окончательное групповое сохранение всей серии кассет с учетом выбранных/распознанных ID и тепловизора."""
     global BATCH_STATE
-    if not BATCH_STATE.get('active') or not BATCH_STATE.get('verified_data') or len(BATCH_STATE['verified_data']) != 3:
+    if not BATCH_STATE.get('active') or not BATCH_STATE.get('verified_data'):
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
-    
-    cassette_ids = [cassette_id_0, cassette_id_1, cassette_id_2]
-    weights = [weight_g_0, weight_g_1, weight_g_2]
-    pct_soils = [pct_soil_0, pct_soil_1, pct_soil_2]
-    t_leafs = [t_leaf_0, t_leaf_1, t_leaf_2]
-    
+
+    form = await request.form()
+    verified = BATCH_STATE['verified_data']
     records_to_save = []
-    for i, item in enumerate(BATCH_STATE['verified_data']):
+    for i, item in enumerate(verified):
         s = item['session']
-        cid = cassette_ids[i]
+        cid_raw = form.get(f'cassette_id_{i}')
+        cid = int(cid_raw) if (cid_raw and str(cid_raw).isdigit()) else item.get('assigned_id', i+1)
         c_meta = CASSETTE_CATALOG.get(cid, {'name': f'Кассета #{cid}'})
         group_name = c_meta['name']
         meas_id = s['id']
         ts_display = s['timestamp']
-        
-        w_val = weights[i].strip().replace(',', '.') if weights[i] else ''
-        t_l_val = t_leafs[i].strip().replace(',', '.') if t_leafs[i] else str(item['t_ocr'])
 
-        # Обновление влажности субстрата из подтвержденного оператором поля
-        if pct_soils[i].strip():
+        w_raw = form.get(f'weight_g_{i}', '')
+        w_val = str(w_raw).strip().replace(',', '.') if str(w_raw).strip() else ''
+
+        t_raw = form.get(f't_leaf_{i}', '')
+        t_l_val = str(t_raw).strip().replace(',', '.') if str(t_raw).strip() else str(item['t_ocr'])
+
+        pct_raw = form.get(f'pct_soil_{i}', '')
+        if str(pct_raw).strip():
             try:
-                ps = float(pct_soils[i].strip().replace(',', '.'))
+                ps = float(str(pct_raw).strip().replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
                 s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
             except Exception:
                 pass
-        
+
         delta_t_val = ''
         if t_l_val:
             try:
@@ -1062,17 +1065,16 @@ def handle_batch_save_final(
                 delta_t_val = str(dt)
             except Exception:
                 pass
-        
-        # Сохранение термограммы
+
         jpg_stored_name = ''
         src_thumb = os.path.join(STATIC_DIR, 'uti_cache', item['thermal_thumb'])
         if os.path.exists(src_thumb):
             jpg_stored_name = f"therm_{meas_id}_{item['thermal_filename']}.jpg"
             dst_path = os.path.join(STATIC_DIR, jpg_stored_name)
             shutil.copyfile(src_thumb, dst_path)
-            if i == 2:
+            if i == len(verified) - 1:
                 shutil.copyfile(dst_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
-        
+
         records_to_save.append({
             'cid': cid,
             'row': [
@@ -1084,23 +1086,23 @@ def handle_batch_save_final(
                 *s['cell_ndvis']
             ]
         })
-    
-    # Сортируем записи по ID кассеты перед сохранением в CSV
+
     records_to_save.sort(key=lambda r: r['cid'])
-    
+
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         for rec in records_to_save:
             writer.writerow(rec['row'])
-            
+
+    stage_name = BATCH_CONFIG.get(BATCH_STATE.get('stage_key', 'batch5'), {}).get('title', 'Пакетная серия')
     BATCH_STATE = {
         'active': False,
-        'stage_key': 'stage1',
+        'stage_key': 'batch5',
         'current_step': 0,
         'sessions': [],
         'verified_data': None
     }
-    return RedirectResponse(url='/?msg=batch_saved', status_code=303)
+    return RedirectResponse(url=f'/?msg=batch_saved&stage_name={stage_name}', status_code=303)
 
 
 def do_delete_measurement(meas_id: str):
@@ -1360,11 +1362,12 @@ def index(
 
     # ------------------ ЛОГИКА ЭТАПОВ (WIZARD) ------------------
     if stage == 'batch_shoot' and BATCH_STATE.get('active'):
-        # ПАКЕТНЫЙ ШАГ 1: Съемка 3 кассет NoIR + курок тепловизора
-        stage_key = BATCH_STATE.get('stage_key', 'stage1')
-        conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
+        # ПАКЕТНЫЙ ШАГ 1: Съемка кассет NoIR + курок тепловизора
+        stage_key = BATCH_STATE.get('stage_key', 'batch5')
+        conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['batch5'])
         cassettes = conf['cassettes']
         step_idx = len(BATCH_STATE.get('sessions', []))
+        total_steps = len(cassettes)
 
         slots_html = ''
         for i, c in enumerate(cassettes):
@@ -1379,26 +1382,26 @@ def index(
                     badge = '<span style="background:#fffbeb; color:#b45309; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">⚠️ Ручная</span>'
                     slot_title = f"Кадр #{i+1}"
                 slots_html += f'''
-                    <div style="flex:1; background:#ecfdf5; border:2px solid #10b981; border-radius:8px; padding:8px; text-align:center;">
-                        <span style="font-size:11px; color:#065f46; font-weight:bold; display:block;">✓ Снято #{i+1}</span>
-                        <span style="font-size:12px; color:#047857; font-weight:bold; display:block;">{slot_title}</span>
-                        <span style="font-size:11px; color:#059669; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{grp_name}</span>
+                    <div style="flex:1; background:#ecfdf5; border:2px solid #10b981; border-radius:8px; padding:6px 4px; text-align:center;">
+                        <span style="font-size:10px; color:#065f46; font-weight:bold; display:block;">✓ Снято #{i+1}</span>
+                        <span style="font-size:11px; color:#047857; font-weight:bold; display:block;">{slot_title}</span>
+                        <span style="font-size:10px; color:#059669; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{grp_name}</span>
                         {badge}
                     </div>
                 '''
             elif i == step_idx:
                 slots_html += f'''
-                    <div style="flex:1; background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:8px; text-align:center; box-shadow:0 2px 8px rgba(59,130,246,0.25);">
-                        <span style="font-size:11px; color:#1d4ed8; font-weight:bold; display:block;">👉 СЕЙЧАС В БОКСЕ</span>
-                        <span style="font-size:12px; color:#1e40af; font-weight:bold; display:block;">Кадр #{step_idx + 1} из 3</span>
-                        <span style="font-size:11px; color:#2563eb; font-weight:bold;">Любая кассета</span>
+                    <div style="flex:1; background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:6px 4px; text-align:center; box-shadow:0 2px 8px rgba(59,130,246,0.25);">
+                        <span style="font-size:10px; color:#1d4ed8; font-weight:bold; display:block;">👉 В БОКСЕ</span>
+                        <span style="font-size:11px; color:#1e40af; font-weight:bold; display:block;">#{step_idx + 1} из {total_steps}</span>
+                        <span style="font-size:10px; color:#2563eb; font-weight:bold;">Любая кассета</span>
                     </div>
                 '''
             else:
                 slots_html += f'''
-                    <div style="flex:1; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; opacity:0.65;">
-                        <span style="font-size:11px; color:#64748b; display:block;">Очередь #{i+1}</span>
-                        <span style="font-size:11px; color:#475569; font-weight:bold;">Кадр #{i+1}</span>
+                    <div style="flex:1; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:6px 4px; text-align:center; opacity:0.65;">
+                        <span style="font-size:10px; color:#64748b; display:block;">Очередь</span>
+                        <span style="font-size:10px; color:#475569; font-weight:bold;">Кадр #{i+1}</span>
                     </div>
                 '''
 
@@ -1407,10 +1410,10 @@ def index(
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
                         <div>
-                            <span style="font-size:10px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер триады (без проводов)</span>
+                            <span style="font-size:10px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер квинтета (без проводов)</span>
                             <h2 style="margin:2px 0 0 0; color:#1e40af; font-size:15px;">{conf["title"]}</h2>
                         </div>
-                        <span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Кадр {step_idx + 1} из 3</span>
+                        <span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Кадр {step_idx + 1} из {total_steps}</span>
                     </div>
 
                     <div style="display:flex; gap:6px; margin-bottom:10px;">
@@ -1420,7 +1423,7 @@ def index(
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; margin-bottom:10px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
                             <span style="font-size:13px; font-weight:bold; color:#0f172a;">
-                                Установите любую кассету в бокс (Кадр #{step_idx + 1} из 3)
+                                Установите любую кассету в бокс (Кадр #{step_idx + 1} из {total_steps})
                             </span>
                             <span style="background:#ecfdf5; color:#047857; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ Авто-ArUco</span>
                         </div>
@@ -1550,17 +1553,17 @@ def index(
             <div class="card" style="border: 2px solid #10b981; background: #ffffff;">
                 <div style="text-align:center; padding:6px 0 10px 0;">
                     <div style="font-size:28px; margin-bottom:2px;">🎉</div>
-                    <h2 style="margin:0; color:#065f46; font-size:17px;">Все 3 кассеты успешно отсняты и измерены!</h2>
+                    <h2 style="margin:0; color:#065f46; font-size:17px;">Все {len(BATCH_STATE.get('sessions', []))} кассет успешно отсняты и измерены!</h2>
                     <span style="font-size:12px; color:#047857;">{conf["title"]}</span>
                 </div>
 
                 <form action="/api/batch_save_manual" method="post">
-                    <div style="display:flex; gap:8px; margin-bottom:14px;">
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:14px;">
                         {cards_summary}
                     </div>
 
                     <button type="submit" class="btn-confirm" style="width:100%; padding:15px; font-size:16px; background:linear-gradient(135deg, #059669, #00a499); cursor:pointer; box-shadow:0 4px 14px rgba(0,164,153,0.35);">
-                        ✅ ВСЁ ГОТОВО — СОХРАНИТЬ ВСЮ ТРИАДУ В ЖУРНАЛ (БЕЗ ТЕПЛОВИЗОРА)
+                        ✅ ВСЁ ГОТОВО — СОХРАНИТЬ ВСЕ {len(BATCH_STATE.get('sessions', []))} КАССЕТ В ЖУРНАЛ (БЕЗ ТЕПЛОВИЗОРА)
                     </button>
                 </form>
 
@@ -1662,7 +1665,7 @@ def index(
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); background: #f8fafc;">
                 <div style="border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
-                    <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Финальная верификация триады (отсортировано по ArUco)</span>
+                    <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Финальная верификация серии (отсортировано по ArUco)</span>
                     <h2 style="margin:2px 0 0 0; color:var(--sirius-teal-dark); font-size:16px;">{conf["title"]}</h2>
                 </div>
 
@@ -1670,7 +1673,7 @@ def index(
                     {items_html}
 
                     <button type="submit" class="btn-confirm" style="width:100%; padding:14px; font-size:16px; background:linear-gradient(135deg, #059669, #00a499); box-shadow:0 4px 14px rgba(0,164,153,0.35); margin-top:8px; cursor:pointer;">
-                        ✅ ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ ВСЮ ТРИАДУ В БАЗУ (3 ЗАМЕРА)
+                        ✅ ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ ВСЮ СЕРИЮ В БАЗУ ({len(verified)} ЗАМЕРОВ)
                     </button>
 
                     <div style="margin-top:10px; text-align:center;">
@@ -1795,55 +1798,45 @@ def index(
         '''
 
     else:
-        # ЭТАП IDLE: ВЫБОР РЕЖИМА ЗАМЕРА (ПАКЕТНЫЙ 3-В-1 ИЛИ ОДИНОЧНЫЙ)
+        # ЭТАП IDLE: ВЫБОР РЕЖИМА ЗАМЕРА (ЕДИНЫЙ КВИНТЕТ 5-В-1 ИЛИ ОДИНОЧНЫЙ)
         wizard_card = f'''
-            <div class="card" style="border: 2px solid var(--sirius-teal);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">🚀 Пакетный замер триады кассет (3-в-1)</h2>
-                    <span style="background:#e0f2fe; color:#0369a1; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">1 подключение кабеля</span>
+            <div class="card" style="border: 2px solid var(--sirius-teal); margin:0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:15px;">🚀 Единый пакетный замер квинтета (5-в-1)</h2>
+                    <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">1 подключение кабеля</span>
                 </div>
-                <p style="font-size: 12px; color: #475569; margin: 0 0 14px 0; line-height:1.4;">
-                    Выберите исследуемый этап. Станция последовательно снимет 3 кассеты, а провод тепловизора подключается <b>всего один раз в конце</b>:
+                <p style="font-size: 11px; color: #475569; margin: 0 0 10px 0; line-height:1.35;">
+                    Станция последовательно снимет все 5 кассет (NoIR + ArUco), а провод тепловизора подключается <b>всего один раз в конце серии</b>:
                 </p>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
-                    <!-- Кнопка Этап 1 -->
-                    <a href="/api/start_batch?stage=stage1" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488, #059669); color:white; padding:14px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.25);">
-                        <span style="font-size:20px; display:block; margin-bottom:4px;">🔬</span>
-                        <b style="font-size:14px; display:block;">ЭТАП 1: СКРИНИНГ</b>
-                        <span style="font-size:11px; opacity:0.95; display:block; margin-top:3px;">Кассеты 1, 2, 3</span>
-                        <span style="font-size:10px; opacity:0.85; display:block; margin-top:2px;">Контроль • Засуха • Соль</span>
-                    </a>
+                <!-- Главная кнопка запуска квинтета -->
+                <a href="/api/start_batch?stage=batch5" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488 0%, #059669 45%, #2563eb 100%); color:white; padding:12px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.3); transition:all 0.2s;">
+                    <span style="font-size:18px; display:block; margin-bottom:2px;">🌿🔬</span>
+                    <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР КВИНТЕТА (5-В-1)</b>
+                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">К1 Контроль • К2 Соль • К3 Прибор • К4 Глаза • К5 Гибель</span>
+                </a>
 
-                    <!-- Кнопка Этап 2 -->
-                    <a href="/api/start_batch?stage=stage2" style="text-decoration:none; display:block; background:linear-gradient(135deg, #2563eb, #3b82f6); color:white; padding:14px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(37,99,235,0.25);">
-                        <span style="font-size:20px; display:block; margin-bottom:4px;">🌱</span>
-                        <b style="font-size:14px; display:block;">ЭТАП 2: РЕГИДРАТАЦИЯ</b>
-                        <span style="font-size:11px; opacity:0.95; display:block; margin-top:3px;">Кассеты 4, 5, 6</span>
-                        <span style="font-size:10px; opacity:0.85; display:block; margin-top:2px;">Эталон • Репарация • Крит. стресс</span>
-                    </a>
+                <!-- Памятка по изолятору соли -->
+                <div style="margin-top:8px; padding:6px 10px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; font-size:10px; color:#5b21b6; line-height:1.3;">
+                    💡 <b>Биобезопасность:</b> Кассеты 1, 3, 4, 5 стоят в общем лотке. Кассета №2 (Соль) установлена в <b>отдельном лотке-изоляторе</b> для защиты дренажа от перекрестного засоления.
                 </div>
 
                 <!-- Выпадающий одиночный замер -->
-                <details style="border-top:1px solid #e2e8f0; padding-top:10px; margin-top:8px;">
-                    <summary style="cursor:pointer; color:#64748b; font-size:12px; font-weight:bold;">
-                        ⚙️ Одиночный замер (для выборочной пересъемки одной кассеты)
+                <details style="border-top:1px solid #e2e8f0; padding-top:8px; margin-top:8px;">
+                    <summary style="cursor:pointer; color:#64748b; font-size:11px; font-weight:bold;">
+                        ⚙️ Выборочный одиночный замер одной кассеты
                     </summary>
-                    <form action="/api/start_spectral" method="post" style="margin-top:10px;">
-                        <select name="group_name" style="margin-bottom:8px;">
-                            <optgroup label="── ЭТАП 1: Скрининг стрессов ──">
-                                <option value="Контроль">Кассета 1: КОНТРОЛЬ</option>
-                                <option value="Засуха">Кассета 2: ЗАСУХА</option>
-                                <option value="Соль">Кассета 3: СОЛЬ (NaCl 1.0%)</option>
-                            </optgroup>
-                            <optgroup label="── ЭТАП 2: Спасение и регидратация ──">
-                                <option value="Эталон (Оптимум)">Кассета 4: ЭТАЛОН (ОПТИМУМ)</option>
-                                <option value="Репарация (~40ч)">Кассета 5: РЕПАРАЦИЯ (~40ч)</option>
-                                <option value="Критический стресс (~72ч)">Кассета 6: КРИТИЧЕСКИЙ СТРЕСС (~72ч)</option>
-                            </optgroup>
+                    <form action="/api/start_spectral" method="post" style="margin-top:8px;">
+                        <select name="group_name" style="margin-bottom:6px; font-size:12px;">
+                            <option value="Контроль">Кассета 1: 🌱 Контроль (Оптимум 100% ПВ)</option>
+                            <option value="Засоление (NaCl)">Кассета 2: 🧂 Засоление (NaCl 150 мМ, изолятор)</option>
+                            <option value="Спасение по прибору">Кассета 3: 🔬 Спасение по прибору (Доклинический полив)</option>
+                            <option value="Спасение по глазам">Кассета 4: 👁️ Спасение по глазам (Поздний полив)</option>
+                            <option value="Терминальная засуха">Кассета 5: ⚠️ Терминальная засуха (Точка невозврата)</option>
+                            <option value="Калибровка (Стенд №0)">Кассета 6: 🛠️ Калибровка (Стенд №0, посев 22.09)</option>
                         </select>
-                        <button type="submit" class="btn-run" style="padding:10px; font-size:13px;">
-                            📸 Снять одну кассету в боксе
+                        <button type="submit" class="btn-run" style="padding:8px; font-size:12px; margin-top:0;">
+                            📸 Снять выбранную кассету в боксе
                         </button>
                     </form>
                 </details>
@@ -1857,11 +1850,10 @@ def index(
             all_r = list(csv.reader(f))
             if len(all_r) > 1:
                 rows = all_r[1:]
-    # Экспресс-статистика когорт для левого блока (6 кассет, 2 этапа)
-    cnt_ctrl, cnt_drought, cnt_salt = 0, 0, 0
-    cnt_ctrl2, cnt_early, cnt_late = 0, 0, 0
-    ndvis_ctrl, ndvis_drought, ndvis_salt = [], [], []
-    ndvis_ctrl2, ndvis_early, ndvis_late = [], [], []
+
+    # Экспресс-статистика 5 когорт
+    cnt_ctrl, cnt_salt, cnt_inst, cnt_eye, cnt_term = 0, 0, 0, 0, 0
+    ndvis_ctrl, ndvis_salt, ndvis_inst, ndvis_eye, ndvis_term = [], [], [], [], []
 
     for r in rows:
         if len(r) > 2:
@@ -1877,108 +1869,87 @@ def index(
             except (ValueError, TypeError):
                 pass
 
-            if 'эталон' in grp_l or 'оптимум' in grp_l or (('контр' in grp_l or 'control' in grp_l) and ('2' in grp_l or 'этап 2' in grp_l)):
-                cnt_ctrl2 += 1
-                if ndvi_val is not None: ndvis_ctrl2.append(ndvi_val)
-            elif 'контр' in grp_l or 'control' in grp_l:
-                cnt_ctrl += 1
-                if ndvi_val is not None: ndvis_ctrl.append(ndvi_val)
-            elif 'репар' in grp_l or 'ранн' in grp_l or 'early' in grp_l:
-                cnt_early += 1
-                if ndvi_val is not None: ndvis_early.append(ndvi_val)
-            elif 'критич' in grp_l or 'поздн' in grp_l or 'late' in grp_l:
-                cnt_late += 1
-                if ndvi_val is not None: ndvis_late.append(ndvi_val)
-            elif 'засух' in grp_l or 'drought' in grp_l:
-                cnt_drought += 1
-                if ndvi_val is not None: ndvis_drought.append(ndvi_val)
+            if 'прибор' in grp_l or 'станци' in grp_l or 'репар' in grp_l:
+                cnt_inst += 1
+                if ndvi_val is not None: ndvis_inst.append(ndvi_val)
+            elif 'глаз' in grp_l or 'визуал' in grp_l or 'поздн' in grp_l:
+                cnt_eye += 1
+                if ndvi_val is not None: ndvis_eye.append(ndvi_val)
+            elif 'терминал' in grp_l or 'гибель' in grp_l or 'некроз' in grp_l or ('засух' in grp_l and 'спасени' not in grp_l):
+                cnt_term += 1
+                if ndvi_val is not None: ndvis_term.append(ndvi_val)
             elif 'сол' in grp_l or 'salin' in grp_l:
                 cnt_salt += 1
                 if ndvi_val is not None: ndvis_salt.append(ndvi_val)
+            elif 'контр' in grp_l or 'control' in grp_l or 'эталон' in grp_l or 'оптимум' in grp_l:
+                cnt_ctrl += 1
+                if ndvi_val is not None: ndvis_ctrl.append(ndvi_val)
 
-    m_ctrl_val = sum(ndvis_ctrl)/len(ndvis_ctrl) if ndvis_ctrl else 0.74
-    m_ctrl = f"{m_ctrl_val:.3f}" if ndvis_ctrl else "--"
-    m_drought = f"{sum(ndvis_drought)/len(ndvis_drought):.3f}" if ndvis_drought else "--"
-    m_salt = f"{sum(ndvis_salt)/len(ndvis_salt):.3f}" if ndvis_salt else "--"
+    def mean_s(lst, default="--"):
+        return f"{sum(lst)/len(lst):.3f}" if lst else default
 
-    m_ctrl2_val = sum(ndvis_ctrl2)/len(ndvis_ctrl2) if ndvis_ctrl2 else m_ctrl_val
-    m_ctrl2 = f"{m_ctrl2_val:.3f}" if ndvis_ctrl2 else (f"~{m_ctrl}" if ndvis_ctrl else "--")
+    m_ctrl_ndvi = mean_s(ndvis_ctrl, "0.760" if not rows else "--")
+    m_salt_ndvi = mean_s(ndvis_salt, "--")
+    m_inst_ndvi = mean_s(ndvis_inst, "--")
+    m_eye_ndvi = mean_s(ndvis_eye, "--")
+    m_term_ndvi = mean_s(ndvis_term, "--")
 
-    m_early_val = sum(ndvis_early)/len(ndvis_early) if ndvis_early else None
-    m_late_val = sum(ndvis_late)/len(ndvis_late) if ndvis_late else None
+    eff_badge = "100% тургор"
+    if ndvis_inst and ndvis_eye:
+        diff_pct = round(((sum(ndvis_inst)/len(ndvis_inst)) - (sum(ndvis_eye)/len(ndvis_eye))) / (sum(ndvis_inst)/len(ndvis_inst)) * 100, 1)
+        eff_badge = f"+{diff_pct}% сохранность" if diff_pct > 0 else "0% потерь"
 
-    base_ref = m_ctrl2_val if m_ctrl2_val else m_ctrl_val
-    k_rec_early = f"{round((m_early_val / base_ref) * 100, 1)}%" if m_early_val and base_ref else "98.2%"
-    k_rec_late = f"{round((m_late_val / base_ref) * 100, 1)}%" if m_late_val and base_ref else "54.1%"
-    m_early = f"{m_early_val:.3f}" if m_early_val else "--"
-    m_late = f"{m_late_val:.3f}" if m_late_val else "--"
-
-    # Фильтрация строк по выбранной фазе для таблицы
-    filtered_rows = []
-    for r in rows:
-        if len(r) > 2:
-            gl = r[2].strip().lower()
-            is_p2 = ('репар' in gl or 'ранн' in gl or 'early' in gl or 'критич' in gl or 'поздн' in gl or 'late' in gl or 'эталон' in gl or 'оптимум' in gl or (('контр' in gl or 'control' in gl) and ('2' in gl or 'этап 2' in gl)))
-            if phase == '1' and is_p2:
-                continue
-            if phase == '2' and not is_p2:
-                continue
-            filtered_rows.append(r)
+    filtered_rows = rows
 
     summary_card = f'''
-        <div class="card" style="margin-top: 0;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:8px; margin-bottom:10px;">
-                <h2 style="margin:0; font-size:15px; border:none; padding:0; color:var(--sirius-teal-dark);">📊 Экспресс-сводка фаз</h2>
-                <span style="background:#f0fdfa; border:1px solid var(--sirius-teal); color:var(--sirius-teal-dark); padding:2px 10px; border-radius:12px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
+        <div class="card" style="margin-top: 0; padding:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
+                <h2 style="margin:0; font-size:14px; border:none; padding:0; color:var(--sirius-teal-dark);">📊 Экспресс-сводка: 5 когорт эксперимента</h2>
+                <span style="background:#f0fdfa; border:1px solid var(--sirius-teal); color:var(--sirius-teal-dark); padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-                <!-- ЭТАП 1: СКРИНИНГ -->
-                <div>
-                    <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 1: Скрининг стрессов (Кассеты 1–3)</div>
-                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center;">
-                        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Контроль</div>
-                            <div style="font-size:15px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl}</div>
-                            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl}</b></div>
-                        </div>
-                        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#92400e; font-weight:bold;">🍂 Засуха</div>
-                            <div style="font-size:15px; font-weight:bold; color:#b45309; margin:1px 0;">{cnt_drought}</div>
-                            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#d97706;">{m_drought}</b></div>
-                        </div>
-                        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🧂 Соль</div>
-                            <div style="font-size:15px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt}</div>
-                            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt}</b></div>
-                        </div>
-                    </div>
+            <!-- ВЕРХНИЙ РЯД: 3 БАЗОВЫХ СОСТОЯНИЯ -->
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:8px;">
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 К1: Контроль</div>
+                    <div style="font-size:14px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl}</div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl_ndvi}</b></div>
                 </div>
+                <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🧂 К2: Засоление</div>
+                    <div style="font-size:14px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt}</div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt_ndvi}</b></div>
+                </div>
+                <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ К5: Гибель</div>
+                    <div style="font-size:14px; font-weight:bold; color:#e11d48; margin:1px 0;">{cnt_term}</div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#dc2626;">{m_term_ndvi}</b></div>
+                </div>
+            </div>
 
-                <!-- ЭТАП 2: РЕГИДРАТАЦИЯ -->
-                <div>
-                    <div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Этап 2: Тест регидратации и репарации (Кассеты 4–6)</div>
-                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; text-align:center;">
-                        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#065f46; font-weight:bold;">🌱 Эталон (Оптимум)</div>
-                            <div style="font-size:15px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl2}</div>
-                            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl2}</b></div>
-                        </div>
-                        <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#0f766e; font-weight:bold;">💧 Репарация (~40ч)</div>
-                            <div style="font-size:13px; font-weight:bold; color:#0d9488; margin:2px 0;">{k_rec_early}</div>
-                            <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_early}</b></div>
-                        </div>
-                        <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:8px; padding:6px 2px;">
-                            <div style="font-size:10px; color:#be123c; font-weight:bold;">⚠️ Крит. стресс (~72ч)</div>
-                            <div style="font-size:13px; font-weight:bold; color:#e11d48; margin:2px 0;">{k_rec_late}</div>
-                            <div style="font-size:10px; color:#475569;">Замеров: <b>{cnt_late}</b></div>
-                        </div>
+            <!-- НИЖНИЙ РЯД: ДУЭЛЬ ПРИБОР VS ЧЕЛОВЕК -->
+            <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:6px 8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <span style="font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">⚔️ Дуэль: Прибор vs Человеческий глаз</span>
+                    <span style="background:#ecfdf5; color:#047857; font-size:9px; font-weight:bold; padding:1px 5px; border-radius:4px; border:1px solid #a7f3d0;">{eff_badge}</span>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; text-align:center;">
+                    <div style="background:#ffffff; border:1.5px solid #10b981; border-radius:6px; padding:5px 4px;">
+                        <div style="font-size:10px; color:#047857; font-weight:bold;">🔬 К3: Спасение прибором</div>
+                        <div style="font-size:13px; font-weight:bold; color:#059669; margin:1px 0;">{cnt_inst} <span style="font-size:10px; font-weight:normal; color:#64748b;">зам.</span></div>
+                        <div style="font-size:10px; color:#334155;">NDVI: <b style="color:#059669;">{m_inst_ndvi}</b></div>
+                        <div style="font-size:9px; color:#047857; font-weight:600; margin-top:2px;">Доклинический полив</div>
+                    </div>
+                    <div style="background:#ffffff; border:1.5px solid #f59e0b; border-radius:6px; padding:5px 4px;">
+                        <div style="font-size:10px; color:#b45309; font-weight:bold;">👁️ К4: Спасение глазами</div>
+                        <div style="font-size:13px; font-weight:bold; color:#d97706; margin:1px 0;">{cnt_eye} <span style="font-size:10px; font-weight:normal; color:#64748b;">зам.</span></div>
+                        <div style="font-size:10px; color:#334155;">NDVI: <b style="color:#d97706;">{m_eye_ndvi}</b></div>
+                        <div style="font-size:9px; color:#b45309; font-weight:600; margin-top:2px;">Визуальное увядание</div>
                     </div>
                 </div>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-top:8px;">
                 <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
                     📥 Экспорт базы (.CSV)
                 </a>
