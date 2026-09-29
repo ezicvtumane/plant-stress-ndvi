@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+import shutil
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -17,22 +18,41 @@ else:
 
 STATIC_DIR = os.path.join(LOCAL_DIR, 'static')
 ARUCO_DIR = os.path.join(STATIC_DIR, 'aruco')
+DOCS_DIR = os.path.join(LOCAL_DIR, 'docs')
+USER_DOCS_DIR = r"C:\Users\Администратор\Documents"
 os.makedirs(ARUCO_DIR, exist_ok=True)
+os.makedirs(DOCS_DIR, exist_ok=True)
+os.makedirs(USER_DOCS_DIR, exist_ok=True)
 
+# 5 основных когорт биологического эксперимента (синхронный посев 29.09.2026)
 ARUCO_CASSETTES = [
-    (1, "Кассета №1: 🌱 КОНТРОЛЬ", "Оптимальный полив водой (100% ПВ)", "#059669", colors.HexColor("#059669")),
-    (2, "Кассета №2: 🧂 ЗАСОЛЕНИЕ", "150 мМ NaCl (В отдельном лотке!)", "#b45309", colors.HexColor("#b45309")),
-    (3, "Кассета №3: 🔬 СПАСЕНИЕ ПРИБОР", "Засуха -> Полив по алерту комплекса (~40ч)", "#0284c7", colors.HexColor("#0284c7")),
-    (4, "Кассета №4: 👁️ СПАСЕНИЕ ВИЗУАЛ", "Засуха -> Полив при поникании листьев (~72ч)", "#6d28d9", colors.HexColor("#6d28d9")),
-    (5, "Кассета №5: ⚠️ ТЕРМИНАЛ", "Без полива 96+ ч (до гибели ткани)", "#b91c1c", colors.HexColor("#b91c1c")),
-    (6, "Кассета №6: 🎯 СТЕНД №0", "Посев 22.09.2026 (калибровка оптики и OCR)", "#475569", colors.HexColor("#475569")),
+    (1, "Кассета №1: КОНТРОЛЬ (Оптимум)", 
+        "Оптимальный полив чистой водой (100% ПВ), базовый физиологический эталон", 
+        "Регламент: регулярный полив водой 20 мл", 
+        "#059669", colors.HexColor("#059669"), "🌱"),
+    (2, "Кассета №2: ЗАСОЛЕНИЕ (150 мМ NaCl)", 
+        "Осмотический стресс. КРИТИЧЕСКИ ВАЖНО: отдельный герметичный лоток-поддон!", 
+        "Регламент: 150 мМ NaCl, строго изолированный поддон!", 
+        "#b45309", colors.HexColor("#b45309"), "🧂"),
+    (3, "Кассета №3: СПАСЕНИЕ ПО ПРИБОРУ", 
+        "Засуха -> доклинический полив по алерту станции (ΔT > +0.8°C, ~40 ч, до увядания)", 
+        "Регламент: полив водой строго по первому сигналу тревоги комплекса", 
+        "#0284c7", colors.HexColor("#0284c7"), "🔬"),
+    (4, "Кассета №4: СПАСЕНИЕ ПО ГЛАЗАМ", 
+        "Засуха -> полив только при явном визуальном поникании листьев (72–84 ч, традиционно)", 
+        "Регламент: полив водой при видимой потере тургора (опоздание на 36–48 ч)", 
+        "#6d28d9", colors.HexColor("#6d28d9"), "👁️"),
+    (5, "Кассета №5: ТЕРМИНАЛЬНАЯ ЗАСУХА", 
+        "Без полива 96+ ч (оцифровка кривой деградации ткани и точки невозврата)", 
+        "Регламент: полное прекращение полива до гибели растений", 
+        "#b91c1c", colors.HexColor("#b91c1c"), "⚠️"),
 ]
 
 # Получаем словарь ArUco 4x4
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50) if hasattr(cv2.aruco, 'getPredefinedDictionary') else cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
 
-# Генерируем 6 PNG маркеров с белой рамкой (Quiet Zone)
-for m_id, name, desc, hex_color, _ in ARUCO_CASSETTES:
+# Генерируем PNG маркеров с белой рамкой (Quiet Zone)
+for m_id, name, desc, reg, hex_color, _, _ in ARUCO_CASSETTES:
     if hasattr(aruco_dict, 'generateImageMarker'):
         marker_raw = aruco_dict.generateImageMarker(m_id, 300)
     else:
@@ -46,70 +66,88 @@ for m_id, name, desc, hex_color, _ in ARUCO_CASSETTES:
     buf.tofile(png_path)
     print(f'Created {png_path}')
 
-# Создаем HTML-версию листа
+# ==============================================================================
+# 1. HTML-ВЕРСИЯ ЛИСТА МАРКЕРОВ
+# ==============================================================================
 html_content = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Лист ArUco-маркеров для кассет | Сириус Большие вызовы</title>
+    <title>Лист ArUco-маркеров для 5 кассет | Сириус Большие вызовы</title>
     <style>
-        @page {{ size: A4 portrait; margin: 12mm 15mm; }}
-        body {{ font-family: 'Segoe UI', -apple-system, Roboto, sans-serif; color: #0f172a; margin: 0; padding: 0; background: #ffffff; }}
-        .header {{ text-align: center; border-bottom: 2px solid #00a499; padding-bottom: 10px; margin-bottom: 14px; }}
-        .header h1 {{ font-size: 18px; margin: 0 0 4px 0; color: #008276; }}
-        .header p {{ font-size: 11px; color: #475569; margin: 0; }}
-        .instructions {{ background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 11px; color: #0f766e; line-height: 1.45; }}
-        .grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }}
-        .marker-card {{ border: 1.5px dashed #94a3b8; border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 14px; background: #ffffff; box-sizing: border-box; page-break-inside: avoid; }}
-        .marker-img-wrap {{ width: 85px; height: 85px; border: 1px solid #e2e8f0; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }}
-        .marker-img-wrap img {{ width: 80px; height: 80px; image-rendering: pixelated; }}
-        .marker-info {{ flex: 1; }}
-        .marker-tag {{ display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-bottom: 4px; color: #ffffff; }}
-        .marker-title {{ font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }}
-        .marker-desc {{ font-size: 11px; color: #64748b; margin-bottom: 6px; }}
-        .marker-size-hint {{ font-size: 9.5px; color: #94a3b8; font-family: monospace; }}
-        .cut-mark {{ font-size: 10px; color: #94a3b8; margin-top: 4px; font-family: monospace; }}
-        .print-btn {{ display: block; margin: 0 auto 16px auto; padding: 10px 24px; background: #00a499; color: #ffffff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }}
-        @media print {{ .print-btn {{ display: none; }} }}
+        @page {{ size: A4 portrait; margin: 10mm 12mm; }}
+        * {{ box-sizing: border-box; }}
+        body {{ font-family: 'Segoe UI', -apple-system, Roboto, sans-serif; color: #0f172a; margin: 0; padding: 0; background: #ffffff; line-height: 1.3; }}
+        .container {{ width: 100%; max-width: 780px; margin: 0 auto; }}
+        .header {{ text-align: center; border-bottom: 2px solid #00a499; padding-bottom: 8px; margin-bottom: 10px; }}
+        .header h1 {{ font-size: 16px; margin: 0 0 4px 0; color: #008276; letter-spacing: 0.2px; }}
+        .header p {{ font-size: 10.5px; color: #475569; margin: 0 0 2px 0; }}
+        .instructions {{ background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 10.5px; color: #0f766e; line-height: 1.35; }}
+        .cards-list {{ display: flex; flex-direction: column; gap: 9px; }}
+        .marker-card {{ border: 1.5px dashed #cbd5e1; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; background: #ffffff; page-break-inside: avoid; }}
+        .marker-slot {{ display: flex; flex-direction: column; align-items: center; justify-content: center; width: 78px; flex-shrink: 0; }}
+        .marker-img-wrap {{ width: 72px; height: 72px; border: 1px solid #e2e8f0; background: #ffffff; display: flex; align-items: center; justify-content: center; }}
+        .marker-img-wrap img {{ width: 68px; height: 68px; image-rendering: pixelated; }}
+        .marker-label {{ font-size: 8px; color: #64748b; font-family: monospace; margin-top: 3px; }}
+        .marker-info {{ flex: 1; padding: 0 14px; min-width: 0; }}
+        .marker-tag {{ display: inline-block; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 3px; margin-bottom: 3px; color: #ffffff; }}
+        .marker-title {{ font-size: 12.5px; font-weight: 700; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+        .marker-desc {{ font-size: 10px; color: #334155; margin-bottom: 2px; }}
+        .marker-reg {{ font-size: 9.5px; color: #0f766e; font-weight: 600; }}
+        .marker-hint {{ font-size: 8.5px; color: #94a3b8; font-family: monospace; margin-top: 2px; }}
+        .footer {{ margin-top: 10px; font-size: 9px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 6px; }}
+        .print-btn {{ display: block; margin: 0 auto 12px auto; padding: 9px 22px; background: #00a499; color: #ffffff; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; }}
+        @media print {{ .print-btn {{ display: none; }} body {{ padding: 0; }} }}
     </style>
 </head>
 <body>
-    <button class="print-btn" onclick="window.print()">🖨️ РАСПЕЧАТАТЬ МАРКЕРЫ НА А4 (Ctrl + P)</button>
-    <div class="header">
-        <h1>Фидуциальные ArUco-маркеры оптического позиционирования кассет</h1>
-        <p>Оптико-электронный комплекс · Всероссийский конкурс «Большие вызовы» (Сириус) · Трек «Агропромышленные и биотехнологии»</p>
-    </div>
-    <div class="instructions">
-        <b>Инструкция по маркировке кассет:</b><br>
-        1. Распечатайте этот лист на принтере в масштабе <b>100%</b> (без сжатия полей);<br>
-        2. Вырежьте маркеры по пунктирным линиям (внешний габарит ~22×22 мм);<br>
-        3. Наклейте маркер на левый верхний бортик соответствующей пластиковой кассеты 3×3;<br>
-        4. Защитите маркер прозрачной полоской скотча от попадания капель воды и влажного грунта;<br>
-        5. При установке кассеты в бокс NoIR-камера комплекса автоматически распознает маркер и привяжет замер к нужной когорте!
-    </div>
-    <div class="grid">
+    <div class="container">
+        <button class="print-btn" onclick="window.print()">🖨️ РАСПЕЧАТАТЬ МАРКЕРЫ НА А4 (Ctrl + P)</button>
+        <div class="header">
+            <h1>Фидуциальные ArUco-маркеры оптического позиционирования кассет</h1>
+            <p>Комплект для 5 экспериментальных когорт (Синхронный посев 29.09.2026, кассеты 3×3)</p>
+            <p>Оптико-электронный комплекс · Конкурс «Большие вызовы» ОЦ «Сириус» · Ковалева Алиса (10 класс)</p>
+        </div>
+        <div class="instructions">
+            <b>Инструкция по маркировке 5 кассет:</b><br>
+            1. Распечатайте лист в масштабе <b>100%</b> (без сжатия полей А4). Для каждой кассеты даны <b>2 маркера</b> (основной и дубликат).<br>
+            2. Вырежьте маркеры по пунктиру (~25×25 мм) и наклейте на противоположные уголки бортика соответствующей пластиковой кассеты 3×3.<br>
+            3. Защитите каждый маркер прозрачной полоской скотча для защиты от капель воды при поливе.<br>
+            4. При установке кассеты в бокс любой стороной NoIR-камера автоматически распознает маркер и привяжет замер к когорте!
+        </div>
+        <div class="cards-list">
 """
 
-for m_id, name, desc, hex_color, _ in ARUCO_CASSETTES:
+for m_id, name, desc, reg, hex_color, _, emoji in ARUCO_CASSETTES:
     html_content += f"""
-        <div class="marker-card">
-            <div class="marker-img-wrap">
-                <img src="/static/aruco/aruco_{m_id}.png" alt="ArUco {m_id}">
+            <div class="marker-card">
+                <div class="marker-slot">
+                    <div class="marker-img-wrap">
+                        <img src="/static/aruco/aruco_{m_id}.png" alt="ArUco {m_id}">
+                    </div>
+                    <div class="marker-label">№{m_id} (Основной)</div>
+                </div>
+                <div class="marker-info">
+                    <span class="marker-tag" style="background:{hex_color};">ArUco ID #{m_id} (DICT_4X4_50)</span>
+                    <div class="marker-title">{emoji} {name}</div>
+                    <div class="marker-desc">{desc}</div>
+                    <div class="marker-reg">📌 {reg}</div>
+                    <div class="marker-hint">✂ Габарит: 20×20 мм · Наклейка на левый верхний угол бортика кассеты</div>
+                </div>
+                <div class="marker-slot">
+                    <div class="marker-img-wrap">
+                        <img src="/static/aruco/aruco_{m_id}.png" alt="ArUco {m_id}">
+                    </div>
+                    <div class="marker-label">№{m_id} (Резерв)</div>
+                </div>
             </div>
-            <div class="marker-info">
-                <span class="marker-tag" style="background:{hex_color};">ArUco ID #{m_id} (DICT_4X4_50)</span>
-                <div class="marker-title">{name}</div>
-                <div class="marker-desc">{desc}</div>
-                <div class="marker-size-hint">Размер: 20×20 мм (угол кассеты)</div>
-                <div class="cut-mark">✂ Вырезать по внешнему контуру</div>
-            </div>
-        </div>
     """
 
 html_content += """
-    </div>
-    <div style="margin-top:20px; font-size:10px; color:#94a3b8; text-align:center; border-top:1px solid #e2e8f0; padding-top:8px;">
-        Алгоритм оптической субпиксельной привязки: OpenCV cv2.aruco · Словарь DICT_4X4_50 · Автор: Ковалева Алиса (10 класс)
+        </div>
+        <div class="footer">
+            Субпиксельная оптическая автопривязка: OpenCV cv2.aruco · Словарь DICT_4X4_50 · Радиометрический эталон 25.0×25.0 мм (6.25 см²)
+        </div>
     </div>
 </body>
 </html>
@@ -120,116 +158,151 @@ with open(sheet_html_path, 'w', encoding='utf-8') as f:
     f.write(html_content)
 print(f'Created printable HTML: {sheet_html_path}')
 
-# Создаем высокоточный PDF через ReportLab
+# ==============================================================================
+# 2. ВЫСОКОТОЧНЫЙ PDF ЧЕРЕЗ REPORTLAB С БЕЗУПРЕЧНЫМ ВЫРАВНИВАНИЕМ
+# ==============================================================================
 font_paths = ['C:/Windows/Fonts/arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']
 font_name = 'Helvetica'
+font_bold = 'Helvetica-Bold'
 for p in font_paths:
     if os.path.exists(p):
         try:
             pdfmetrics.registerFont(TTFont('CyrillicFont', p))
             font_name = 'CyrillicFont'
+            # Проверяем наличие arialbd
+            bold_p = p.replace('arial.ttf', 'arialbd.ttf').replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')
+            if os.path.exists(bold_p):
+                pdfmetrics.registerFont(TTFont('CyrillicFontBold', bold_p))
+                font_bold = 'CyrillicFontBold'
+            else:
+                font_bold = 'CyrillicFont'
             break
         except Exception:
             pass
 
 pdf_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.pdf')
 c = canvas.Canvas(pdf_path, pagesize=A4)
-w, h = A4
+w, h = A4  # 595.27 x 841.89 pt
 
-# Заголовок
+# Безопасные симметричные поля
+margin_x = 35
+content_w = w - 2 * margin_x  # 525.27 pt
+
+# 1. Заголовок (13 pt - гарантированно входит в ширину страницы без обрезания)
 c.setFillColor(colors.HexColor('#008276'))
-c.setFont(font_name, 16)
-c.drawCentredString(w / 2, h - 35, "Фидуциальные ArUco-маркеры оптического позиционирования кассет")
+c.setFont(font_bold, 13.5)
+c.drawCentredString(w / 2, h - 32, "Фидуциальные ArUco-маркеры оптического позиционирования кассет")
 
+# 2. Подзаголовки
 c.setFillColor(colors.HexColor('#475569'))
-c.setFont(font_name, 9)
-c.drawCentredString(w / 2, h - 48, "Оптико-электронный комплекс · Всероссийский конкурс «Большие вызовы» ОЦ «Сириус»")
-c.drawCentredString(w / 2, h - 60, "Направление «Агропромышленные и биотехнологии» · Автор: Ковалева Алиса (10 класс, СОШ №282 СПб)")
+c.setFont(font_name, 8.5)
+c.drawCentredString(w / 2, h - 45, "Комплект для 5 экспериментальных когорт (Синхронный посев 29.09.2026, кассеты 3x3 по 9 растений)")
+c.drawCentredString(w / 2, h - 56, "Оптико-электронный комплекс · Конкурс «Большие вызовы» ОЦ «Сириус» · Ковалева Алиса (10 класс)")
 
-# Разделительная линия
+# 3. Разделительная линия
 c.setStrokeColor(colors.HexColor('#00a499'))
 c.setLineWidth(1.5)
-c.line(35, h - 68, w - 35, h - 68)
+c.line(margin_x, h - 63, margin_x + content_w, h - 63)
 
-# Инструкция в плашке
+# 4. Инструкция в плашке
+box_top = h - 68
+box_h = 50
 c.setFillColor(colors.HexColor('#f0fdfa'))
 c.setStrokeColor(colors.HexColor('#ccfbf1'))
-c.roundRect(35, h - 140, w - 70, 64, 6, fill=1, stroke=1)
+c.roundRect(margin_x, box_top - box_h, content_w, box_h, 5, fill=1, stroke=1)
 
 c.setFillColor(colors.HexColor('#0f766e'))
-c.setFont(font_name, 9)
-c.drawString(45, h - 86, "ИНСТРУКЦИЯ ПО РАЗМЕЩЕНИЮ МАРКЕРОВ НА КАССЕТАХ:")
-c.setFont(font_name, 8)
-c.drawString(45, h - 98, "1. Печать листа выполнять в масштабе 100% (A4, без масштабирования страницы в драйвере принтера).")
-c.drawString(45, h - 110, "2. Вырежьте маркеры по пунктирным линиям и наклейте на верхний левый бортик соответствующей кассеты 3x3.")
-c.drawString(45, h - 122, "3. Наклейте поверх прозрачную полоску скотча для влагозащиты. Комплекс автоматически распознает когорту в боксе.")
+c.setFont(font_bold, 8)
+c.drawString(margin_x + 10, box_top - 12, "ИНСТРУКЦИЯ ПО МАРКИРОВКЕ 5 КАССЕТ:")
+c.setFont(font_name, 7.5)
+c.drawString(margin_x + 10, box_top - 23, "1. Печать листа выполнять в масштабе 100% (А4, без сжатия полей). На каждую из 5 кассет дано по 2 маркера.")
+c.drawString(margin_x + 10, box_top - 33, "2. Вырежьте маркеры по контуру (~25x25 мм) и наклейте на противоположные бортики кассеты (основной + резерв).")
+c.drawString(margin_x + 10, box_top - 43, "3. Наклейте поверх полоску скотча от влаги. При установке кассеты в бокс камера автоматически распознает когорту!")
 
-# Сетка 2 x 3 карточек маркеров
-card_w = (w - 70 - 15) / 2
-card_h = 105
-start_x = 35
-start_y = h - 165
+# 5. Сетка из 5 горизонтальных карточек для 5 кассет
+card_h = 100
+card_gap = 14
+start_y = box_top - box_h - 14  # ~ 709 pt
 
-for idx, (m_id, name, desc, hex_c, rep_color) in enumerate(ARUCO_CASSETTES):
-    col = idx % 2
-    row = idx // 2
-    cx = start_x + col * (card_w + 15)
-    cy = start_y - row * (card_h + 15) - card_h
+for idx, (m_id, name, desc, reg, hex_c, rep_color, _) in enumerate(ARUCO_CASSETTES):
+    cy = start_y - (idx + 1) * card_h - idx * card_gap + card_h
+    cx = margin_x
 
-    # Пунктирная рамка карточки
-    c.setStrokeColor(colors.HexColor('#94a3b8'))
-    c.setLineWidth(1)
+    # Пунктирная рамка карточки во всю ширину (525 pt)
+    c.setStrokeColor(colors.HexColor('#cbd5e1'))
+    c.setLineWidth(0.8)
     c.setDash(4, 3)
-    c.roundRect(cx, cy, card_w, card_h, 6, fill=0, stroke=1)
+    c.roundRect(cx, cy, content_w, card_h, 5, fill=0, stroke=1)
     c.setDash()
 
-    # Картинка маркера (размер 70x70 pt ~ 25x25 мм)
+    # Слева: Основной маркер (размер 66x66 pt ~ 23x23 мм)
     img_p = os.path.join(ARUCO_DIR, f'aruco_{m_id}.png')
+    m_size = 66
     if os.path.exists(img_p):
-        c.drawImage(img_p, cx + 10, cy + 17, width=70, height=70)
+        c.drawImage(img_p, cx + 12, cy + 20, width=m_size, height=m_size)
         c.setStrokeColor(colors.HexColor('#e2e8f0'))
         c.setLineWidth(0.5)
-        c.rect(cx + 10, cy + 17, 70, 70, fill=0, stroke=1)
+        c.rect(cx + 12, cy + 20, m_size, m_size, fill=0, stroke=1)
+    
+    # Подпись под левым маркером
+    c.setFillColor(colors.HexColor('#64748b'))
+    c.setFont(font_name, 7)
+    c.drawCentredString(cx + 12 + m_size / 2, cy + 9, f"Маркер №{m_id} (Основной)")
 
+    # Справа: Резервный маркер-дубликат (размер 66x66 pt)
+    rx = cx + content_w - 12 - m_size
+    if os.path.exists(img_p):
+        c.drawImage(img_p, rx, cy + 20, width=m_size, height=m_size)
+        c.setStrokeColor(colors.HexColor('#e2e8f0'))
+        c.setLineWidth(0.5)
+        c.rect(rx, cy + 20, m_size, m_size, fill=0, stroke=1)
+    
+    # Подпись под правым маркером
+    c.setFillColor(colors.HexColor('#64748b'))
+    c.setFont(font_name, 7)
+    c.drawCentredString(rx + m_size / 2, cy + 9, f"Маркер №{m_id} (Резерв)")
+
+    # В центре: Информационный блок (ширина 330 pt, свободно и без наездов)
+    tx = cx + 90
+    
     # Бейдж ID
     c.setFillColor(rep_color)
-    c.roundRect(cx + 90, cy + 76, 125, 16, 3, fill=1, stroke=0)
+    c.roundRect(tx, cy + 74, 115, 15, 3, fill=1, stroke=0)
     c.setFillColor(colors.white)
-    c.setFont(font_name, 8.5)
-    c.drawString(cx + 95, cy + 81, f"ArUco ID #{m_id} (DICT_4X4_50)")
+    c.setFont(font_bold, 8)
+    c.drawString(tx + 7, cy + 78, f"ArUco ID #{m_id} (DICT_4X4_50)")
 
-    # Название кассеты
+    # Название кассеты (крупно и четко)
     c.setFillColor(colors.HexColor('#0f172a'))
-    c.setFont(font_name, 10)
-    c.drawString(cx + 90, cy + 62, name)
+    c.setFont(font_bold, 10.5)
+    c.drawString(tx, cy + 58, name)
 
-    # Описание
-    c.setFillColor(colors.HexColor('#64748b'))
+    # Описание воздействия
+    c.setFillColor(colors.HexColor('#334155'))
     c.setFont(font_name, 8)
-    c.drawString(cx + 90, cy + 50, desc)
+    c.drawString(tx, cy + 44, desc)
 
-    # Подсказка
+    # Регламент полива
+    c.setFillColor(rep_color)
+    c.setFont(font_bold, 7.5)
+    c.drawString(tx, cy + 31, reg)
+
+    # Подсказка по наклейке
     c.setFillColor(colors.HexColor('#94a3b8'))
-    c.setFont(font_name, 7.5)
-    c.drawString(cx + 90, cy + 34, "Размер: 20x20 мм (угол кассеты)")
-    c.drawString(cx + 90, cy + 22, "- - - Вырезать по контуру - - -")
+    c.setFont(font_name, 7)
+    c.drawString(tx, cy + 18, "✂ Вырезать по внешнему контуру · Наклеить на бортик кассеты и защитить скотчем")
 
 # Футер
 c.setStrokeColor(colors.HexColor('#e2e8f0'))
-c.line(35, 30, w - 35, 30)
+c.line(margin_x, 24, margin_x + content_w, 24)
 c.setFillColor(colors.HexColor('#94a3b8'))
 c.setFont(font_name, 7.5)
-c.drawCentredString(w / 2, 20, "Алгоритм субпиксельного оптического позиционирования: OpenCV cv2.aruco · Образовательный центр «Сириус» 2026")
+c.drawCentredString(w / 2, 14, "Алгоритм субпиксельного оптического позиционирования: OpenCV cv2.aruco · ОЦ «Сириус» 2026")
 
 c.save()
 print(f'Created printable PDF: {pdf_path}')
 
-import shutil
-DOCS_DIR = os.path.join(LOCAL_DIR, 'docs')
-USER_DOCS_DIR = r"C:\Users\Администратор\Documents"
-os.makedirs(DOCS_DIR, exist_ok=True)
-os.makedirs(USER_DOCS_DIR, exist_ok=True)
-
+# Копируем PDF и HTML в docs и в папку Документы пользователя
 destinations = [
     (sheet_html_path, os.path.join(DOCS_DIR, "aruco_markers_sheet.html")),
     (sheet_html_path, os.path.join(USER_DOCS_DIR, "Лист_ArUco_маркеров_для_кассет.html")),
