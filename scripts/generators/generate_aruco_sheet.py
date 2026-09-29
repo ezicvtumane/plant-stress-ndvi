@@ -20,12 +20,12 @@ ARUCO_DIR = os.path.join(STATIC_DIR, 'aruco')
 os.makedirs(ARUCO_DIR, exist_ok=True)
 
 ARUCO_CASSETTES = [
-    (1, "Кассета 1: КОНТРОЛЬ", "Этап 1: Оптимальный полив", "#059669", colors.HexColor("#059669")),
-    (2, "Кассета 2: ЗАСУХА", "Этап 1: Без полива 0–96 ч", "#d97706", colors.HexColor("#d97706")),
-    (3, "Кассета 3: СОЛЬ", "Этап 1: Раствор NaCl 1.0%", "#7c3aed", colors.HexColor("#7c3aed")),
-    (4, "Кассета 4: КОНТРОЛЬ-2", "Этап 2: Параллельный эталон", "#059669", colors.HexColor("#059669")),
-    (5, "Кассета 5: РАННЕЕ СПАСЕНИЕ", "Этап 2: Полив ~40 ч (сигнал)", "#0d9488", colors.HexColor("#0d9488")),
-    (6, "Кассета 6: ПОЗДНЕЕ СПАСЕНИЕ", "Этап 2: Полив ~72 ч (увядание)", "#e11d48", colors.HexColor("#e11d48")),
+    (1, "Кассета №1: 🌱 КОНТРОЛЬ", "Оптимальный полив водой (100% ПВ)", "#059669", colors.HexColor("#059669")),
+    (2, "Кассета №2: 🧂 ЗАСОЛЕНИЕ", "150 мМ NaCl (В отдельном лотке!)", "#b45309", colors.HexColor("#b45309")),
+    (3, "Кассета №3: 🔬 СПАСЕНИЕ ПРИБОР", "Засуха -> Полив по алерту комплекса (~40ч)", "#0284c7", colors.HexColor("#0284c7")),
+    (4, "Кассета №4: 👁️ СПАСЕНИЕ ВИЗУАЛ", "Засуха -> Полив при поникании листьев (~72ч)", "#6d28d9", colors.HexColor("#6d28d9")),
+    (5, "Кассета №5: ⚠️ ТЕРМИНАЛ", "Без полива 96+ ч (до гибели ткани)", "#b91c1c", colors.HexColor("#b91c1c")),
+    (6, "Кассета №6: 🎯 СТЕНД №0", "Посев 22.09.2026 (калибровка оптики и OCR)", "#475569", colors.HexColor("#475569")),
 ]
 
 # Получаем словарь ArUco 4x4
@@ -222,3 +222,31 @@ c.drawCentredString(w / 2, 20, "Алгоритм субпиксельного о
 
 c.save()
 print(f'Created printable PDF: {pdf_path}')
+
+import shutil
+DOCS_DIR = os.path.join(LOCAL_DIR, 'docs')
+USER_DOCS_DIR = r"C:\Users\Администратор\Documents"
+os.makedirs(DOCS_DIR, exist_ok=True)
+os.makedirs(USER_DOCS_DIR, exist_ok=True)
+
+destinations = [
+    (sheet_html_path, os.path.join(DOCS_DIR, "aruco_markers_sheet.html")),
+    (sheet_html_path, os.path.join(USER_DOCS_DIR, "Лист_ArUco_маркеров_для_кассет.html")),
+    (pdf_path, os.path.join(DOCS_DIR, "aruco_markers_sheet.pdf")),
+    (pdf_path, os.path.join(USER_DOCS_DIR, "Лист_ArUco_маркеров_для_кассет.pdf")),
+]
+
+for src, dst in destinations:
+    try:
+        shutil.copy2(src, dst)
+        print(f"Copied to: {dst}")
+    except PermissionError:
+        base, ext = os.path.splitext(dst)
+        fallback = f"{base}_обновленный{ext}"
+        try:
+            shutil.copy2(src, fallback)
+            print(f"[Warn] File locked, copied to: {fallback}")
+        except Exception as e:
+            print(f"[Error] Failed to copy to {dst}: {e}")
+    except Exception as e:
+        print(f"[Error] Failed to copy to {dst}: {e}")
