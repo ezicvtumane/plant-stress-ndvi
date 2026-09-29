@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Генератор 3-страничного РАБОЧЕГО ДНЕВНИКА ЭКСПЕРИМЕНТАТОРА для Алисы Ковалевой.
+Генератор 3-страничного РАБОЧЕГО ДНЕВНИКА ЭКСПЕРИМЕНТАТОРА для Алисы Ковалевой
+по утвержденному пользователем шаблону с предзаполненными полями полива.
 СТРОГО РОВНО 3 СТРАНИЦЫ А4:
-  Стр 1: Паспорт + Инструкция по поливу и наблюдениям на каждый день + Таблица Фазы 0 (проращивание Д0-Д9).
-  Стр 2: Таблица стресс-опыта Дни 10–13 (4 дня x 5 когорт = 20 строк).
-  Стр 3: Таблица стресс-опыта Дни 14–17 (4 дня x 5 когорт = 20 строк) + Итоговый расчет репарации K_rec и подписи.
+  Стр 1: Шапка + Инструкция по поливу + Таблица Фазы 0 (Д0–Д9) с предзаполненным поливом «Вода 20мл».
+  Стр 2: Таблица стресс-опыта Дни 10–13 с предзаполненным режимом полива по когортам.
+  Стр 3: Таблица стресс-опыта Дни 14–17 + Итоговый расчет репарации K_rec и подписи.
 """
 
 import os
@@ -14,7 +15,7 @@ import re
 import docx
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
+from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 
@@ -50,7 +51,7 @@ def set_table_borders(table, color="94a3b8", sz="4", val="single"):
 def build_docx_3pages(output_path):
     doc = docx.Document()
     
-    # Альбомная ориентация А4 с компактными полями 10 мм
+    # Альбомная ориентация А4 с полями 8-10 мм
     section = doc.sections[0]
     section.orientation = docx.enum.section.WD_ORIENT.LANDSCAPE
     section.page_width = Inches(11.69)
@@ -69,7 +70,7 @@ def build_docx_3pages(output_path):
     style_normal.paragraph_format.space_after = Pt(1)
     
     # =========================================================================
-    # СТРАНИЦА 1: ШАПКА + КАЛЕНДАРЬ-РЕКОМЕНДАЦИИ + ФАЗА 0 (ДНИ 0-9)
+    # СТРАНИЦА 1
     # =========================================================================
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -83,7 +84,7 @@ def build_docx_3pages(output_path):
     r_sub.font.size = Pt(8.0)
     r_sub.font.italic = True
     
-    # Блок рекомендаций по поливу и наблюдениям (в 2 колонки)
+    # Инструкции в 2 колонки
     t_guide = doc.add_table(rows=1, cols=2)
     t_guide.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(t_guide, color="0f766e", sz="6")
@@ -102,10 +103,10 @@ def build_docx_3pages(output_path):
         "• 29.09 (Д0): Посев семян с корешками 1–2 см. Полив отстоянной водой (15 мл). Кассета №2 СРАЗУ в отдельный лоток!\n"
         "• 30.09 (Д1): Влажность под пленкой. При подсыхании — сбрызнуть из пульверизатора (5–10 мл).\n"
         "• 01.10 (Д2): СМОТРЕТЬ ПЕТЕЛЬКИ! При появлении зеленых всходов — СРАЗУ СНЯТЬ ПЛЕНКУ!\n"
-        "• 02.10 (Д3): Раскрытие семядолей. Включить подсветку (14 ч/день). Полив по 15 мл водой.\n"
+        "• 02.10 (Д3): Раскрытие семядолей. Включить подсветку (14 ч/день). Полив по 20 мл водой.\n"
         "• 03.10 (Д4): Посылка! Разворачивание 1-го настоящего листа. Монтаж светодиодов и АЦП.\n"
-        "• 04–05.10 (Д5–Д6): Полив по 15 мл. На Стенде №0 настраиваем NoIR, белый эталон и OCR.\n"
-        "• 06–07.10 (Д7–Д8): Полив по 15 мл. Рост 2-го настоящего листа, выравнивание проростков.\n"
+        "• 04–05.10 (Д5–Д6): Полив по 20 мл. На Стенде №0 настраиваем NoIR, белый эталон и OCR.\n"
+        "• 06–07.10 (Д7–Д8): Полив по 20 мл. Рост 2-го настоящего листа, выравнивание проростков.\n"
         "• 08.10 (Д9): Вечер перед стартом: полив водой (20 мл), замер фона NDVI_init и массы M0."
     ).font.size = Pt(7.2)
     
@@ -114,15 +115,15 @@ def build_docx_3pages(output_path):
     p_gr.paragraph_format.line_spacing = 1.05
     p_gr.add_run(
         "• К1 (🌱 Контроль): Полив чистой водой 15–20 мл ЕЖЕДНЕВНО. Смотреть: тургор 100%, рост биомассы.\n"
-        "• К2 (🧂 Соль 150 мМ): Полив раствором соли 150 мМ ЕЖЕДНЕВНО (10–15 мл). НЕ ВЫНИМАТЬ ИЗ СВОЕГО ЛОТКА! Смотреть: почва сырая, но лист горячий (ΔT > 0).\n"
-        "• К3 (🔬 Спасение прибор): С 09.10 НЕ ПОЛИВАТЬ! Ждать алерта (ΔT > +0.8°C, спад NDVI > 10%). При алерте — СРОЧНО РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ 25 мл ДО УВЯДАНИЯ!\n"
-        "• К4 (👁️ Спасение глаза): С 09.10 НЕ ПОЛИВАТЬ! Алерт игнорировать. Полив водой (25 мл) ТОЛЬКО КОГДА ЛИСТЬЯ ВИДИМО ПОВИСНУТ (угол > 30°). Смотреть: некроз.\n"
+        "• К2 (🧂 Соль 1%): Полив раствором соли 150 мМ ЕЖЕДНЕВНО (20 мл). НЕ ВЫНИМАТЬ ИЗ СВОЕГО ЛОТКА! Смотреть: почва сырая, но лист горячий (ΔT > 0).\n"
+        "• К3 (🔬 Спасение прибор): С 09.10 НЕ ПОЛИВАТЬ! Ждать алерта (ΔT > +0.8°C, спад NDVI > 10%). При алерте — СРОЧНО РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ 25 мл ДО ПОЯВЛЕНИЯ УВЯДАНИЯ!\n"
+        "• К4 (👁️ Спасение визуал): С 09.10 НЕ ПОЛИВАТЬ! Алерт игнорировать. Полив водой (25 мл) ТОЛЬКО КОГДА ЛИСТЬЯ ВИДИМО ПОВИСНУТ (угол > 30°). Смотреть: некроз.\n"
         "• К5 (⚠️ Терминал): ВООБЩЕ НЕ ПОЛИВАТЬ ДО КОНЦА! Фиксация точки гибели ткани."
     ).font.size = Pt(7.2)
     
     doc.add_paragraph().paragraph_format.space_after = Pt(2)
     
-    # Таблица Фазы 0
+    # Таблица Фазы 0 (Дни 0–9)
     p_t0_title = doc.add_paragraph()
     r_t0 = p_t0_title.add_run("ТАБЛИЦА РЕАЛЬНЫХ ЗАМЕРОВ: ФАЗА 0 — ПРОРАЩИВАНИЕ И ПОДГОТОВКА (ДНИ 0–9)")
     r_t0.bold = True
@@ -161,14 +162,21 @@ def build_docx_3pages(output_path):
         row.cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         row.cells[1].paragraphs[0].add_run(c_lbl).font.size = Pt(7.2)
         row.cells[1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Предзаполненный полив «Вода 20мл»
+        p_pol = row.cells[3].paragraphs[0]
+        p_pol.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r_pol = p_pol.add_run("Вода 20мл")
+        r_pol.font.size = Pt(7.2)
+        r_pol.font.color.rgb = RGBColor(0x0f, 0x76, 0x6e)
+        
         for c_cell in row.cells:
             set_cell_margins(c_cell, top=20, bottom=20, left=30, right=30)
             
-    # Принудительный разрыв страницы -> Страница 2
     doc.add_page_break()
     
     # =========================================================================
-    # СТРАНИЦА 2: ДНИ 10, 11, 12, 13 (4 дня x 5 когорт = 20 строк)
+    # СТРАНИЦА 2: ДНИ 10–13
     # =========================================================================
     p_s2_head = doc.add_paragraph()
     r = p_s2_head.add_run("СТРАНИЦА 2. ЖУРНАЛ СТРЕСС-ОПЫТА: ДНИ 10–13 (ВХОД В СТРЕСС, АЛЕРТ И СПАСЕНИЕ К3 ПО ПРИБОРУ)")
@@ -177,19 +185,19 @@ def build_docx_3pages(output_path):
     r.font.color.rgb = RGBColor(0x0f, 0x76, 0x6e)
     
     headers_stress = [
-        "День / Время", "Когорта", "Полив (мл/чем)", "Масса (г)", "Wпочвы%", "Vпочвы", 
-        "Tлиста°C", "Tвозд°C", "ΔT (°C)", "RH%", "NDVI", "PLA см²", "Тургор / Симптомы (осмотр Алисы)", "Подпись"
+        "День / Время", "Когорта", "Полив (мл/чем)", "Масса (г)", "W почвы%", "V почвы", 
+        "T листа°C", "T возд°C", "ΔT (°C)", "RH%", "NDVI", "PLA см²", "Тургор / Симптомы (осмотр Алисы)", "Подпись"
     ]
     
-    cohorts_s = [
-        ("№1: 🌱 Контроль (Оптимум)", "water"),
-        ("№2: 🧂 Засоление (150 мМ)", "salt"),
-        ("№3: 🔬 Спасение прибор", "device"),
-        ("№4: 👁️ Спасение глаза", "eyes"),
-        ("№5: ⚠️ Терминал", "drought")
+    cohorts_template = [
+        ("№1: 🌱 Контроль (Оптимум)", "Вода 20мл", "water"),
+        ("№2: 🧂 Засоление (150 мМ)", "NaCl 20мл", "salt"),
+        ("№3: 🔬 Спасение прибор", "Вода «__» мл", "device"),
+        ("№4: 👁️ Спасение визуал", "Вода «__» мл", "eyes"),
+        ("№5: ⚠️ Терминал", "Полива нет", "drought")
     ]
     
-    def fill_stress_docx_table(days_list):
+    def fill_stress_table(days_list):
         t = doc.add_table(rows=1, cols=len(headers_stress))
         t.alignment = WD_TABLE_ALIGNMENT.CENTER
         set_table_borders(t, color="94a3b8")
@@ -205,15 +213,17 @@ def build_docx_3pages(output_path):
             r.font.size = Pt(6.8)
             
         for day_lbl in days_list:
-            for c_name, c_type in cohorts_s:
+            for c_name, c_poliv, c_type in cohorts_template:
                 row = t.add_row()
                 tr_pr = row._tr.get_or_add_trPr()
                 tr_height = parse_xml(f'<w:trHeight {nsdecls("w")} w:val="230" w:hRule="atLeast"/>')
                 tr_pr.append(tr_height)
                 
+                # Дата
                 row.cells[0].paragraphs[0].add_run(day_lbl).font.size = Pt(6.8)
                 row.cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
                 
+                # Когорта
                 p_c = row.cells[1].paragraphs[0]
                 r_c = p_c.add_run(c_name)
                 r_c.font.size = Pt(7.0)
@@ -223,27 +233,36 @@ def build_docx_3pages(output_path):
                 elif c_type == "eyes": r_c.font.color.rgb = RGBColor(0x6d, 0x28, 0xd9)
                 elif c_type == "drought": r_c.font.color.rgb = RGBColor(0xb9, 0x1c, 0x1c)
                 
+                # Полив (предзаполненный)
+                p_p = row.cells[2].paragraphs[0]
+                p_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                r_p = p_p.add_run(c_poliv)
+                r_p.font.size = Pt(6.8)
+                if c_type == "drought":
+                    r_p.font.color.rgb = RGBColor(0xb9, 0x1c, 0x1c)
+                else:
+                    r_p.font.color.rgb = RGBColor(0x0f, 0x76, 0x6e)
+                    
                 for c_cell in row.cells:
                     set_cell_margins(c_cell, top=15, bottom=15, left=20, right=20)
                     
-    # На странице 2: Дни 10, 11, 12, 13 (20 строк)
-    fill_stress_docx_table(["Д10 09.10", "Д11 10.10", "Д12 11.10", "Д13 12.10"])
+    # Страница 2: Дни 10, 11, 12, 13
+    fill_stress_table(["День 10 09.10", "День 11 10.10", "День 12 11.10", "День 13 12.10"])
     
-    # Принудительный разрыв страницы -> Страница 3
     doc.add_page_break()
     
     # =========================================================================
-    # СТРАНИЦА 3: ДНИ 14, 15, 16, 17 (20 строк) + ИТОГОВЫЙ БЛОК
+    # СТРАНИЦА 3: ДНИ 14–17 + ИТОГИ
     # =========================================================================
     p_s3_head = doc.add_paragraph()
-    r = p_s3_head.add_run("СТРАНИЦА 3. ЖУРНАЛ СТРЕСС-ОПЫТА: ДНИ 14–17 (СПАСЕНИЕ К4 ПО ГЛАЗАМ, РЕПАРАЦИЯ, ФИНАЛЬНЫЙ УЧЕТ)")
+    r = p_s3_head.add_run("СТРАНИЦА 3. ЖУРНАЛ СТРЕСС-ОПЫТА: ДНИ 14–17 (СПАСЕНИЕ К4 ПО ВИЗУАЛУ, РЕПАРАЦИЯ, ФИНАЛЬНЫЙ УЧЕТ)")
     r.bold = True
     r.font.size = Pt(9.0)
     r.font.color.rgb = RGBColor(0x0f, 0x76, 0x6e)
     
-    fill_stress_docx_table(["Д14 13.10", "Д15 14.10", "Д16 15.10", "Д17 16.10"])
+    fill_stress_table(["День 14 13.10", "День 15 14.10", "День 16 15.10", "День 17 16.10"])
     
-    # Итоговый расчетный блок внизу страницы 3
+    # Итоговый расчетный блок
     p_sum_title = doc.add_paragraph()
     p_sum_title.paragraph_format.space_before = Pt(3)
     p_sum_title.paragraph_format.space_after = Pt(1)
@@ -272,7 +291,7 @@ def build_docx_3pages(output_path):
     t_summary.rows[1].cells[2].paragraphs[0].add_run("K_rec = ________ %").font.size = Pt(7.0)
     t_summary.rows[1].cells[3].paragraphs[0].add_run("Тургор за 2 ч, спасено: ___ % (некроз 0%)").font.size = Pt(7.0)
     
-    t_summary.rows[2].cells[0].paragraphs[0].add_run("К4 (Спасение по глазам):").font.size = Pt(7.0)
+    t_summary.rows[2].cells[0].paragraphs[0].add_run("К4 (Спасение по визуалм):").font.size = Pt(7.0)
     t_summary.rows[2].cells[1].paragraphs[0].add_run("NDVI = ____  PLA = ____ см²").font.size = Pt(7.0)
     t_summary.rows[2].cells[2].paragraphs[0].add_run("K_rec = ________ %").font.size = Pt(7.0)
     t_summary.rows[2].cells[3].paragraphs[0].add_run("Краевой некроз, потеряно: ___ %").font.size = Pt(7.0)
@@ -298,24 +317,26 @@ def make_html_3pages():
         ("08.10 (Д9)", "К1–К5")
     ]
     
-    cohorts_s = [
-        ("№1: 🌱 Контроль (Оптимум)", "color: #047857; font-weight: bold;"),
-        ("№2: 🧂 Засоление (150 мМ)", "color: #b45309; font-weight: bold;"),
-        ("№3: 🔬 Спасение прибор", "color: #0284c7; font-weight: bold;"),
-        ("№4: 👁️ Спасение глаза", "color: #6d28d9; font-weight: bold;"),
-        ("№5: ⚠️ Терминал", "color: #b91c1c; font-weight: bold;")
+    cohorts_template = [
+        ("№1: 🌱 Контроль (Оптимум)", "Вода 20мл", "color: #047857; font-weight: bold;"),
+        ("№2: 🧂 Засоление (150 мМ)", "NaCl 20мл", "color: #b45309; font-weight: bold;"),
+        ("№3: 🔬 Спасение прибор", "Вода «__» мл", "color: #0284c7; font-weight: bold;"),
+        ("№4: 👁️ Спасение визуал", "Вода «__» мл", "color: #6d28d9; font-weight: bold;"),
+        ("№5: ⚠️ Терминал", "Полива нет", "color: #b91c1c; font-weight: bold;")
     ]
 
     def render_html_table(days_list):
         rows = []
         for d_lbl in days_list:
-            for c_name, c_style in cohorts_s:
+            for c_name, c_pol, c_style in cohorts_template:
+                pol_color = "#b91c1c" if "нет" in c_pol else "#0f766e"
                 rows.append(f"""
                 <tr>
                     <td style="font-weight: bold; font-size: 7pt;">{d_lbl}</td>
-                    <td style="{c_style} text-align: left; padding-left: 2px; font-size: 7.2pt;">{c_name}</td>
+                    <td style="{c_style} text-align: left; padding-left: 3px; font-size: 7.2pt;">{c_name}</td>
+                    <td style="color: {pol_color}; font-weight: bold; font-size: 7pt;">{c_pol}</td>
                     <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
-                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
                     <td>&nbsp;</td><td>&nbsp;</td>
                 </tr>
                 """)
@@ -417,22 +438,22 @@ def make_html_3pages():
     <tr>
         <td class="guide-left">
             <b style="color: #047857;">🌱 ФАЗА 0: ПРОРАЩИВАНИЕ (29.09 — 08.10) — ЧТО ДЕЛАТЬ И СМОТРЕТЬ:</b><br>
-            • <b>29.09 (Д0)</b>: Посев проростков с корешками 1–2 см. Полив отстоянной водой (15 мл). Кассета №2 СРАЗУ в отдельный лоток!<br>
+            • <b>29.09 (Д0)</b>: Посев семян с корешками 1–2 см. Полив отстоянной водой (15 мл). Кассета №2 СРАЗУ в отдельный лоток!<br>
             • <b>30.09 (Д1)</b>: Влажность под пленкой. При подсыхании — сбрызнуть из пульверизатора (5–10 мл).<br>
             • <b>01.10 (Д2)</b>: СМОТРЕТЬ ПЕТЕЛЬКИ! При появлении зеленых всходов — <b>СРАЗУ СНЯТЬ ПЛЕНКУ</b>!<br>
-            • <b>02.10 (Д3)</b>: Раскрытие семядолей. Включить свет 14 ч/день. Полив по 15 мл водой.<br>
-            • <b>03.10 (Д4)</b>: Посылка! Разворачивание 1-го листа. Монтаж светодиодов и АЦП.<br>
-            • <b>04–05.10 (Д5–Д6)</b>: Полив по 15 мл. На Стенде №0 настраиваем NoIR, белый эталон и OCR.<br>
-            • <b>06–07.10 (Д7–Д8)</b>: Полив по 15 мл. Рост 2-го листа, выравнивание всех проростков.<br>
-            • <b>08.10 (Д9)</b>: Вечер перед стартом: полив водой (20 мл), замер фона NDVI_init и массы M0.
+            • <b>02.10 (Д3)</b>: Раскрытие семядолей. Включить подсветку (14 ч/день). Полив по 20 мл водой.<br>
+            • <b>03.10 (Д4)</b>: Посылка! Разворачивание 1-го настоящего листа. Монтаж светодиодов и АЦП.<br>
+            • <b>04–05.10 (Д5–Д6):</b> Полив по 20 мл. На Стенде №0 настраиваем NoIR, белый эталон и OCR.<br>
+            • <b>06–07.10 (Д7–Д8):</b> Полив по 20 мл. Рост 2-го настоящего листа, выравнивание проростков.<br>
+            • <b>08.10 (Д9):</b> Вечер перед стартом: полив водой (20 мл), замер фона NDVI_init и массы M0.
         </td>
         <td class="guide-right">
             <b style="color: #b91c1c;">⚡ ФАЗА 1: СТРЕСС-ОПЫТ (09.10 — 16.10, замеры в 09:00 и 18:00):</b><br>
-            • <b>К1 (🌱 Контроль)</b>: Полив чистой водой 15–20 мл ЕЖЕДНЕВНО. Смотреть: тургор 100%, рост биомассы.<br>
-            • <b>К2 (🧂 Соль 150 мМ)</b>: Полив раствором соли 150 мМ ЕЖЕДНЕВНО (10–15 мл). <b>НЕ ВЫНИМАТЬ ИЗ СВОЕГО ЛОТКА!</b> Смотреть: почва сырая, но лист горячий (ΔT > 0).<br>
-            • <b>К3 (🔬 Спасение прибор)</b>: С 09.10 <b>НЕ ПОЛИВАТЬ!</b> Ждать алерта (ΔT > +0.8°C, спад NDVI). При алерте — <b>СРОЧНО РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ 25 мл ДО УВЯДАНИЯ</b>!<br>
-            • <b>К4 (👁️ Спасение глаза)</b>: С 09.10 <b>НЕ ПОЛИВАТЬ!</b> Полив водой (25 мл) <b>ТОЛЬКО КОГДА ЛИСТЬЯ ВИДИМО ПОВИСНУТ</b> (угол > 30°). Смотреть: краевой некроз.<br>
-            • <b>К5 (⚠️ Терминал)</b>: <b>ВООБЩЕ НЕ ПОЛИВАТЬ ДО КОНЦА!</b> Фиксация точки гибели ткани.
+            • <b>К1 (🌱 Контроль):</b> Полив чистой водой 15–20 мл ЕЖЕДНЕВНО. Смотреть: тургор 100%, рост биомассы.<br>
+            • <b>К2 (🧂 Соль 1%):</b> Полив раствором соли 150 мМ ЕЖЕДНЕВНО (20 мл). <b>НЕ ВЫНИМАТЬ ИЗ СВОЕГО ЛОТКА!</b> Смотреть: почва сырая, но лист горячий (ΔT > 0).<br>
+            • <b>К3 (🔬 Спасение прибор):</b> С 09.10 <b>НЕ ПОЛИВАТЬ!</b> Ждать алерта (ΔT > +0.8°C, спад NDVI > 10%). При алерте — <b>СРОЧНО РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ 25 мл ДО ПОЯВЛЕНИЯ УВЯДАНИЯ!</b><br>
+            • <b>К4 (👁️ Спасение визуал):</b> С 09.10 <b>НЕ ПОЛИВАТЬ!</b> Алерт игнорировать. Полив водой (25 мл) <b>ТОЛЬКО КОГДА ЛИСТЬЯ ВИДИМО ПОВИСНУТ</b> (угол > 30°). Смотреть: некроз.<br>
+            • <b>К5 (⚠️ Терминал):</b> <b>ВООБЩЕ НЕ ПОЛИВАТЬ ДО КОНЦА!</b> Фиксация точки гибели ткани.
         </td>
     </tr>
 </table>
@@ -448,14 +469,16 @@ def make_html_3pages():
             <th style="width: 9%;">Масса М (г)</th>
             <th style="width: 9%;">Всхожесть (из 9)</th>
             <th style="width: 10%;">Tвозд / RHвозд</th>
-            <th style="width: 26%;">Фенонаблюдения Алисы (ростки, петельки, листья, высота)</th>
+            <th style="width: 26%;">Фенонаблюдения Алисы (ростки, петельки, листья)</th>
             <th style="width: 6%;">Подпись</th>
         </tr>
     </thead>
     <tbody>
         {''.join([f'''<tr>
             <td style="font-weight:bold;">{d}</td><td>{c}</td>
-            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td style="color:#0f766e; font-weight:bold;">Вода 20мл</td>
+            <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
         </tr>''' for d, c in p0_days])}
     </tbody>
 </table>
@@ -466,58 +489,58 @@ def make_html_3pages():
 <table class="data-table">
     <thead>
         <tr>
-            <th style="width: 8%;">День</th>
+            <th style="width: 9%;">День / Время</th>
             <th style="width: 15%;">Когорта</th>
-            <th style="width: 7%;">Полив мл</th>
-            <th style="width: 6%;">M (г)</th>
-            <th style="width: 6%;">Wпочв</th>
-            <th style="width: 5%;">Vпочв</th>
-            <th style="width: 6%;">Tлист</th>
-            <th style="width: 6%;">Tвозд</th>
-            <th style="width: 5%;">ΔT</th>
+            <th style="width: 9%;">Полив (мл/чем)</th>
+            <th style="width: 6%;">Масса (г)</th>
+            <th style="width: 6%;">W почвы%</th>
+            <th style="width: 5%;">V почвы</th>
+            <th style="width: 6%;">T листа°C</th>
+            <th style="width: 6%;">T возд°C</th>
+            <th style="width: 5%;">ΔT (°C)</th>
             <th style="width: 5%;">RH%</th>
             <th style="width: 6%;">NDVI</th>
             <th style="width: 6%;">PLA см²</th>
-            <th style="width: 15%;">Тургор / Симптомы (осмотр Алисы)</th>
-            <th style="width: 4%;">Подп.</th>
+            <th style="width: 12%;">Тургор / Симптомы (осмотр Алисы)</th>
+            <th style="width: 4%;">Подпись</th>
         </tr>
     </thead>
     <tbody>
-        {render_html_table(["Д10 09.10", "Д11 10.10", "Д12 11.10", "Д13 12.10"])}
+        {render_html_table(["День 10 09.10", "День 11 10.10", "День 12 11.10", "День 13 12.10"])}
     </tbody>
 </table>
 
 <!-- СТРАНИЦА 3 -->
 <div class="page-break"></div>
-<div class="h2-title">СТРАНИЦА 3. ЖУРНАЛ СТРЕСС-ОПЫТА: ДНИ 14–17 (СПАСЕНИЕ К4 ПО ГЛАЗАМ, РЕПАРАЦИЯ, ФИНАЛЬНЫЙ УЧЕТ)</div>
+<div class="h2-title">СТРАНИЦА 3. ЖУРНАЛ СТРЕСС-ОПЫТА: ДНИ 14–17 (СПАСЕНИЕ К4 ПО ВИЗУАЛУ, РЕПАРАЦИЯ, ФИНАЛЬНЫЙ УЧЕТ)</div>
 <table class="data-table">
     <thead>
         <tr>
-            <th style="width: 8%;">День</th>
+            <th style="width: 9%;">День / Время</th>
             <th style="width: 15%;">Когорта</th>
-            <th style="width: 7%;">Полив мл</th>
-            <th style="width: 6%;">M (г)</th>
-            <th style="width: 6%;">Wпочв</th>
-            <th style="width: 5%;">Vпочв</th>
-            <th style="width: 6%;">Tлист</th>
-            <th style="width: 6%;">Tвозд</th>
-            <th style="width: 5%;">ΔT</th>
+            <th style="width: 9%;">Полив (мл/чем)</th>
+            <th style="width: 6%;">Масса (г)</th>
+            <th style="width: 6%;">W почвы%</th>
+            <th style="width: 5%;">V почвы</th>
+            <th style="width: 6%;">T листа°C</th>
+            <th style="width: 6%;">T возд°C</th>
+            <th style="width: 5%;">ΔT (°C)</th>
             <th style="width: 5%;">RH%</th>
             <th style="width: 6%;">NDVI</th>
             <th style="width: 6%;">PLA см²</th>
-            <th style="width: 15%;">Тургор / Симптомы (осмотр Алисы)</th>
-            <th style="width: 4%;">Подп.</th>
+            <th style="width: 12%;">Тургор / Симптомы (осмотр Алисы)</th>
+            <th style="width: 4%;">Подпись</th>
         </tr>
     </thead>
     <tbody>
-        {render_html_table(["Д14 13.10", "Д15 14.10", "Д16 15.10", "Д17 16.10"])}
+        {render_html_table(["День 14 13.10", "День 15 14.10", "День 16 15.10", "День 17 16.10"])}
     </tbody>
 </table>
 
 <div style="margin-top: 3px; border: 1px solid #0f766e; padding: 3px 6px; font-size: 7.0pt; background: #f8fafc;">
-    <b>ФИНАЛЬНЫЙ РАСЧЕТ РЕПАРАЦИИ БИОМАССЫ (K_rec = NDVI_post / NDVI_init × 100%):</b><br>
+    <b>ИТОГОВЫЙ РАСЧЕТ РЕПАРАЦИИ БИОМАССЫ (K_rec = NDVI_post / NDVI_init × 100%):</b><br>
     • <b>К3 (Спасение по прибору):</b> K_rec = ________ % | Спасено продуктивности: ________ % | Видимый некроз: 0%<br>
-    • <b>К4 (Спасение по глазам):</b> K_rec = ________ % | Безвозвратная потеря биомассы: ________ % | Краевой некроз: ______ %<br>
+    • <b>К4 (Спасение по визуалм):</b> K_rec = ________ % | Безвозвратная потеря биомассы: ________ % | Краевой некроз: ______ %<br>
     <b>Подпись исследователя (Алиса Ковалева):</b> ______________________ &nbsp;&nbsp;&nbsp;&nbsp; <b>Подпись руководителя:</b> ______________________
 </div>
 
@@ -527,25 +550,25 @@ def make_html_3pages():
     return html
 
 def main():
-    print("=== ГЕНЕРАЦИЯ СТРОГО 3-СТРАНИЧНОГО РАБОЧЕГО ДНЕВНИКА ДЛЯ АЛИСЫ ===")
+    print("=== ГЕНЕРАЦИЯ 3-СТРАНИЧНОГО РАБОЧЕГО ДНЕВНИКА ДЛЯ АЛИСЫ ПО УТВЕРЖДЕННОМУ ШАБЛОНУ ===")
     os.makedirs(DOCS_DIR, exist_ok=True)
     os.makedirs(USER_DOCS, exist_ok=True)
     
-    # 1. Генерируем 3-страничный DOCX
+    # 1. Генерируем DOCX
     docx_path = os.path.join(DOCS_DIR, "Рабочий_дневник_исследователя_Ковалева_Алиса_3стр.docx")
     user_docx_path = os.path.join(USER_DOCS, "Рабочий_дневник_исследователя_Ковалева_Алиса_3стр.docx")
     build_docx_3pages(docx_path)
     shutil.copy2(docx_path, user_docx_path)
     print(f"[OK] Copied 3-page DOCX: {user_docx_path}")
     
-    # 2. Генерируем 3-страничный HTML
+    # 2. Генерируем HTML
     html_path = os.path.join(DOCS_DIR, "Рабочий_дневник_исследователя_Ковалева_Алиса_3стр.html")
     html_content = make_html_3pages()
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_content)
     print(f"[OK] Saved 3-page HTML: {html_path}")
     
-    # 3. Генерируем 3-страничный PDF через Chrome
+    # 3. Генерируем PDF через Chrome
     pdf_path = os.path.join(DOCS_DIR, "Рабочий_дневник_исследователя_Ковалева_Алиса_3стр.pdf")
     user_pdf_path = os.path.join(USER_DOCS, "Рабочий_дневник_исследователя_Ковалева_Алиса_3стр.pdf")
     if os.path.exists(CHROME_PATH):
