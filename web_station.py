@@ -1371,48 +1371,70 @@ def index(
         total_steps = len(cassettes)
 
         slots_html = ''
+        short_names = {
+            1: "Контроль",
+            2: "Засоление",
+            3: "Прибор",
+            4: "Глаза",
+            5: "Гибель",
+            6: "Стенд №0"
+        }
         for i, c in enumerate(cassettes):
             if i < step_idx:
                 s_done = BATCH_STATE['sessions'][i]
                 m_id = s_done.get('aruco_id')
-                grp_name = s_done.get('group', f'Кадр #{i+1}')
+                full_grp = s_done.get('group', f'Кадр #{i+1}')
+                short_grp = short_names.get(m_id, full_grp)
+                if len(short_grp) > 12:
+                    short_grp = short_grp[:11] + '…'
+                
                 if m_id:
                     c_col = CASSETTE_CATALOG.get(m_id, {}).get('color', '#059669')
-                    badge = f'<span style="background:{c_col}18; color:{c_col}; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px; border:1px solid {c_col}50;">🏷️ ArUco #{m_id}</span>'
+                    badge = f'<div style="background:{c_col}18; color:{c_col}; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid {c_col}50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏷️ ID #{m_id}</div>'
                     slot_title = f"Кассета #{m_id}"
-                    slot_border = f"2px solid {c_col}"
+                    slot_border = f"1.5px solid {c_col}"
                     slot_bg = f"{c_col}0d"
                 else:
-                    badge = '<span style="background:#fffbeb; color:#b45309; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">⚠️ Ручная</span>'
+                    badge = '<div style="background:#fffbeb; color:#b45309; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid #fde68a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">⚠️ Ручная</div>'
                     slot_title = f"Кадр #{i+1}"
-                    slot_border = "2px solid #cbd5e1"
+                    slot_border = "1.5px solid #cbd5e1"
                     slot_bg = "#f8fafc"
+
                 slots_html += f'''
-                    <div style="flex:1; background:{slot_bg}; border:{slot_border}; border-radius:8px; padding:6px 4px; text-align:center;">
-                        <span style="font-size:10px; color:#475569; font-weight:bold; display:block;">✓ Снято #{i+1}</span>
-                        <span style="font-size:11px; color:#0f172a; font-weight:bold; display:block;">{slot_title}</span>
-                        <span style="font-size:10px; color:#475569; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{grp_name}</span>
+                    <div style="background:{slot_bg}; border:{slot_border}; border-radius:8px; padding:6px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; overflow:hidden; min-width:0; min-height:86px;">
+                        <div>
+                            <span style="font-size:9.5px; color:#475569; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">✓ Снято #{i+1}</span>
+                            <span style="font-size:11px; color:#0f172a; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{slot_title}</span>
+                            <span style="font-size:9.5px; color:#64748b; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{full_grp}">{short_grp}</span>
+                        </div>
                         {badge}
                     </div>
                 '''
             elif i == step_idx:
                 slots_html += f'''
-                    <div style="flex:1; background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:6px 4px; text-align:center; box-shadow:0 2px 8px rgba(59,130,246,0.25);">
-                        <span style="font-size:10px; color:#1d4ed8; font-weight:bold; display:block;">👉 В БОКСЕ</span>
-                        <span style="font-size:11px; color:#1e40af; font-weight:bold; display:block;">#{step_idx + 1} из {total_steps}</span>
-                        <span style="font-size:10px; color:#2563eb; font-weight:bold;">Любая кассета</span>
+                    <div style="background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:6px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; overflow:hidden; min-width:0; min-height:86px; box-shadow:0 2px 6px rgba(59,130,246,0.2);">
+                        <div>
+                            <span style="font-size:9.5px; color:#1d4ed8; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">👉 В БОКСЕ</span>
+                            <span style="font-size:11px; color:#1e40af; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Кадр #{step_idx + 1}</span>
+                            <span style="font-size:9.5px; color:#2563eb; font-weight:600; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">из {total_steps}</span>
+                        </div>
+                        <div style="background:#dbeafe; color:#1e40af; font-size:9px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid #bfdbfe; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Любая кассета</div>
                     </div>
                 '''
             else:
                 slots_html += f'''
-                    <div style="flex:1; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:6px 4px; text-align:center; opacity:0.65;">
-                        <span style="font-size:10px; color:#64748b; display:block;">Очередь</span>
-                        <span style="font-size:10px; color:#475569; font-weight:bold;">Кадр #{i+1}</span>
+                    <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:6px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; overflow:hidden; min-width:0; min-height:86px; opacity:0.75;">
+                        <div>
+                            <span style="font-size:9.5px; color:#64748b; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Очередь</span>
+                            <span style="font-size:11px; color:#475569; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Кадр #{i+1}</span>
+                            <span style="font-size:9.5px; color:#94a3b8; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Ожидание</span>
+                        </div>
+                        <div style="background:#f1f5f9; color:#94a3b8; font-size:9px; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px dashed #cbd5e1; white-space:nowrap;">—</div>
                     </div>
                 '''
 
         wizard_card = f'''
-            <div class="card" style="border: 2px solid #3b82f6; background: #ffffff; box-sizing:border-box; margin:0;">
+            <div class="card" style="border: 2px solid #3b82f6; background: #ffffff; box-sizing:border-box; margin:0; width:100%; overflow:hidden;">
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
                         <div>
@@ -1422,7 +1444,7 @@ def index(
                         <span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Кадр {step_idx + 1} из {total_steps}</span>
                     </div>
 
-                    <div style="display:flex; gap:6px; margin-bottom:10px;">
+                    <div style="display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:6px; margin-bottom:10px; width:100%; box-sizing:border-box;">
                         {slots_html}
                     </div>
 
