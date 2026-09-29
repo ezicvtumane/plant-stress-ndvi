@@ -1914,45 +1914,51 @@ def index(
                 <span style="background:#f0fdfa; border:1px solid var(--sirius-teal); color:var(--sirius-teal-dark); padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
             </div>
 
-            <!-- ВЕРХНИЙ РЯД: 3 БАЗОВЫХ СОСТОЯНИЯ -->
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:8px;">
+            <!-- ЕДИНЫЙ РЯД: ВСЕ 5 КАССЕТ СТРОГО ПО ПОРЯДКОВЫМ НОМЕРАМ 1, 2, 3, 4, 5 -->
+            <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; margin-bottom:8px;">
+                <!-- К1: Контроль -->
                 <div style="background:#ecfdf5; border:1.5px solid #059669; border-radius:8px; padding:6px 2px; text-align:center;">
                     <div style="font-size:10px; color:#065f46; font-weight:bold;">🟢 К1: Контроль</div>
-                    <div style="font-size:14px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl}</div>
+                    <div style="font-size:14px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl_ndvi}</b></div>
+                    <div style="font-size:8.5px; color:#047857; font-weight:600; margin-top:2px;">Оптимум (100% ПВ)</div>
                 </div>
+                <!-- К2: Засоление -->
                 <div style="background:#f5f3ff; border:1.5px solid #7c3aed; border-radius:8px; padding:6px 2px; text-align:center;">
                     <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🟣 К2: Засоление</div>
-                    <div style="font-size:14px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt}</div>
+                    <div style="font-size:14px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt_ndvi}</b></div>
+                    <div style="font-size:8.5px; color:#5b21b6; font-weight:600; margin-top:2px;">150 мМ NaCl (лоток)</div>
                 </div>
+                <!-- К3: Спасение по прибору -->
+                <div style="background:#fefce8; border:1.5px solid #eab308; border-radius:8px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:10px; color:#854d0e; font-weight:bold;">🟡 К3: Прибор</div>
+                    <div style="font-size:14px; font-weight:bold; color:#ca8a04; margin:1px 0;">{cnt_inst} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#ca8a04;">{m_inst_ndvi}</b></div>
+                    <div style="font-size:8.5px; color:#854d0e; font-weight:600; margin-top:2px;">Доклинич. полив</div>
+                </div>
+                <!-- К4: Спасение по глазам -->
+                <div style="background:#eff6ff; border:1.5px solid #2563eb; border-radius:8px; padding:6px 2px; text-align:center;">
+                    <div style="font-size:10px; color:#1e40af; font-weight:bold;">🔵 К4: Глаза</div>
+                    <div style="font-size:14px; font-weight:bold; color:#2563eb; margin:1px 0;">{cnt_eye} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
+                    <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#2563eb;">{m_eye_ndvi}</b></div>
+                    <div style="font-size:8.5px; color:#1e40af; font-weight:600; margin-top:2px;">Визуальн. увядание</div>
+                </div>
+                <!-- К5: Терминальная засуха -->
                 <div style="background:#fff1f2; border:1.5px solid #dc2626; border-radius:8px; padding:6px 2px; text-align:center;">
                     <div style="font-size:10px; color:#be123c; font-weight:bold;">🔴 К5: Гибель</div>
-                    <div style="font-size:14px; font-weight:bold; color:#e11d48; margin:1px 0;">{cnt_term}</div>
+                    <div style="font-size:14px; font-weight:bold; color:#e11d48; margin:1px 0;">{cnt_term} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#dc2626;">{m_term_ndvi}</b></div>
+                    <div style="font-size:8.5px; color:#be123c; font-weight:600; margin-top:2px;">Точка невозврата</div>
                 </div>
             </div>
 
-            <!-- НИЖНИЙ РЯД: ДУЭЛЬ ПРИБОР VS ЧЕЛОВЕК -->
-            <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:6px 8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                    <span style="font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">⚔️ Дуэль: Прибор vs Человеческий глаз</span>
-                    <span style="background:#ecfdf5; color:#047857; font-size:9px; font-weight:bold; padding:1px 5px; border-radius:4px; border:1px solid #a7f3d0;">{eff_badge}</span>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; text-align:center;">
-                    <div style="background:#fefce8; border:1.5px solid #eab308; border-radius:6px; padding:5px 4px;">
-                        <div style="font-size:10px; color:#854d0e; font-weight:bold;">🟡 К3: Спасение прибором</div>
-                        <div style="font-size:13px; font-weight:bold; color:#ca8a04; margin:1px 0;">{cnt_inst} <span style="font-size:10px; font-weight:normal; color:#64748b;">зам.</span></div>
-                        <div style="font-size:10px; color:#334155;">NDVI: <b style="color:#ca8a04;">{m_inst_ndvi}</b></div>
-                        <div style="font-size:9px; color:#854d0e; font-weight:600; margin-top:2px;">Доклинический полив</div>
-                    </div>
-                    <div style="background:#eff6ff; border:1.5px solid #2563eb; border-radius:6px; padding:5px 4px;">
-                        <div style="font-size:10px; color:#1e40af; font-weight:bold;">🔵 К4: Спасение глазами</div>
-                        <div style="font-size:13px; font-weight:bold; color:#2563eb; margin:1px 0;">{cnt_eye} <span style="font-size:10px; font-weight:normal; color:#64748b;">зам.</span></div>
-                        <div style="font-size:10px; color:#334155;">NDVI: <b style="color:#2563eb;">{m_eye_ndvi}</b></div>
-                        <div style="font-size:9px; color:#1e40af; font-weight:600; margin-top:2px;">Визуальное увядание</div>
-                    </div>
-                </div>
+            <!-- ИНФОРМАЦИОННАЯ ПЛАШКА ДУЭЛИ К3 VS К4 -->
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; color:#334155; font-weight:600;">
+                    ⚔️ <b>Научная дуэль:</b> 🟡 К3 Спасение прибором vs 🔵 К4 Спасение по глазам
+                </span>
+                <span style="background:#ecfdf5; color:#047857; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:4px; border:1px solid #a7f3d0;">{eff_badge}</span>
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-top:8px;">
