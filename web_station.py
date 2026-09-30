@@ -2018,15 +2018,18 @@ def index(
                 <span style="background:#ecfdf5; color:#047857; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:4px; border:1px solid #a7f3d0;">{eff_badge}</span>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-top:8px;">
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-top:8px;">
                 <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
-                    📥 Экспорт базы (.CSV)
+                    📥 База (.CSV)
                 </a>
                 <a href="/download/images_zip" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; color:#15803d; text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#10b981';this.style.color='#fff';" onmouseout="this.style.background='#f0fdf4';this.style.color='#15803d';">
-                    📷 Скачать архив (.ZIP)
+                    📷 Снимки (.ZIP)
                 </a>
                 <a href="/download/aruco_pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:8px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';">
-                    🏷️ Печать ArUco (.PDF)
+                    🏷️ ArUco (.PDF)
+                </a>
+                <a href="/download/presentation" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:8px; color:#1d4ed8; text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#2563eb';this.style.color='#fff';" onmouseout="this.style.background='#eff6ff';this.style.color='#1d4ed8';">
+                    📊 Презентация (14 сл.)
                 </a>
             </div>
         </div>
@@ -2788,7 +2791,6 @@ def download_paper():
     return HTMLResponse('Файл работы не найден')
 
 @app.get('/download/research_paper')
-@app.get('/download/spbu_paper')
 def download_research_paper():
     pdf_path = os.path.join(STATIC_DIR, 'Научно_исследовательская_работа_Ковалева_Алиса.pdf')
     if not os.path.exists(pdf_path):
@@ -2798,7 +2800,6 @@ def download_research_paper():
     return HTMLResponse('Файл научно-исследовательской статьи пока не сформирован')
 
 @app.get('/download/review_note')
-@app.get('/download/spbu_note')
 def download_review_note():
     pdf_path = os.path.join(STATIC_DIR, 'Краткая_записка_для_рецензирования_Ковалева_Алиса.pdf')
     if not os.path.exists(pdf_path):
@@ -2808,10 +2809,23 @@ def download_review_note():
     return HTMLResponse('Файл записки для рецензирования пока не найден')
 
 @app.get('/download/presentation')
+@app.get('/download/presentation_pdf')
 def download_presentation():
-    pdf_path = os.path.join(STATIC_DIR, 'Презентация_Большие_Вызовы_Ковалева_Алиса.pdf')
+    pdf_path = os.path.join(STATIC_DIR, 'Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pdf')
+    if not os.path.exists(pdf_path):
+        pdf_path = os.path.join(DOCS_DIR, 'Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pdf')
     if os.path.exists(pdf_path):
-        return FileResponse(pdf_path, filename='Презентация_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
+        return FileResponse(pdf_path, filename='Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл презентации проекта пока не сформирован')
+
+@app.get('/download/presentation_pptx')
+def download_presentation_pptx():
+    pptx_path = os.path.join(STATIC_DIR, 'Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pptx')
+    if not os.path.exists(pptx_path):
+        pptx_path = os.path.join(DOCS_DIR, 'Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pptx')
+    if os.path.exists(pptx_path):
+        return FileResponse(pptx_path, filename='Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pptx', media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+    return HTMLResponse('Файл PPTX презентации пока не сформирован')
 @app.get('/download/aruco_pdf')
 def download_aruco_pdf():
     pdf_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.pdf')
