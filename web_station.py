@@ -100,8 +100,32 @@ BATCH_STATE = {
 LAST_VALID_CLIMATE = (24.9, 65.7, 3.21)
 
 def read_xiaomi_climate():
-    """Автоматический опрос Sensirion SHT30 по локальному UDP протоколу с фильтрацией некорректных кодов."""
+    """
+    Опрос аппаратного микроклиматического сенсора Sensirion SHT30 по прямой шине I2C-0 (адрес 0x44).
+    При сбое I2C — резервный опрос по UDP шлюзу Xiaomi.
+    """
     global LAST_VALID_CLIMATE
+    # 1. Прямое аппаратное чтение по I2C-0
+    try:
+        import smbus2
+        bus = smbus2.SMBus(0)
+        # Команда замера высокой повторяемости (High repeatability, clock stretching disabled: 0x2C, 0x06)
+        bus.write_i2c_block_data(0x44, 0x2C, [0x06])
+        time.sleep(0.05)
+        d = bus.read_i2c_block_data(0x44, 0x00, 6)
+        bus.close()
+        t_c = -45.0 + (175.0 * ((d[0] << 8) | d[1]) / 65535.0)
+        rh = 100.0 * (((d[3] << 8) | d[4]) / 65535.0)
+        if -20.0 <= t_c <= 70.0 and 0.0 <= rh <= 100.0:
+            t = round(float(t_c), 1)
+            rh = round(float(rh), 1)
+            v_rail = 3.30
+            LAST_VALID_CLIMATE = (t, rh, v_rail)
+            return t, rh, v_rail
+    except Exception:
+        pass
+
+    # 2. Резервный опрос через шлюз Xiaomi
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(0.7)
@@ -195,23 +219,23 @@ def format_group_badge(grp_name: str) -> str:
         return '--'
     grp_lower = grp_name.strip().lower()
     if 'прибор' in grp_lower or 'станци' in grp_lower:
-        return '<span style="background:#ecfdf5; color:#047857; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🔬 Спасение по прибору</span>'
+        return '<span style="background:#ecfdf5; color:#047857; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">Предиктивный полив</span>'
     elif 'глаз' in grp_lower or 'визуал' in grp_lower:
-        return '<span style="background:#fffbeb; color:#b45309; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">👁️ Спасение по глазам</span>'
+        return '<span style="background:#fffbeb; color:#b45309; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">Органолептический полив</span>'
     elif 'терминал' in grp_lower or 'гибель' in grp_lower or 'некроз' in grp_lower:
-        return '<span style="background:#fee2e2; color:#b91c1c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fca5a5; font-size:11px; white-space:nowrap;">⚠️ Терминальная засуха</span>'
+        return '<span style="background:#fee2e2; color:#b91c1c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fca5a5; font-size:11px; white-space:nowrap;">Терминальная засуха</span>'
     elif 'сол' in grp_lower or 'salin' in grp_lower:
-        return '<span style="background:#f5f3ff; color:#6d28d9; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #ddd6fe; font-size:11px; white-space:nowrap;">🧂 Засоление (NaCl)</span>'
+        return '<span style="background:#f5f3ff; color:#6d28d9; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #ddd6fe; font-size:11px; white-space:nowrap;">Засоление (NaCl)</span>'
     elif 'калибро' in grp_lower or 'стенд' in grp_lower:
-        return '<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #cbd5e1; font-size:11px; white-space:nowrap;">🛠️ Калибровка (Стенд №0)</span>'
+        return '<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #cbd5e1; font-size:11px; white-space:nowrap;">Калибровочный стенд</span>'
     elif 'контр' in grp_lower or 'control' in grp_lower or 'эталон' in grp_lower or 'оптимум' in grp_lower:
-        return '<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">🌱 Контроль</span>'
+        return '<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">Контроль</span>'
     elif 'репар' in grp_lower or 'ранн' in grp_lower:
-        return '<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">💧 Репарация</span>'
+        return '<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">Репарация</span>'
     elif 'критич' in grp_lower or 'поздн' in grp_lower:
-        return '<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">⚠️ Крит. стресс</span>'
+        return '<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">Крит. стресс</span>'
     elif 'засух' in grp_lower or 'drought' in grp_lower:
-        return f'<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">🍂 {grp_name}</span>'
+        return f'<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">{grp_name}</span>'
     else:
         return f'<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #e2e8f0; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
@@ -273,17 +297,26 @@ def get_next_id():
         return max_id + 1
 
 def read_moisture_mock(group_name: str = ''):
+    """
+    Чтение аналогового емкостного датчика влажности почвы через 16-битный АЦП ADS1115 (I2C-0, адрес 0x48, канал A0).
+    Калибровка: Сухой датчик на воздухе V_dry = 2.03 В (0%), Погружение в воду V_wet = 0.57 В (100%).
+    """
     try:
-        import board, busio
-        import adafruit_ads1x15.ads1115 as ADS
-        from adafruit_ads1x15.analog_in import AnalogIn
-        i2c = busio.I2C(board.SCL, board.SDA)
-        ads = ADS.ADS1115(i2c)
-        chan = AnalogIn(ads, ADS.P0)
-        v = chan.voltage
-        pct = max(0.0, min(100.0, (3.0 - v) / (3.0 - 1.2) * 100.0))
-        return round(v, 2), round(pct, 1)
-    except Exception:
+        import smbus2
+        bus = smbus2.SMBus(0)
+        # Регистр конфигурации 0x01: одиночное преобразование, AIN0 относительно GND, диапазон +/-4.096 В, 128 SPS
+        bus.write_i2c_block_data(0x48, 0x01, [0xC3, 0x83])
+        time.sleep(0.04)
+        c = bus.read_i2c_block_data(0x48, 0x00, 2)
+        bus.close()
+        raw = (c[0] << 8) | c[1]
+        if raw > 32767:
+            raw -= 65536
+        v = float(raw * 0.000125)
+        # Расчет влажности субстрата (% ПВ)
+        pct = max(0.0, min(100.0, (2.03 - v) / (2.03 - 0.57) * 100.0))
+        return round(v, 3), round(pct, 1)
+    except Exception as e:
         gn = group_name.lower() if group_name else ''
         if 'засух' in gn or 'drought' in gn:
             v_base, pct_base = 2.45, 30.5
@@ -510,8 +543,9 @@ def do_hardware_spectral_capture(group_name: str):
     ts_display = format_ru_datetime(ts_now)
 
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
     for _ in range(5): cap.read()
 
     ret, frame_amb = cap.read()
@@ -611,8 +645,8 @@ def do_hardware_spectral_capture(group_name: str):
         else:
             px_to_cm2 = 0.00038
     else:
-        # Номинальный масштаб бокса 220 мм при разрешении 1280x720
-        px_to_cm2 = 0.00038
+        # Номинальный масштаб бокса при разрешении 1600x1200 (при отсутствии маркера)
+        px_to_cm2 = 0.00018
 
     # 2. Сегментация проективной листовой поверхности (Projected Leaf Area, PLA)
     # Порог вегетационного индекса для зеленой биомассы: NDVI > 0.22
@@ -693,6 +727,8 @@ def do_hardware_spectral_capture(group_name: str):
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_red.jpg'), vis_red)
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_nir.jpg'), vis_nir)
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_ndvi.jpg'), annotated_ndvi)
+    cv2.imwrite(os.path.join(STATIC_DIR, 'last_amb.jpg'), frame_amb)
+    cv2.imwrite(os.path.join(STATIC_DIR, 'last_flash_raw.jpg'), frame_flash)
 
     v_soil, pct_soil = read_moisture_mock(group_name)
     live_t, live_rh, _ = read_xiaomi_climate()
@@ -1425,12 +1461,12 @@ def index(
                 
                 if m_id:
                     c_col = CASSETTE_CATALOG.get(m_id, {}).get('color', '#059669')
-                    badge = f'<div style="background:{c_col}18; color:{c_col}; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid {c_col}50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏷️ ID #{m_id}</div>'
+                    badge = f'<div style="background:{c_col}18; color:{c_col}; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid {c_col}50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">ID #{m_id}</div>'
                     slot_title = f"Кассета #{m_id}"
                     slot_border = f"1.5px solid {c_col}"
                     slot_bg = f"{c_col}0d"
                 else:
-                    badge = '<div style="background:#fffbeb; color:#b45309; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid #fde68a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">⚠️ Ручная</div>'
+                    badge = '<div style="background:#fffbeb; color:#b45309; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid #fde68a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Ручная привязка</div>'
                     slot_title = f"Кадр #{i+1}"
                     slot_border = "1.5px solid #cbd5e1"
                     slot_bg = "#f8fafc"
@@ -1438,7 +1474,7 @@ def index(
                 slots_html += f'''
                     <div style="background:{slot_bg}; border:{slot_border}; border-radius:8px; padding:6px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; overflow:hidden; min-width:0; min-height:86px;">
                         <div>
-                            <span style="font-size:9.5px; color:#475569; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">✓ Снято #{i+1}</span>
+                            <span style="font-size:9.5px; color:#475569; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Замер #{i+1}</span>
                             <span style="font-size:11px; color:#0f172a; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{slot_title}</span>
                             <span style="font-size:9.5px; color:#64748b; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{full_grp}">{short_grp}</span>
                         </div>
@@ -1449,7 +1485,7 @@ def index(
                 slots_html += f'''
                     <div style="background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:6px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; overflow:hidden; min-width:0; min-height:86px; box-shadow:0 2px 6px rgba(59,130,246,0.2);">
                         <div>
-                            <span style="font-size:9.5px; color:#1d4ed8; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">👉 В БОКСЕ</span>
+                            <span style="font-size:9.5px; color:#1d4ed8; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">ТЕКУЩИЙ ЗАМЕР</span>
                             <span style="font-size:11px; color:#1e40af; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Кадр #{step_idx + 1}</span>
                             <span style="font-size:9.5px; color:#2563eb; font-weight:600; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">из {total_steps}</span>
                         </div>
@@ -1504,26 +1540,26 @@ def index(
                         <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:10px;">
                             <div style="margin-bottom:8px;">
                                 <label style="font-size:11px; font-weight:bold; color:#1e40af; display:block; margin-bottom:2px;">
-                                    🏷️ Кассета (когорта):
+                                    Кассета (когорта):
                                 </label>
                                 <select name="cohort_choice" style="width:100%; padding:6px 8px; font-size:12px; font-weight:bold; border:1.5px solid #3b82f6; border-radius:6px; background:#eff6ff; color:#1e40af;">
-                                    <option value="auto" selected>🎯 Автоматически (распознать по цветному ArUco-маркеру)</option>
-                                    <option value="1">🟢 Кассета #1: Контроль (Оптимум 100% ПВ)</option>
-                                    <option value="2">🟣 Кассета #2: Засоление (NaCl 150 мМ, изолятор)</option>
-                                    <option value="3">🟡 Кассета #3: Спасение по прибору (Доклинический полив)</option>
-                                    <option value="4">🔵 Кассета #4: Спасение по глазам (Поздний полив)</option>
-                                    <option value="5">🔴 Кассета #5: Терминальная засуха (Точка невозврата)</option>
-                                    <option value="6">⚙️ Кассета #6: Калибровка (Стенд №0, посев 22.09)</option>
+                                    <option value="auto" selected>Автоматически (распознать по ArUco-маркеру)</option>
+                                    <option value="1">Кассета #1: Контроль (Оптимум 100% ПВ)</option>
+                                    <option value="2">Кассета #2: Засоление (NaCl 150 мМ, изолятор)</option>
+                                    <option value="3">Кассета #3: Предиктивный полив (ранний полив по ΔT)</option>
+                                    <option value="4">Кассета #4: Органолептический полив (визуальный контроль)</option>
+                                    <option value="5">Кассета #5: Терминальная засуха (контроль гибели)</option>
+                                    <option value="6">Кассета #6: Калибровочный стенд (Стенд №0, посев 22.09)</option>
                                 </select>
                             </div>
 
                             <span style="font-size:10px; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:6px;">
-                                📝 Физиологические параметры (вводятся сразу при замере):
+                                Физиологические параметры замера:
                             </span>
                             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; align-items:end;">
                                 <div style="display:flex; flex-direction:column;">
                                     <label style="font-size:11px; font-weight:bold; color:#0f766e; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
-                                        ⚖️ Масса, г:
+                                        Масса, г:
                                     </label>
                                     <input type="text" name="weight_g" autofocus placeholder="напр. 405.0" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                                 </div>
@@ -1844,7 +1880,7 @@ def index(
                     </div>
 
                     <div style="margin-top:10px; padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; color:#334155;">
-                        <span>T возд: <b style="color:#0284c7;">{s['t_air']} °C</b> (Xiaomi)</span>
+                        <span>T возд: <b style="color:#0284c7;">{s['t_air']} °C</b> (SHT30)</span>
                         <span>NDVI: <b style="color:#059669;">{s['mean_ndvi']}</b></span>
                         <span>VPD: <b style="color:#d97706;">{s['vpd']} кПа</b></span>
                     </div>
@@ -1887,19 +1923,19 @@ def index(
                 <!-- Выпадающий одиночный замер -->
                 <details style="border-top:1px solid #e2e8f0; padding-top:8px; margin-top:8px;">
                     <summary style="cursor:pointer; color:#64748b; font-size:11px; font-weight:bold;">
-                        ⚙️ Выборочный одиночный замер одной кассеты
+                        Выборочный одиночный замер одной кассеты
                     </summary>
                     <form action="/api/start_spectral" method="post" style="margin-top:8px;">
                         <select name="group_name" style="margin-bottom:6px; font-size:12px;">
-                            <option value="Контроль">🟢 Кассета 1: Контроль (Оптимум 100% ПВ)</option>
-                            <option value="Засоление (NaCl)">🟣 Кассета 2: Засоление (NaCl 150 мМ, изолятор)</option>
-                            <option value="Спасение по прибору">🟡 Кассета 3: Спасение по прибору (Доклинический полив)</option>
-                            <option value="Спасение по глазам">🔵 Кассета 4: Спасение по глазам (Поздний полив)</option>
-                            <option value="Терминальная засуха">🔴 Кассета 5: Терминальная засуха (Точка невозврата)</option>
-                            <option value="Калибровка (Стенд №0)">⚙️ Кассета 6: Калибровка (Стенд №0, посев 22.09)</option>
+                            <option value="Контроль">Кассета 1: Контроль (Оптимум 100% ПВ)</option>
+                            <option value="Засоление (NaCl)">Кассета 2: Засоление (NaCl 150 мМ, изолятор)</option>
+                            <option value="Спасение по прибору">Кассета 3: Предиктивный полив (ранний полив по ΔT)</option>
+                            <option value="Спасение по глазам">Кассета 4: Органолептический полив (визуальный контроль)</option>
+                            <option value="Терминальная засуха">Кассета 5: Терминальная засуха (контроль гибели)</option>
+                            <option value="Калибровка (Стенд №0)">Кассета 6: Калибровочный стенд (Стенд №0, посев 22.09)</option>
                         </select>
                         <button type="submit" class="btn-run" style="padding:8px; font-size:12px; margin-top:0;">
-                            📸 Снять выбранную кассету в боксе
+                            Снять выбранную кассету в боксе
                         </button>
                     </form>
                 </details>
@@ -1966,70 +2002,91 @@ def index(
 
     summary_card = f'''
         <div class="card" style="margin-top: 0; padding:14px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
-                <h2 style="margin:0; font-size:14px; border:none; padding:0; color:var(--sirius-teal-dark);">📊 Экспресс-сводка: 5 когорт эксперимента</h2>
-                <span style="background:#f0fdfa; border:1px solid var(--sirius-teal); color:var(--sirius-teal-dark); padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Всего: {len(rows)}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:4px; height:16px; background:var(--sirius-teal); border-radius:2px;"></div>
+                    <h2 style="margin:0; font-size:14px; font-weight:700; border:none; padding:0; color:var(--sirius-teal-dark); letter-spacing:-0.2px;">Сводка экспериментальных когорт</h2>
+                </div>
+                <span style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600;">Всего измерений: {len(rows)}</span>
             </div>
 
             <!-- ЕДИНЫЙ РЯД: ВСЕ 5 КАССЕТ СТРОГО ПО ПОРЯДКОВЫМ НОМЕРАМ 1, 2, 3, 4, 5 -->
-            <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; margin-bottom:8px;">
+            <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-bottom:10px;">
                 <!-- К1: Контроль -->
-                <div style="background:#ecfdf5; border:1.5px solid #059669; border-radius:8px; padding:6px 2px; text-align:center;">
-                    <div style="font-size:10px; color:#065f46; font-weight:bold;">🟢 К1: Контроль</div>
-                    <div style="font-size:14px; font-weight:bold; color:#047857; margin:1px 0;">{cnt_ctrl} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
+                <div style="background:#ecfdf5; border:1.5px solid #059669; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; min-height:86px; box-sizing:border-box;">
+                    <div style="font-size:10.5px; color:#065f46; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <span style="width:7px; height:7px; border-radius:50%; background:#059669; display:inline-block;"></span> К1: Контроль
+                    </div>
+                    <div style="font-size:15px; font-weight:700; color:#047857; margin:2px 0;">{cnt_ctrl} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#047857; font-weight:600; margin-top:2px;">Оптимум (100% ПВ)</div>
+                    <div style="font-size:8.5px; color:#047857; font-weight:600; margin-top:2px; padding-top:2px; border-top:1px dashed #a7f3d0;">Оптимум (100% ПВ)</div>
                 </div>
                 <!-- К2: Засоление -->
-                <div style="background:#f5f3ff; border:1.5px solid #7c3aed; border-radius:8px; padding:6px 2px; text-align:center;">
-                    <div style="font-size:10px; color:#5b21b6; font-weight:bold;">🟣 К2: Засоление</div>
-                    <div style="font-size:14px; font-weight:bold; color:#6d28d9; margin:1px 0;">{cnt_salt} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
+                <div style="background:#f5f3ff; border:1.5px solid #7c3aed; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; min-height:86px; box-sizing:border-box;">
+                    <div style="font-size:10.5px; color:#5b21b6; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <span style="width:7px; height:7px; border-radius:50%; background:#7c3aed; display:inline-block;"></span> К2: Засоление
+                    </div>
+                    <div style="font-size:15px; font-weight:700; color:#6d28d9; margin:2px 0;">{cnt_salt} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#5b21b6; font-weight:600; margin-top:2px;">150 мМ NaCl (лоток)</div>
+                    <div style="font-size:8.5px; color:#5b21b6; font-weight:600; margin-top:2px; padding-top:2px; border-top:1px dashed #ddd6fe;">150 мМ NaCl</div>
                 </div>
-                <!-- К3: Спасение по прибору -->
-                <div style="background:#fefce8; border:1.5px solid #eab308; border-radius:8px; padding:6px 2px; text-align:center;">
-                    <div style="font-size:10px; color:#854d0e; font-weight:bold;">🟡 К3: Прибор</div>
-                    <div style="font-size:14px; font-weight:bold; color:#ca8a04; margin:1px 0;">{cnt_inst} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
+                <!-- К3: Предиктивный полив -->
+                <div style="background:#fefce8; border:1.5px solid #ca8a04; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; min-height:86px; box-sizing:border-box;">
+                    <div style="font-size:10.5px; color:#854d0e; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <span style="width:7px; height:7px; border-radius:50%; background:#ca8a04; display:inline-block;"></span> К3: Прибор
+                    </div>
+                    <div style="font-size:15px; font-weight:700; color:#a16207; margin:2px 0;">{cnt_inst} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#ca8a04;">{m_inst_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#854d0e; font-weight:600; margin-top:2px;">Доклинич. полив</div>
+                    <div style="font-size:8.5px; color:#854d0e; font-weight:600; margin-top:2px; padding-top:2px; border-top:1px dashed #fef08a;">Ранний полив (ΔT)</div>
                 </div>
-                <!-- К4: Спасение по глазам -->
-                <div style="background:#eff6ff; border:1.5px solid #2563eb; border-radius:8px; padding:6px 2px; text-align:center;">
-                    <div style="font-size:10px; color:#1e40af; font-weight:bold;">🔵 К4: Глаза</div>
-                    <div style="font-size:14px; font-weight:bold; color:#2563eb; margin:1px 0;">{cnt_eye} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
+                <!-- К4: Органолептический полив -->
+                <div style="background:#eff6ff; border:1.5px solid #2563eb; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; min-height:86px; box-sizing:border-box;">
+                    <div style="font-size:10.5px; color:#1e40af; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <span style="width:7px; height:7px; border-radius:50%; background:#2563eb; display:inline-block;"></span> К4: Глаза
+                    </div>
+                    <div style="font-size:15px; font-weight:700; color:#1d4ed8; margin:2px 0;">{cnt_eye} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#2563eb;">{m_eye_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#1e40af; font-weight:600; margin-top:2px;">Визуальн. увядание</div>
+                    <div style="font-size:8.5px; color:#1e40af; font-weight:600; margin-top:2px; padding-top:2px; border-top:1px dashed #bfdbfe;">Визуальн. увядание</div>
                 </div>
                 <!-- К5: Терминальная засуха -->
-                <div style="background:#fff1f2; border:1.5px solid #dc2626; border-radius:8px; padding:6px 2px; text-align:center;">
-                    <div style="font-size:10px; color:#be123c; font-weight:bold;">🔴 К5: Гибель</div>
-                    <div style="font-size:14px; font-weight:bold; color:#e11d48; margin:1px 0;">{cnt_term} <span style="font-size:9px; font-weight:normal; color:#64748b;">зам.</span></div>
+                <div style="background:#fff1f2; border:1.5px solid #dc2626; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; min-height:86px; box-sizing:border-box;">
+                    <div style="font-size:10.5px; color:#9f1239; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <span style="width:7px; height:7px; border-radius:50%; background:#e11d48; display:inline-block;"></span> К5: Гибель
+                    </div>
+                    <div style="font-size:15px; font-weight:700; color:#be123c; margin:2px 0;">{cnt_term} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#dc2626;">{m_term_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#be123c; font-weight:600; margin-top:2px;">Точка невозврата</div>
+                    <div style="font-size:8.5px; color:#9f1239; font-weight:600; margin-top:2px; padding-top:2px; border-top:1px dashed #fecdd3;">Точка невозврата</div>
                 </div>
             </div>
 
-            <!-- ИНФОРМАЦИОННАЯ ПЛАШКА ДУЭЛИ К3 VS К4 -->
-            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:11px; color:#334155; font-weight:600;">
-                    ⚔️ <b>Научная дуэль:</b> 🟡 К3 Спасение прибором vs 🔵 К4 Спасение по глазам
-                </span>
-                <span style="background:#ecfdf5; color:#047857; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:4px; border:1px solid #a7f3d0;">{eff_badge}</span>
+            <!-- ИНФОРМАЦИОННАЯ ПЛАШКА СРАВНИТЕЛЬНОГО АНАЛИЗА К3 VS К4 -->
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:7px 12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="background:#e0f2fe; color:#0369a1; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:3px; text-transform:uppercase; letter-spacing:0.5px;">Сравнение</span>
+                    <span style="font-size:11px; color:#1e293b; font-weight:600;">
+                        <b>Предиктивная эффективность:</b> К3 (полив по раннему алерту станции) vs К4 (полив по визуальным признакам)
+                    </span>
+                </div>
+                <span style="background:#ecfdf5; color:#047857; font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:4px; border:1px solid #a7f3d0; white-space:nowrap;">Сохранность: {eff_badge}</span>
             </div>
 
-            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-top:8px;">
-                <a href="/download/csv" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; color:var(--sirius-teal-dark); text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='var(--sirius-teal-dark)';this.style.borderColor='#cbd5e1';">
-                    📥 База (.CSV)
+            <!-- 4 КНОПКИ ДЕЙСТВИЙ: СТРОГО ОДИНАКОВАЯ ВЫСОТА 38px, ОДНОСТРОЧНЫЙ ТЕКСТ, БЕЗ СМАЙЛОВ -->
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">
+                <a href="/download/csv" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:6px; color:#334155; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='#334155';this.style.borderColor='#cbd5e1';">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Экспорт данных (.CSV)</span>
                 </a>
-                <a href="/download/images_zip" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; color:#15803d; text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#10b981';this.style.color='#fff';" onmouseout="this.style.background='#f0fdf4';this.style.color='#15803d';">
-                    📷 Снимки (.ZIP)
+                <a href="/download/images_zip" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:6px; color:#15803d; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#10b981';this.style.color='#fff';this.style.borderColor='#10b981';" onmouseout="this.style.background='#f0fdf4';this.style.color='#15803d';this.style.borderColor='#bbf7d0';">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    <span>Архив кадров (.ZIP)</span>
                 </a>
-                <a href="/download/aruco_pdf" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:8px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';">
-                    🏷️ ArUco (.PDF)
+                <a href="/download/aruco_pdf" target="_blank" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:6px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';this.style.borderColor='#00a499';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';this.style.borderColor='#99f6e4';">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/></svg>
+                    <span>Маркеры ArUco (.PDF)</span>
                 </a>
-                <a href="/download/presentation" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; box-sizing:border-box; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:8px; color:#1d4ed8; text-decoration:none; font-size:11px; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='#2563eb';this.style.color='#fff';" onmouseout="this.style.background='#eff6ff';this.style.color='#1d4ed8';">
-                    📊 Презентация (14 сл.)
+                <a href="/download/presentation" target="_blank" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:6px; color:#1d4ed8; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#2563eb';this.style.color='#fff';this.style.borderColor='#2563eb';" onmouseout="this.style.background='#eff6ff';this.style.color='#1d4ed8';this.style.borderColor='#bfdbfe';">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    <span>Презентация (.PDF)</span>
                 </a>
             </div>
         </div>
@@ -2571,7 +2628,7 @@ def index(
     <div class="climate-bar">
         <div class="clim-item">
             <span class="clim-label">📡 Сенсор климата</span>
-            <span class="clim-val val-purple">Sensirion SHT30</span>
+            <span class="clim-val val-purple">Sensirion SHT30 (I2C-0)</span>
         </div>
         <div class="clim-divider"></div>
         <div class="clim-item">
@@ -2590,7 +2647,7 @@ def index(
         </div>
         <div class="clim-divider"></div>
         <div class="clim-item">
-            <span class="clim-label">🔋 Питание SHT30</span>
+            <span class="clim-label">⚡ Линия 3.3V</span>
             <span class="clim-val val-slate">{cur_v} В</span>
         </div>
     </div>
