@@ -542,7 +542,7 @@ def do_hardware_spectral_capture(group_name: str):
     ts_str = ts_now.strftime('%Y%m%d_%H%M%S')
     ts_display = format_ru_datetime(ts_now)
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
@@ -553,33 +553,59 @@ def do_hardware_spectral_capture(group_name: str):
         cap.release()
         raise RuntimeError('Камера /dev/video0 недоступна')
 
+    # 1. Кадр фоновой засветки (Ambient: оба излучателя выключены)
     init_relay()
     if RELAY_REQ:
+        # 2. ЩЕЛЧОК 1: Включение ТОЛЬКО красного эмиттера 660 нм (Канал 1 / Pin 7 / Линия 4)
         RELAY_REQ.set_value(4, Value.ACTIVE)
+        time.sleep(0.35)
+        for _ in range(4): cap.read()
+        ret_r, frame_red = cap.read()
+        RELAY_REQ.set_value(4, Value.INACTIVE) # ЩЕЛЧОК 2: Красный выключен
+
+        time.sleep(0.20)
+
+        # 3. ЩЕЛЧОК 3: Включение ТОЛЬКО инфракрасного эмиттера 850 нм (Канал 2 / Pin 10 / Линия 7)
         RELAY_REQ.set_value(7, Value.ACTIVE)
-        time.sleep(0.4)
-        for _ in range(5): cap.read()
-        ret, frame_flash = cap.read()
-        RELAY_REQ.set_value(4, Value.INACTIVE)
-        RELAY_REQ.set_value(7, Value.INACTIVE)
+        time.sleep(0.35)
+        for _ in range(4): cap.read()
+        ret_n, frame_nir = cap.read()
+        RELAY_REQ.set_value(7, Value.INACTIVE) # ЩЕЛЧОК 4: Инфракрасный выключен
+
+        if not ret_r: frame_red = frame_amb
+        if not ret_n: frame_nir = frame_amb
     else:
-        time.sleep(0.4)
-        for _ in range(5): cap.read()
-        ret, frame_flash = cap.read()
+        frame_red = frame_amb
+        frame_nir = frame_amb
 
     cap.release()
 
-    # Оптическая детекция ArUco-маркера кассеты NoIR-камерой
-    aruco_id, aruco_group, aruco_corners = detect_aruco_in_image(frame_flash)
+    frame_flash = frame_red
+
+    # Оптическая детекция ArUco-маркера кассеты NoIR-камерой (по кадру 660 нм или фону)
+    aruco_id, aruco_group, aruco_corners = detect_aruco_in_image(frame_red)
+    if aruco_id is None:
+        aruco_id, aruco_group, aruco_corners = detect_aruco_in_image(frame_amb)
     if aruco_id is not None:
         group_name = aruco_group
         print(f'[ArUco Optical Link] Авто-привязка кассеты: Маркер #{aruco_id} -> {group_name}')
 
-    red_channel = frame_flash[:, :, 2].astype(np.float32)
-    nir_channel = (frame_flash[:, :, 0].astype(np.float32) * 0.2 + 
-                   frame_flash[:, :, 1].astype(np.float32) * 0.4 + 
-                   frame_flash[:, :, 2].astype(np.float32) * 0.4) * 1.25
-    nir_channel = np.clip(nir_channel, 0, 255)
+    # ЧЕСТНОЕ АППАРАТНОЕ РАЗДЕЛЕНИЕ КАНАЛОВ (БЕЗ ПРОГРАММНОЙ АППРОКСИМАЦИИ):
+    # Канал 660 нм: чистый красный подуровень матрицы под узкополосным светом 660 нм
+    red_raw = frame_red[:, :, 2].astype(np.float32)
+    # Канал 850 нм: интегральный отклик матрицы NoIR под узкополосным ИК-светом 850 нм
+    nir_raw = (frame_nir[:, :, 0].astype(np.float32) + 
+               frame_nir[:, :, 1].astype(np.float32) + 
+               frame_nir[:, :, 2].astype(np.float32)) / 3.0
+
+    # Вычитание фоновой фотометрической засветки
+    amb_red = frame_amb[:, :, 2].astype(np.float32)
+    amb_nir = (frame_amb[:, :, 0].astype(np.float32) + 
+               frame_amb[:, :, 1].astype(np.float32) + 
+               frame_amb[:, :, 2].astype(np.float32)) / 3.0
+
+    red_channel = np.clip(red_raw - 0.5 * amb_red, 1.0, 255.0)
+    nir_channel = np.clip(nir_raw - 0.5 * amb_nir, 1.0, 255.0)
 
     # Радиометрическая калибровка по белому диффузному эталону (White Reference Target)
     # Зона белого матового картона в свободном углу предметного столика (ROI: 4%..16%)
@@ -599,15 +625,9 @@ def do_hardware_spectral_capture(group_name: str):
     ndvi_map = (k_bal * nir_channel - red_channel) / denom
     ndvi_map = np.clip(ndvi_map, -1.0, 1.0)
 
-    vis_red = np.zeros_like(frame_flash)
-    vis_red[:, :, 1] = np.clip(frame_flash[:, :, 1], 0, 255)
-    vis_red[:, :, 2] = np.clip(red_channel, 0, 255)
-
-    vis_nir = np.zeros_like(frame_flash)
-    nir_u8 = nir_channel.astype(np.uint8)
-    vis_nir[:, :, 0] = cv2.multiply(nir_u8, 1.2)
-    vis_nir[:, :, 1] = nir_u8
-    vis_nir[:, :, 2] = nir_u8
+    # Физические визуализации: реальный кадр под 660 нм и реальный кадр под 850 нм
+    vis_red = frame_red.copy()
+    vis_nir = frame_nir.copy()
 
     ndvi_norm = np.clip((ndvi_map + 0.1) / 1.0 * 255, 0, 255).astype(np.uint8)
     vis_ndvi_color = cv2.applyColorMap(ndvi_norm, cv2.COLORMAP_TURBO)
