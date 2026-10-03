@@ -2,163 +2,422 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Лист ArUco-маркеров для 5 кассет | Сириус Большие вызовы</title>
+    <title>Лист гибридных ArUco-маркеров (Ч/Б контурный) | Сириус Большие вызовы</title>
     <style>
-        @page { size: A4 portrait; margin: 10mm 12mm; }
+        @page { size: A4 portrait; margin: 8mm 10mm; }
         * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', -apple-system, Roboto, sans-serif; color: #0f172a; margin: 0; padding: 0; background: #ffffff; line-height: 1.3; }
-        .container { width: 100%; max-width: 780px; margin: 0 auto; }
-        .header { text-align: center; border-bottom: 2px solid #00a499; padding-bottom: 8px; margin-bottom: 10px; }
-        .header h1 { font-size: 16px; margin: 0 0 4px 0; color: #008276; letter-spacing: 0.2px; }
-        .header p { font-size: 10.5px; color: #475569; margin: 0 0 2px 0; }
-        .instructions { background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 10.5px; color: #0f766e; line-height: 1.35; }
-        .cards-list { display: flex; flex-direction: column; gap: 9px; }
-        .marker-card { border: 1.5px dashed #cbd5e1; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; background: #ffffff; page-break-inside: avoid; border-left: 6px solid #cbd5e1; }
-        .marker-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 84px; flex-shrink: 0; }
-        .marker-img-wrap { width: 76px; height: 76px; border-radius: 6px; background: #ffffff; display: flex; align-items: center; justify-content: center; }
-        .marker-img-wrap img { width: 70px; height: 70px; image-rendering: pixelated; }
-        .marker-label { font-size: 8px; font-weight: bold; font-family: monospace; margin-top: 3px; }
-        .marker-info { flex: 1; padding: 0 14px; min-width: 0; }
-        .marker-tag { display: inline-block; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 3px; margin-bottom: 3px; color: #ffffff; }
-        .marker-title { font-size: 12.5px; font-weight: 700; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .marker-desc { font-size: 10px; color: #334155; margin-bottom: 2px; }
-        .marker-reg { font-size: 9.5px; color: #0f766e; font-weight: 600; }
-        .marker-hint { font-size: 8.5px; color: #64748b; font-family: monospace; margin-top: 2px; }
-        .footer { margin-top: 10px; font-size: 9px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 6px; }
-        .print-btn { display: block; margin: 0 auto 12px auto; padding: 9px 22px; background: #00a499; color: #ffffff; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; }
-        @media print { .print-btn { display: none; } body { padding: 0; } }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            color: #000000;
+            background: #ffffff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.25;
+            -webkit-print-color-adjust: exact;
+        }
+        .container {
+            width: 100%;
+            max-width: 780px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000000;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+        .header h1 {
+            font-size: 15px;
+            font-weight: 800;
+            margin: 0 0 2px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .header p {
+            font-size: 9.5px;
+            color: #333333;
+            margin: 0;
+        }
+        .instructions {
+            border: 1px dashed #444444;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            font-size: 9px;
+            color: #111111;
+            line-height: 1.3;
+            background: #ffffff;
+        }
+        .cards-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .marker-card {
+            border: 1.5px solid #000000;
+            border-radius: 8px;
+            padding: 6px 8px;
+            display: flex;
+            align-items: center;
+            background: #ffffff;
+            page-break-inside: avoid;
+            gap: 10px;
+        }
+        /* ArUco box */
+        .aruco-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 74px;
+            flex-shrink: 0;
+        }
+        .aruco-img-wrap {
+            width: 68px;
+            height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .aruco-img-wrap img {
+            width: 64px;
+            height: 64px;
+            image-rendering: pixelated;
+        }
+        .aruco-caption {
+            font-size: 7.5px;
+            font-weight: bold;
+            font-family: monospace;
+            margin-top: 2px;
+            color: #222222;
+        }
+        /* Number badge */
+        .num-badge {
+            width: 70px;
+            height: 70px;
+            border: 2.5px solid #000000;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: #ffffff;
+        }
+        .num-sub {
+            font-size: 7.5px;
+            font-weight: 700;
+            font-family: monospace;
+            letter-spacing: 0.5px;
+            color: #444444;
+            margin-bottom: -4px;
+        }
+        .num-val {
+            font-size: 42px;
+            font-weight: 900;
+            line-height: 1;
+            color: #000000;
+            font-family: Arial, sans-serif;
+        }
+        /* Info block */
+        .info-block {
+            flex: 1;
+            min-width: 0;
+            padding-left: 2px;
+        }
+        .header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 2px;
+        }
+        .card-title {
+            font-size: 11.5px;
+            font-weight: 800;
+            color: #000000;
+        }
+        .status-tag {
+            font-size: 10px;
+            font-weight: 900;
+            border: 1px solid #000000;
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+        .card-strategy {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #222222;
+            margin-bottom: 2px;
+        }
+        .card-protocol {
+            font-size: 8.5px;
+            color: #111111;
+            margin-bottom: 3px;
+        }
+        .tech-pill {
+            display: inline-block;
+            font-size: 7.5px;
+            font-family: monospace;
+            border: 1px solid #666666;
+            padding: 1px 5px;
+            border-radius: 3px;
+            color: #222222;
+        }
+        /* Reserve box */
+        .reserve-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 58px;
+            flex-shrink: 0;
+            border-left: 1px dashed #888888;
+            padding-left: 8px;
+        }
+        .reserve-img-wrap {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .reserve-img-wrap img {
+            width: 46px;
+            height: 46px;
+            image-rendering: pixelated;
+        }
+        .reserve-caption {
+            font-size: 7px;
+            font-family: monospace;
+            margin-top: 1px;
+            color: #444444;
+        }
+        .footer {
+            margin-top: 8px;
+            font-size: 8px;
+            color: #555555;
+            text-align: center;
+            border-top: 1px solid #888888;
+            padding-top: 4px;
+        }
+        .print-btn {
+            display: block;
+            margin: 0 auto 10px auto;
+            padding: 8px 20px;
+            background: #000000;
+            color: #ffffff;
+            border: 2px solid #000000;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .print-btn:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+        @media print {
+            .print-btn { display: none; }
+            body { padding: 0; }
+            .marker-card { border: 1.5px solid #000000 !important; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <button class="print-btn" onclick="window.print()">🖨️ РАСПЕЧАТАТЬ МАРКЕРЫ НА А4 (Ctrl + P)</button>
+        <button class="print-btn" onclick="window.print()">🖨️ РАСПЕЧАТАТЬ НА Ч/Б ПРИНТЕРЕ (A4, Ctrl + P)</button>
         <div class="header">
-            <h1>Фидуциальные ArUco-маркеры оптического позиционирования кассет</h1>
-            <p>Комплект для 5 экспериментальных когорт (Синхронный посев 29.09.2026, кассеты 3×3)</p>
-            <p>Оптико-электронный комплекс · Конкурс «Большие вызовы» ОЦ «Сириус» · Ковалева Алиса (10 класс)</p>
+            <h1>Фидуциальные метки кассет: Human-Robot Interface (Ч/Б контурный)</h1>
+            <p>Станция спектрального и термографического скрининга стресса растений · 5 синхронных когорт (n = 45)</p>
+            <p>Исследовательский проект · Конкурс «Большие вызовы» ОЦ «Сириус» 2026 · Ковалева Алиса</p>
         </div>
         <div class="instructions">
-            <b>Инструкция по маркировке 5 кассет (Цветовая синхронизация с веб-станцией):</b><br>
-            1. Распечатайте лист в масштабе <b>100%</b> (без сжатия полей А4). Каждый маркер обведен <b>своим цветом</b> по периметру: 🟢 К1 Контроль (Зеленый), 🟣 К2 Соль (Фиолетовый), 🟡 К3 Прибор (Желтый), 🔵 К4 Глаза (Синий), 🔴 К5 Гибель (Красный).<br>
-            2. Вырежьте маркеры по цветному периметру (~25×25 мм) и наклейте на противоположные уголки соответствующей кассеты (основной + резерв).<br>
-            3. Защитите каждый маркер прозрачной полоской скотча для защиты от капель воды при поливе.<br>
-            4. При установке кассеты в бокс любой стороной NoIR-камера автоматически распознает маркер и точно привяжет замер к когорте!
+            <b>Инструкция по маркировке кассет для монохромной печати:</b><br>
+            • Распечатайте на обычном офисном принтере в масштабе <b>100%</b> (без масштабирования страницы).<br>
+            • Вырежьте карточку целиком по внешнему черному контуру и наклейте на лицевой бортик кассеты (камера считывает ArUco, Алиса видит гигантскую цифру <b>1–5</b>).<br>
+            • Справа отделен <b>резервный квадратный маркер</b> (№1–5) — его можно наклеить на тыльный бортик для считывания при любом развороте кассеты.<br>
+            • После наклейки защитите метки полоской прозрачного скотча для влагозащиты от капель воды при поливе.
         </div>
         <div class="cards-list">
+            
+        <div class="marker-card">
+            <!-- Левый блок: ArUco-маркер для камеры (основной) -->
+            <div class="aruco-box">
+                <div class="aruco-img-wrap">
+                    <img src="/static/aruco/aruco_1.png" alt="ArUco 1">
+                </div>
+                <div class="aruco-caption">ARUCO #1</div>
+            </div>
 
-            <div class="marker-card" style="border-left-color: #059669;">
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #059669;">
-                        <img src="/static/aruco/aruco_1.png" alt="ArUco 1">
-                    </div>
-                    <div class="marker-label" style="color:#059669;">№1 (Основной)</div>
-                </div>
-                <div class="marker-info">
-                    <span class="marker-tag" style="background:#059669;">ArUco ID #1 (DICT_4X4_50)</span>
-                    <div class="marker-title">🌱 Кассета №1: КОНТРОЛЬ (Оптимум)</div>
-                    <div class="marker-desc">Оптимальный полив чистой водой (100% ПВ), базовый физиологический эталон</div>
-                    <div class="marker-reg">📌 Регламент: регулярный полив водой 20 мл</div>
-                    <div class="marker-hint">✂ Цветная рамка периметра: <b>#059669</b> · Вырезать по контуру · Наклеить на бортик кассеты</div>
-                </div>
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #059669;">
-                        <img src="/static/aruco/aruco_1.png" alt="ArUco 1">
-                    </div>
-                    <div class="marker-label" style="color:#059669;">№1 (Резерв)</div>
-                </div>
+            <!-- Центральный блок: Контурный номер для человека (Алисы) -->
+            <div class="num-badge">
+                <div class="num-sub">КАССЕТА</div>
+                <div class="num-val">1</div>
             </div>
+
+            <!-- Правый блок: Научный регламент и статус -->
+            <div class="info-block">
+                <div class="header-line">
+                    <span class="card-title">КАССЕТА №1: КОНТРОЛЬ (ЭТАЛОН)</span>
+                    <span class="status-tag">[НОРМА]</span>
+                </div>
+                <div class="card-strategy">ФИЗИОЛОГИЧЕСКИЙ ОПТИМУМ</div>
+                <div class="card-protocol">• Режим: Полив чистой водой 100% ПВ (20 мл/сут) · Базовый эталон</div>
+                <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:1 | S_calib = 6.25 см²</div>
+            </div>
+
+            <!-- Резервный компактный маркер для противоположного борта -->
+            <div class="reserve-box">
+                <div class="reserve-img-wrap">
+                    <img src="/static/aruco/aruco_1.png" alt="ArUco 1 Reserve">
+                </div>
+                <div class="reserve-caption">№1 (Резерв)</div>
+            </div>
+        </div>
     
-            <div class="marker-card" style="border-left-color: #7c3aed;">
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #7c3aed;">
-                        <img src="/static/aruco/aruco_2.png" alt="ArUco 2">
-                    </div>
-                    <div class="marker-label" style="color:#7c3aed;">№2 (Основной)</div>
+        <div class="marker-card">
+            <!-- Левый блок: ArUco-маркер для камеры (основной) -->
+            <div class="aruco-box">
+                <div class="aruco-img-wrap">
+                    <img src="/static/aruco/aruco_2.png" alt="ArUco 2">
                 </div>
-                <div class="marker-info">
-                    <span class="marker-tag" style="background:#7c3aed;">ArUco ID #2 (DICT_4X4_50)</span>
-                    <div class="marker-title">🧂 Кассета №2: ЗАСОЛЕНИЕ (150 мМ NaCl)</div>
-                    <div class="marker-desc">Осмотический стресс. КРИТИЧЕСКИ ВАЖНО: отдельный герметичный лоток-поддон!</div>
-                    <div class="marker-reg">📌 Регламент: 150 мМ NaCl, строго изолированный поддон!</div>
-                    <div class="marker-hint">✂ Цветная рамка периметра: <b>#7c3aed</b> · Вырезать по контуру · Наклеить на бортик кассеты</div>
-                </div>
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #7c3aed;">
-                        <img src="/static/aruco/aruco_2.png" alt="ArUco 2">
-                    </div>
-                    <div class="marker-label" style="color:#7c3aed;">№2 (Резерв)</div>
-                </div>
+                <div class="aruco-caption">ARUCO #2</div>
             </div>
+
+            <!-- Центральный блок: Контурный номер для человека (Алисы) -->
+            <div class="num-badge">
+                <div class="num-sub">КАССЕТА</div>
+                <div class="num-val">2</div>
+            </div>
+
+            <!-- Правый блок: Научный регламент и статус -->
+            <div class="info-block">
+                <div class="header-line">
+                    <span class="card-title">КАССЕТА №2: ЗАСОЛЕНИЕ</span>
+                    <span class="status-tag">[ОСМОС]</span>
+                </div>
+                <div class="card-strategy">ОСМОТИЧЕСКИЙ СТРЕСС (NaCl 150 мМ)</div>
+                <div class="card-protocol">• Режим: Раствор 150 мМ NaCl · Строго отдельный лоток-поддон!</div>
+                <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:2 | S_calib = 6.25 см²</div>
+            </div>
+
+            <!-- Резервный компактный маркер для противоположного борта -->
+            <div class="reserve-box">
+                <div class="reserve-img-wrap">
+                    <img src="/static/aruco/aruco_2.png" alt="ArUco 2 Reserve">
+                </div>
+                <div class="reserve-caption">№2 (Резерв)</div>
+            </div>
+        </div>
     
-            <div class="marker-card" style="border-left-color: #eab308;">
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #eab308;">
-                        <img src="/static/aruco/aruco_3.png" alt="ArUco 3">
-                    </div>
-                    <div class="marker-label" style="color:#eab308;">№3 (Основной)</div>
+        <div class="marker-card">
+            <!-- Левый блок: ArUco-маркер для камеры (основной) -->
+            <div class="aruco-box">
+                <div class="aruco-img-wrap">
+                    <img src="/static/aruco/aruco_3.png" alt="ArUco 3">
                 </div>
-                <div class="marker-info">
-                    <span class="marker-tag" style="background:#eab308;">ArUco ID #3 (DICT_4X4_50)</span>
-                    <div class="marker-title">🔬 Кассета №3: ПРЕВЕНТИВНАЯ РЕГИДРАТАЦИЯ</div>
-                    <div class="marker-desc">Засуха -> доклинический полив по алерту станции (ΔT > +0.8°C, ~40 ч, до увядания)</div>
-                    <div class="marker-reg">📌 Регламент: полив водой строго по первому сигналу тревоги комплекса</div>
-                    <div class="marker-hint">✂ Цветная рамка периметра: <b>#eab308</b> · Вырезать по контуру · Наклеить на бортик кассеты</div>
-                </div>
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #eab308;">
-                        <img src="/static/aruco/aruco_3.png" alt="ArUco 3">
-                    </div>
-                    <div class="marker-label" style="color:#eab308;">№3 (Резерв)</div>
-                </div>
+                <div class="aruco-caption">ARUCO #3</div>
             </div>
+
+            <!-- Центральный блок: Контурный номер для человека (Алисы) -->
+            <div class="num-badge">
+                <div class="num-sub">КАССЕТА</div>
+                <div class="num-val">3</div>
+            </div>
+
+            <!-- Правый блок: Научный регламент и статус -->
+            <div class="info-block">
+                <div class="header-line">
+                    <span class="card-title">КАССЕТА №3: ПРЕВЕНТИВНАЯ РЕГИДРАТАЦИЯ</span>
+                    <span class="status-tag">[АЛЕРТ]</span>
+                </div>
+                <div class="card-strategy">КУПИРОВАНИЕ СТРЕССА ПО АЛЕРТУ СТАНЦИИ</div>
+                <div class="card-protocol">• Режим: Полив строго при ΔT ≥ +0.8°C (~40 ч, до потери тургора)</div>
+                <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:3 | S_calib = 6.25 см²</div>
+            </div>
+
+            <!-- Резервный компактный маркер для противоположного борта -->
+            <div class="reserve-box">
+                <div class="reserve-img-wrap">
+                    <img src="/static/aruco/aruco_3.png" alt="ArUco 3 Reserve">
+                </div>
+                <div class="reserve-caption">№3 (Резерв)</div>
+            </div>
+        </div>
     
-            <div class="marker-card" style="border-left-color: #2563eb;">
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #2563eb;">
-                        <img src="/static/aruco/aruco_4.png" alt="ArUco 4">
-                    </div>
-                    <div class="marker-label" style="color:#2563eb;">№4 (Основной)</div>
+        <div class="marker-card">
+            <!-- Левый блок: ArUco-маркер для камеры (основной) -->
+            <div class="aruco-box">
+                <div class="aruco-img-wrap">
+                    <img src="/static/aruco/aruco_4.png" alt="ArUco 4">
                 </div>
-                <div class="marker-info">
-                    <span class="marker-tag" style="background:#2563eb;">ArUco ID #4 (DICT_4X4_50)</span>
-                    <div class="marker-title">👁️ Кассета №4: ВИЗУАЛЬНЫЙ КОНТРОЛЬ</div>
-                    <div class="marker-desc">Засуха -> полив только при явном визуальном поникании листьев (72–84 ч, традиционно)</div>
-                    <div class="marker-reg">📌 Регламент: полив водой при видимой потере тургора (опоздание на 36–48 ч)</div>
-                    <div class="marker-hint">✂ Цветная рамка периметра: <b>#2563eb</b> · Вырезать по контуру · Наклеить на бортик кассеты</div>
-                </div>
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #2563eb;">
-                        <img src="/static/aruco/aruco_4.png" alt="ArUco 4">
-                    </div>
-                    <div class="marker-label" style="color:#2563eb;">№4 (Резерв)</div>
-                </div>
+                <div class="aruco-caption">ARUCO #4</div>
             </div>
+
+            <!-- Центральный блок: Контурный номер для человека (Алисы) -->
+            <div class="num-badge">
+                <div class="num-sub">КАССЕТА</div>
+                <div class="num-val">4</div>
+            </div>
+
+            <!-- Правый блок: Научный регламент и статус -->
+            <div class="info-block">
+                <div class="header-line">
+                    <span class="card-title">КАССЕТА №4: ВИЗУАЛЬНЫЙ КОНТРОЛЬ</span>
+                    <span class="status-tag">[УВЯДАНИЕ]</span>
+                </div>
+                <div class="card-strategy">РЕАКТИВНЫЙ ПОЛИВ (ТРАДИЦИОННЫЙ ОСМОТР)</div>
+                <div class="card-protocol">• Режим: Полив только при макро-поникании листьев (72–84 ч)</div>
+                <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:4 | S_calib = 6.25 см²</div>
+            </div>
+
+            <!-- Резервный компактный маркер для противоположного борта -->
+            <div class="reserve-box">
+                <div class="reserve-img-wrap">
+                    <img src="/static/aruco/aruco_4.png" alt="ArUco 4 Reserve">
+                </div>
+                <div class="reserve-caption">№4 (Резерв)</div>
+            </div>
+        </div>
     
-            <div class="marker-card" style="border-left-color: #dc2626;">
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #dc2626;">
-                        <img src="/static/aruco/aruco_5.png" alt="ArUco 5">
-                    </div>
-                    <div class="marker-label" style="color:#dc2626;">№5 (Основной)</div>
+        <div class="marker-card">
+            <!-- Левый блок: ArUco-маркер для камеры (основной) -->
+            <div class="aruco-box">
+                <div class="aruco-img-wrap">
+                    <img src="/static/aruco/aruco_5.png" alt="ArUco 5">
                 </div>
-                <div class="marker-info">
-                    <span class="marker-tag" style="background:#dc2626;">ArUco ID #5 (DICT_4X4_50)</span>
-                    <div class="marker-title">⚠️ Кассета №5: ТЕРМИНАЛЬНАЯ ЗАСУХА</div>
-                    <div class="marker-desc">Без полива 96+ ч (оцифровка кривой деградации ткани и точки невозврата)</div>
-                    <div class="marker-reg">📌 Регламент: полное прекращение полива до гибели растений</div>
-                    <div class="marker-hint">✂ Цветная рамка периметра: <b>#dc2626</b> · Вырезать по контуру · Наклеить на бортик кассеты</div>
-                </div>
-                <div class="marker-slot">
-                    <div class="marker-img-wrap" style="border: 3px solid #dc2626;">
-                        <img src="/static/aruco/aruco_5.png" alt="ArUco 5">
-                    </div>
-                    <div class="marker-label" style="color:#dc2626;">№5 (Резерв)</div>
-                </div>
+                <div class="aruco-caption">ARUCO #5</div>
             </div>
+
+            <!-- Центральный блок: Контурный номер для человека (Алисы) -->
+            <div class="num-badge">
+                <div class="num-sub">КАССЕТА</div>
+                <div class="num-val">5</div>
+            </div>
+
+            <!-- Правый блок: Научный регламент и статус -->
+            <div class="info-block">
+                <div class="header-line">
+                    <span class="card-title">КАССЕТА №5: ТЕРМИНАЛЬНАЯ ЗАСУХА</span>
+                    <span class="status-tag">[ГИБЕЛЬ]</span>
+                </div>
+                <div class="card-strategy">ПРЕДЕЛ ЖИЗНЕСПОСОБНОСТИ ТКАНИ</div>
+                <div class="card-protocol">• Режим: Полное прекращение полива 96+ ч (контроль гибели)</div>
+                <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:5 | S_calib = 6.25 см²</div>
+            </div>
+
+            <!-- Резервный компактный маркер для противоположного борта -->
+            <div class="reserve-box">
+                <div class="reserve-img-wrap">
+                    <img src="/static/aruco/aruco_5.png" alt="ArUco 5 Reserve">
+                </div>
+                <div class="reserve-caption">№5 (Резерв)</div>
+            </div>
+        </div>
     
         </div>
         <div class="footer">
-            Субпиксельная оптическая автопривязка: OpenCV cv2.aruco · Словарь DICT_4X4_50 · Радиометрический эталон 25.0×25.0 мм (6.25 см²)
+            Машинное зрение: OpenCV cv2.aruco · Словарь DICT_4X4_50 · Радиометрический калибровочный эталон 25.0×25.0 мм (6.25 см²)
         </div>
     </div>
 </body>
