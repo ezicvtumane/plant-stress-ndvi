@@ -180,7 +180,7 @@ flowchart TD
             direction LR
             C3["🟡 <b>Кассета №3: ПРЕВЕНТИВНАЯ РЕГИДРАТАЦИЯ</b><br/>Полив по раннему маркеру станции (ΔT > +0.8 °C, ~40 ч, до потери тургора)<br/><b>K_rec = 98.2% · 100% биомассы сохранено</b>"]
             C4["🔵 <b>Кассета №4: ТРАДИЦИОННЫЙ ВИЗУАЛЬНЫЙ КОНТРОЛЬ</b><br/>Полив при макроскопическом поникании листьев (~72–84 ч, потеря тургора)<br/><b>K_rec = 54.1% · Потеря ~45% урожая</b>"]
-            C3 <==>|Сравнительный анализ (A/B тест, окно 36–48 ч)| C4
+            C3 <==>|"Сравнительный анализ: окно 36-48 ч"| C4
         end
 
         subgraph Row3["Кассета №5: Предел жизнеспособности ткани"]
@@ -202,8 +202,9 @@ flowchart TD
     style C4 fill:#eff6ff,stroke:#2563eb,stroke-width:2.5px,color:#1e40af
     style Calib fill:#f8fafc,stroke:#94a3b8,stroke-width:1.5px
     style S5 fill:#ffffff,stroke:#00a499,stroke-width:2px
-    style Trio fill:#f8fafc,stroke:#cbd5e1,stroke-width:1.5px
-    style Duel fill:#f0fdf4,stroke:#86efac,stroke-width:2px
+    style Row1 fill:#f8fafc,stroke:#cbd5e1,stroke-width:1.5px
+    style Row2 fill:#f0fdf4,stroke:#86efac,stroke-width:2px
+    style Row3 fill:#fff1f2,stroke:#fca5a5,stroke-width:1.5px
 ```
 
 ### Сводная таблица 5 когорт исследования
