@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="225.0mm" height="225.0mm" viewBox="0 0 225.0 225.0">
+  <defs>
+    <style>
+      .cut { fill: none; stroke: #ff0000; stroke-width: 0.15; stroke-linecap: round; stroke-linejoin: round; }
+      .engrave { fill: none; stroke: #0000ff; stroke-width: 0.15; stroke-dasharray: 1.5,1.5; }
+      .text { font-family: Segoe UI, Arial, sans-serif; font-size: 3.5px; fill: #1e293b; }
+      .title { font-family: Segoe UI, Arial, sans-serif; font-size: 5px; font-weight: bold; fill: #0f172a; }
+    </style>
+  </defs>
+  <g id="top_lid">
+    <text x="15" y="10" class="title">5. Верхняя крышка (Камера сверху + кабельный ввод)</text>
+    <path d="M 5.00 9.00 L 35.00 9.00 L 35.00 5.00 L 65.00 5.00 L 65.00 9.00 L 95.00 9.00 L 95.00 5.00 L 125.00 5.00 L 125.00 9.00 L 155.00 9.00 L 155.00 5.00 L 185.00 5.00 L 185.00 9.00 L 215.00 9.00 L 215.00 35.00 L 211.00 35.00 L 211.00 65.00 L 215.00 65.00 L 215.00 95.00 L 211.00 95.00 L 211.00 125.00 L 215.00 125.00 L 215.00 155.00 L 211.00 155.00 L 211.00 185.00 L 215.00 185.00 L 215.00 215.00 L 5.00 215.00 L 5.00 185.00 L 9.00 185.00 L 9.00 155.00 L 5.00 155.00 L 5.00 125.00 L 9.00 125.00 L 9.00 95.00 L 5.00 95.00 L 5.00 65.00 L 9.00 65.00 L 9.00 35.00 L 5.00 35.00 L 5.00 9.00 Z" class="cut"/>
+    <circle cx="110.0" cy="110.0" r="7.5" class="cut"/>
+    <text x="86.0" y="98.0" class="title">Объектив IMX179 (d=15мм)</text>
+    <circle cx="96.0" cy="96.0" r="1.2" class="cut"/>
+    <circle cx="96.0" cy="124.0" r="1.2" class="cut"/>
+    <circle cx="124.0" cy="96.0" r="1.2" class="cut"/>
+    <circle cx="124.0" cy="124.0" r="1.2" class="cut"/>
+    <circle cx="110.0" cy="30.0" r="6.0" class="cut"/>
+    <text x="80.0" y="21.0" class="text">Кабельный ввод d=12мм (диоды + датчики)</text>
+    <circle cx="30" cy="203.0" r="4.05" class="cut"/>
+    <circle cx="190.0" cy="203.0" r="4.05" class="cut"/>
+    <text x="40" y="205.0" class="text">Ответные магниты 8х2мм N52</text>
+  </g>
+</svg>
