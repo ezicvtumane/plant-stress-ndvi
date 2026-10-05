@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="233.0mm" height="316.0mm" viewBox="0 0 233.0 316.0">
+  <defs>
+    <style>
+      .cut { fill: none; stroke: #ff0000; stroke-width: 0.15; stroke-linecap: round; stroke-linejoin: round; }
+      .engrave { fill: none; stroke: #0000ff; stroke-width: 0.15; stroke-dasharray: 1.5,1.5; }
+      .text { font-family: Segoe UI, Arial, sans-serif; font-size: 3.5px; fill: #1e293b; }
+      .title { font-family: Segoe UI, Arial, sans-serif; font-size: 5px; font-weight: bold; fill: #0f172a; }
+    </style>
+  </defs>
+  <g id="front_facade">
+    <text x="15" y="10" class="title">6. Накладной фасад с нижними замками и верхними магнитами</text>
+    <path d="M 5.00 5.00 L 223.00 5.00 L 223.00 302.00 L 193.00 302.00 L 193.00 306.00 L 163.00 306.00 L 163.00 302.00 L 65.00 302.00 L 65.00 306.00 L 35.00 306.00 L 35.00 302.00 L 5.00 302.00 Z" class="cut"/>
+    <circle cx="30" cy="17" r="4.05" class="cut"/>
+    <circle cx="198.0" cy="17" r="4.05" class="cut"/>
+    <circle cx="30" cy="17" r="6.0" class="engrave"/>
+    <circle cx="198.0" cy="17" r="6.0" class="engrave"/>
+    <circle cx="82.0" cy="55" r="1.6" class="cut"/>
+    <circle cx="146.0" cy="55" r="1.6" class="cut"/>
+    <text x="94.0" y="49" class="text">Крепление ручки (М3)</text>
+    <text x="49.0" y="185" style="font-size:6px; font-weight:bold; fill:#0033aa;">PLANT STRESS PHENOTYPING</text>
+    <text x="64.0" y="197" style="font-size:4px; fill:#475569;">Dual-Wavelength NoIR &amp; Thermal Station</text>
+    <text x="74.0" y="207" style="font-size:3.5px; fill:#64748b;">Ковалева Алиса — 10 класс (2026)</text>
+  </g>
+</svg>

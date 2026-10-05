@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="233.0mm" height="235.0mm" viewBox="0 0 233.0 235.0">
+  <defs>
+    <style>
+      .cut { fill: none; stroke: #ff0000; stroke-width: 0.15; stroke-linecap: round; stroke-linejoin: round; }
+      .engrave { fill: none; stroke: #0000ff; stroke-width: 0.15; stroke-dasharray: 1.5,1.5; }
+      .text { font-family: Segoe UI, Arial, sans-serif; font-size: 3.5px; fill: #1e293b; }
+      .title { font-family: Segoe UI, Arial, sans-serif; font-size: 5px; font-weight: bold; fill: #0f172a; }
+    </style>
+  </defs>
+  <g id="bottom_plate">
+    <text x="15" y="10" class="title">4. Дно бокса (с пазами замка дверцы и ложементом)</text>
+    <path d="M 9.00 9.00 L 39.00 9.00 L 39.00 5.00 L 69.00 5.00 L 69.00 9.00 L 99.00 9.00 L 99.00 5.00 L 129.00 5.00 L 129.00 9.00 L 159.00 9.00 L 159.00 5.00 L 189.00 5.00 L 189.00 9.00 L 219.00 9.00 L 219.00 35.00 L 215.00 35.00 L 215.00 65.00 L 219.00 65.00 L 219.00 95.00 L 215.00 95.00 L 215.00 125.00 L 219.00 125.00 L 219.00 155.00 L 215.00 155.00 L 215.00 185.00 L 219.00 185.00 L 219.00 215.00 L 223.00 215.00 L 223.00 225.00 L 5.00 225.00 L 5.00 215.00 L 9.00 215.00 L 9.00 185.00 L 13.00 185.00 L 13.00 155.00 L 9.00 155.00 L 9.00 125.00 L 13.00 125.00 L 13.00 95.00 L 9.00 95.00 L 9.00 65.00 L 13.00 65.00 L 13.00 35.00 L 9.00 35.00 L 9.00 9.00 Z" class="cut"/>
+    <rect x="35.0" y="218.0" width="30" height="4.0" class="cut"/>
+    <rect x="163.0" y="218.0" width="30" height="4.0" class="cut"/>
+    <rect x="24.0" y="30.0" width="180" height="135" class="engrave"/>
+    <text x="59.0" y="100.0" class="title">ЛОЖЕМЕНТ КАССЕТЫ 180х135</text>
+    <rect x="154.0" y="173.0" width="50" height="35" class="engrave"/>
+    <text x="158.0" y="193.0" class="text">Серая карта 18%</text>
+  </g>
+</svg>
