@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="225.0mm" height="315.0mm" viewBox="0 0 225.0 315.0">
+  <defs>
+    <style>
+      .cut { fill: none; stroke: #ff0000; stroke-width: 0.15; stroke-linecap: round; stroke-linejoin: round; }
+      .engrave { fill: none; stroke: #0000ff; stroke-width: 0.15; stroke-dasharray: 1.5,1.5; }
+      .text { font-family: Segoe UI, Arial, sans-serif; font-size: 3.5px; fill: #1e293b; }
+      .title { font-family: Segoe UI, Arial, sans-serif; font-size: 5px; font-weight: bold; fill: #0f172a; }
+    </style>
+  </defs>
+  <g id="left_wall">
+    <text x="15" y="10" class="title">2. Левая стенка (214х297 мм с шипами)</text>
+    <path d="M 9.00 9.00 L 35.00 9.00 L 35.00 5.00 L 65.00 5.00 L 65.00 9.00 L 95.00 9.00 L 95.00 5.00 L 125.00 5.00 L 125.00 9.00 L 155.00 9.00 L 155.00 5.00 L 185.00 5.00 L 185.00 9.00 L 215.00 9.00 L 215.00 306.00 L 185.00 306.00 L 185.00 310.00 L 155.00 310.00 L 155.00 306.00 L 125.00 306.00 L 125.00 310.00 L 95.00 310.00 L 95.00 306.00 L 65.00 306.00 L 65.00 310.00 L 35.00 310.00 L 35.00 306.00 L 9.00 306.00 L 9.00 279.00 L 5.00 279.00 L 5.00 252.00 L 9.00 252.00 L 9.00 225.00 L 5.00 225.00 L 5.00 198.00 L 9.00 198.00 L 9.00 171.00 L 5.00 171.00 L 5.00 144.00 L 9.00 144.00 L 9.00 117.00 L 5.00 117.00 L 5.00 90.00 L 9.00 90.00 L 9.00 63.00 L 5.00 63.00 L 5.00 36.00 L 9.00 36.00 L 9.00 9.00 Z" class="cut"/>
+  </g>
+</svg>
