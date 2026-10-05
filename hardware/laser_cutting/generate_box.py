@@ -1,13 +1,14 @@
 """
 Скрипт генерации финальных производственных SVG файлов и preview PNG
 с обновленной чистой геометрией угловых сопряжений (без наложений и двойных резов).
+Все технологические зазоры, посадки магнитов и замка фасада прецизионно юстированы.
 """
 
 import os
 import sys
 from PIL import Image, ImageDraw, ImageFont
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "hardware", "laser_cutting"))
+sys.path.insert(0, os.path.dirname(__file__))
 import box_geometry as bg
 
 T = bg.T
@@ -15,7 +16,7 @@ W = bg.W
 D = bg.D
 H = bg.H
 MAG_D = bg.MAG_D
-OUTPUT_DIR = bg.OUTPUT_DIR
+OUTPUT_DIR = os.path.dirname(__file__)
 
 def build_all_svgs():
     # 1. ЗАДНЯЯ СТЕНКА
@@ -63,9 +64,12 @@ def build_all_svgs():
     path_bot = bg.pts_to_svg(pts_bot, offset_x=T + 5, offset_y=5)
     w_bot_svg = W + 2 * T + 15
     h_bot_svg = D + 10 + 15
-    slot1_x = T + 5 + 30.0 - T # 30 мм от левого края фасада
-    slot2_x = T + 5 + (W + 2*T - 60.0) - T
-    slot_y = 5 + D + 3.0
+    # Посадочные пазы башмака фасада (точно от плоскости притвора стенок D = 210 мм, допуск +0.4 мм)
+    slot1_x = T + 5 + 30.0 - T # 30.0 мм от левого края фасада
+    slot2_x = T + 5 + (W + 2*T - 60.0) - T # 158.0 мм от левого края фасада
+    slot_w = 30.4 # технологический зазор под шип 30.0 мм
+    slot_h = T + 0.2 # 4.2 мм под фанеру 4.0 мм
+    slot_y = 5 + D # Плотно к передней грани бокса для исключения светового зазора
     cass_x = T + 5 + 15.0
     cass_y = 5 + 25.0
     gray_x = cass_x + 180 - 50
@@ -74,8 +78,8 @@ def build_all_svgs():
         f'  <g id="bottom_plate">\n',
         f'    <text x="15" y="10" class="title">4. Дно бокса (с пазами замка дверцы и ложементом)</text>\n',
         f'    <path d="{path_bot}" class="cut"/>\n',
-        f'    <rect x="{slot1_x}" y="{slot_y}" width="30" height="{T}" class="cut"/>\n',
-        f'    <rect x="{slot2_x}" y="{slot_y}" width="30" height="{T}" class="cut"/>\n',
+        f'    <rect x="{slot1_x}" y="{slot_y}" width="{slot_w}" height="{slot_h}" class="cut"/>\n',
+        f'    <rect x="{slot2_x}" y="{slot_y}" width="{slot_w}" height="{slot_h}" class="cut"/>\n',
         f'    <rect x="{cass_x}" y="{cass_y}" width="180" height="135" class="engrave"/>\n',
         f'    <text x="{cass_x + 35}" y="{cass_y + 70}" class="title">ЛОЖЕМЕНТ КАССЕТЫ 180х135</text>\n',
         f'    <rect x="{gray_x}" y="{gray_y}" width="50" height="35" class="engrave"/>\n',
@@ -105,9 +109,10 @@ def build_all_svgs():
             body5.append(f'    <circle cx="{cam_cx + dx}" cy="{cam_cy + dy}" r="1.2" class="cut"/>\n')
     body5.append(f'    <circle cx="{cable_x}" cy="{cable_y}" r="6.0" class="cut"/>\n')
     body5.append(f'    <text x="{cable_x - 30}" y="{cable_y - 9}" class="text">Кабельный ввод d=12мм (диоды + датчики)</text>\n')
-    body5.append(f'    <circle cx="{5 + 25}" cy="{mag_y}" r="{MAG_D/2}" class="cut"/>\n')
-    body5.append(f'    <circle cx="{5 + W - 25}" cy="{mag_y}" r="{MAG_D/2}" class="cut"/>\n')
-    body5.append(f'    <text x="{5 + 35}" y="{mag_y + 2}" class="text">Ответные магниты 8х2мм N52</text>\n')
+    # Разметка посадки кронштейнов магнитов (engrave - гравировка снизу, без сквозного реза во избежание засветки)
+    body5.append(f'    <circle cx="{5 + 25}" cy="{mag_y}" r="{MAG_D/2}" class="engrave"/>\n')
+    body5.append(f'    <circle cx="{5 + W - 25}" cy="{mag_y}" r="{MAG_D/2}" class="engrave"/>\n')
+    body5.append(f'    <text x="{5 + 35}" y="{mag_y + 2}" class="text">Разметка под кронштейны магнитов 8х2мм (снизу)</text>\n')
     body5.append('  </g>')
     with open(os.path.join(OUTPUT_DIR, "5_top_lid.svg"), "w", encoding="utf-8") as f:
         f.write(bg.svg_wrap(W + 15, D + 15, "".join(body5)))
@@ -115,15 +120,16 @@ def build_all_svgs():
     # 6. НАКЛАДНОЙ ФАСАД (ДВЕРЦА)
     pts_fac = bg.get_facade_path()
     path_fac = bg.pts_to_svg(pts_fac, offset_x=5, offset_y=5)
-    f_w = W + 2 * T
+    f_w = W + 2 * T # 218.0 мм
+    # Юстировка отверстий магнитов строго по оси кронштейнов (29 мм от краев фасада = 25 мм от стенок бокса)
     body6 = [
         f'  <g id="front_facade">\n',
         f'    <text x="15" y="10" class="title">6. Накладной фасад с нижними замками и верхними магнитами</text>\n',
         f'    <path d="{path_fac}" class="cut"/>\n',
-        f'    <circle cx="{5 + 25}" cy="{5 + 12}" r="{MAG_D/2}" class="cut"/>\n',
-        f'    <circle cx="{5 + f_w - 25}" cy="{5 + 12}" r="{MAG_D/2}" class="cut"/>\n',
-        f'    <circle cx="{5 + 25}" cy="{5 + 12}" r="6.0" class="engrave"/>\n',
-        f'    <circle cx="{5 + f_w - 25}" cy="{5 + 12}" r="6.0" class="engrave"/>\n',
+        f'    <circle cx="{5 + 29}" cy="{5 + 12}" r="{MAG_D/2}" class="cut"/>\n',
+        f'    <circle cx="{5 + f_w - 29}" cy="{5 + 12}" r="{MAG_D/2}" class="cut"/>\n',
+        f'    <circle cx="{5 + 29}" cy="{5 + 12}" r="6.0" class="engrave"/>\n',
+        f'    <circle cx="{5 + f_w - 29}" cy="{5 + 12}" r="6.0" class="engrave"/>\n',
         f'    <circle cx="{5 + f_w/2 - 32}" cy="{5 + 50}" r="1.6" class="cut"/>\n',
         f'    <circle cx="{5 + f_w/2 + 32}" cy="{5 + 50}" r="1.6" class="cut"/>\n',
         f'    <text x="{5 + f_w/2 - 20}" y="{5 + 44}" class="text">Крепление ручки (М3)</text>\n',
@@ -197,8 +203,8 @@ def build_all_svgs():
     y2 = 365
     p_facade = bg.pts_to_svg(pts_fac, offset_x=x1, offset_y=y2)
     svg_all.append(f'  <!-- 4. Накладной фасад -->\n  <g id="p4">\n    <path d="{p_facade}" class="cut"/>\n')
-    svg_all.append(f'    <circle cx="{x1 + 25}" cy="{y2 + 12}" r="{MAG_D/2}" class="cut"/>\n')
-    svg_all.append(f'    <circle cx="{x1 + f_w - 25}" cy="{y2 + 12}" r="{MAG_D/2}" class="cut"/>\n')
+    svg_all.append(f'    <circle cx="{x1 + 29}" cy="{y2 + 12}" r="{MAG_D/2}" class="cut"/>\n')
+    svg_all.append(f'    <circle cx="{x1 + f_w - 29}" cy="{y2 + 12}" r="{MAG_D/2}" class="cut"/>\n')
     svg_all.append(f'    <circle cx="{x1 + f_w/2 - 32}" cy="{y2 + 50}" r="1.6" class="cut"/>\n')
     svg_all.append(f'    <circle cx="{x1 + f_w/2 + 32}" cy="{y2 + 50}" r="1.6" class="cut"/>\n')
     svg_all.append(f'    <text x="{x1 + f_w/2 - 50}" y="{y2 + 180}" style="font-size:6px; font-weight:bold; fill:#0033aa;">PLANT STRESS PHENOTYPING</text>\n')
@@ -207,14 +213,14 @@ def build_all_svgs():
     p_bot = bg.pts_to_svg(pts_bot, offset_x=x2 + T, offset_y=y2)
     s1_x = x2 + T + 30.0 - T
     s2_x = x2 + T + (W + 2*T - 60.0) - T
-    s_y = y2 + D + 3.0
+    s_y = y2 + D
     c_x = x2 + T + 15.0
     c_y = y2 + 25.0
     g_x = c_x + 180 - 50
     g_y = c_y + 135 + 8
     svg_all.append(f'  <!-- 5. Дно -->\n  <g id="p5">\n    <path d="{p_bot}" class="cut"/>\n')
-    svg_all.append(f'    <rect x="{s1_x}" y="{s_y}" width="30" height="{T}" class="cut"/>\n')
-    svg_all.append(f'    <rect x="{s2_x}" y="{s_y}" width="30" height="{T}" class="cut"/>\n')
+    svg_all.append(f'    <rect x="{s1_x}" y="{s_y}" width="{slot_w}" height="{slot_h}" class="cut"/>\n')
+    svg_all.append(f'    <rect x="{s2_x}" y="{s_y}" width="{slot_w}" height="{slot_h}" class="cut"/>\n')
     svg_all.append(f'    <rect x="{c_x}" y="{c_y}" width="180" height="135" class="engrave"/>\n')
     svg_all.append(f'    <rect x="{g_x}" y="{g_y}" width="50" height="35" class="engrave"/>\n')
     svg_all.append(f'    <text x="{x2 + 25}" y="{y2 + 20}" class="title">5. Дно с порожком и ложементом</text>\n  </g>\n')
@@ -231,8 +237,8 @@ def build_all_svgs():
         for dy in [-14, 14]:
             svg_all.append(f'    <circle cx="{cc_x + dx}" cy="{cc_y + dy}" r="1.2" class="cut"/>\n')
     svg_all.append(f'    <circle cx="{cb_x}" cy="{cb_y}" r="6.0" class="cut"/>\n')
-    svg_all.append(f'    <circle cx="{x3 + 25}" cy="{my_pos}" r="{MAG_D/2}" class="cut"/>\n')
-    svg_all.append(f'    <circle cx="{x3 + W - 25}" cy="{my_pos}" r="{MAG_D/2}" class="cut"/>\n')
+    svg_all.append(f'    <circle cx="{x3 + 25}" cy="{my_pos}" r="{MAG_D/2}" class="engrave"/>\n')
+    svg_all.append(f'    <circle cx="{x3 + W - 25}" cy="{my_pos}" r="{MAG_D/2}" class="engrave"/>\n')
     svg_all.append(f'    <text x="{x3 + 25}" y="{y2 + 20}" class="title">6. Крышка (Объектив IMX179 + кабель)</text>\n  </g>\n')
 
     y3 = 600
@@ -322,22 +328,22 @@ def render_preview_image():
     f_w = W + 2 * T # 218 мм
     pts_fac = bg.get_facade_path()
     draw_pts_polygon(pts_fac, x1, y2, width=2)
-    for mx in [25, f_w - 25]:
-        mcx, mcy = to_px(x1 + mx, y2 + 15)
+    for mx in [29, f_w - 29]:
+        mcx, mcy = to_px(x1 + mx, y2 + 12)
         mr = int(4.05 * scale)
         draw.ellipse([mcx - mr, mcy - mr, mcx + mr, mcy + mr], fill="#eab308", outline=c_cut, width=2)
     draw.text((x1*scale + 25, y2*scale + 30), "4. Накладной фасад (дверца)", fill=c_txt, font=font_lbl)
-    draw.text((x1*scale + 25, y2*scale + 60), "Верх: 2 магнита 8х2 мм N52", fill="#fbbf24", font=font_sub)
+    draw.text((x1*scale + 25, y2*scale + 60), "Верх: 2 магнита 8х2 мм N52 (по оси 29мм)", fill="#fbbf24", font=font_sub)
     draw.text((x1*scale + 25, y2*scale + 90), "Низ: 2 шипа 30х4мм в порожек", fill="#4ade80", font=font_sub)
     draw.text((x1*scale + 25, y2*scale + 180), "PLANT STRESS PHENOTYPING", fill="#38bdf8", font=font_lbl)
 
     # Дно
     pts_bot = bg.get_bottom_plate_path()
     draw_pts_polygon(pts_bot, x2 + T, y2, width=2)
-    s1_x, s_y = to_px(x2 + T + 30.0 - T, y2 + D + 3.0)
-    draw.rectangle([s1_x, s_y, s1_x + int(30*scale), s_y + int(T*scale)], fill="#ef4444", outline="#ef4444")
+    s1_x, s_y = to_px(x2 + T + 30.0 - T, y2 + D)
+    draw.rectangle([s1_x, s_y, s1_x + int(30.4*scale), s_y + int(4.2*scale)], fill="#ef4444", outline="#ef4444")
     s2_x = to_px(x2 + T + (W + 2*T - 60.0) - T, 0)[0]
-    draw.rectangle([s2_x, s_y, s2_x + int(30*scale), s_y + int(T*scale)], fill="#ef4444", outline="#ef4444")
+    draw.rectangle([s2_x, s_y, s2_x + int(30.4*scale), s_y + int(4.2*scale)], fill="#ef4444", outline="#ef4444")
     cpx1, cpy1 = to_px(x2 + T + 15.0, y2 + 25.0)
     draw.rectangle([cpx1, cpy1, cpx1 + int(180*scale), cpy1 + int(135*scale)], outline=c_engrave, width=2)
     draw.text((cpx1 + 15, cpy1 + 45), "Ложемент 180х135", fill="#60a5fa", font=font_sub)
@@ -360,7 +366,7 @@ def render_preview_image():
     for mx in [25, W - 25]:
         mcx, mcy = to_px(x3 + mx, y2 + D - 12.0)
         mr = int(4.05 * scale)
-        draw.ellipse([mcx - mr, mcy - mr, mcx + mr, mcy + mr], fill="#eab308", outline=c_cut, width=2)
+        draw.ellipse([mcx - mr, mcy - mr, mcx + mr, mcy + mr], outline=c_engrave, width=2)
     draw.text((x3*scale + 25, y2*scale + 12), "6. Крышка (Объектив + кабель)", fill=c_txt, font=font_lbl)
 
     # 7. Аксессуары (y = 605)
@@ -381,10 +387,8 @@ def render_preview_image():
     draw.text((zoom_box[0] + 15, zoom_box[1] + 12), "ЗУМ: УГЛОВОЙ СТЫК 1:1 (КРЫШКА И СТЕНКА)", fill="#38bdf8", font=font_badge)
     draw.text((zoom_box[0] + 15, zoom_box[1] + 32), "Паразитные выступы 4х4 мм полностью ликвидированы!", fill="#4ade80", font=font_sub)
 
-    # Отрисуем чистый угол в зум-боксе: сопряжение крышки (зеленый) и стенки (оранжевый)
     zx0, zy0 = zoom_box[0] + 40, zoom_box[1] + 90
     zs = 3.2 # 3.2 px / mm
-    # Контур угла крышки:
     lid_corner = [
         (zx0, zy0 + 4*zs),
         (zx0 + 30*zs, zy0 + 4*zs),

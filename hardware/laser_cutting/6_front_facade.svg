@@ -10,10 +10,10 @@
   <g id="front_facade">
     <text x="15" y="10" class="title">6. Накладной фасад с нижними замками и верхними магнитами</text>
     <path d="M 5.00 5.00 L 223.00 5.00 L 223.00 302.00 L 193.00 302.00 L 193.00 306.00 L 163.00 306.00 L 163.00 302.00 L 65.00 302.00 L 65.00 306.00 L 35.00 306.00 L 35.00 302.00 L 5.00 302.00 Z" class="cut"/>
-    <circle cx="30" cy="17" r="4.05" class="cut"/>
-    <circle cx="198.0" cy="17" r="4.05" class="cut"/>
-    <circle cx="30" cy="17" r="6.0" class="engrave"/>
-    <circle cx="198.0" cy="17" r="6.0" class="engrave"/>
+    <circle cx="34" cy="17" r="4.05" class="cut"/>
+    <circle cx="194.0" cy="17" r="4.05" class="cut"/>
+    <circle cx="34" cy="17" r="6.0" class="engrave"/>
+    <circle cx="194.0" cy="17" r="6.0" class="engrave"/>
     <circle cx="82.0" cy="55" r="1.6" class="cut"/>
     <circle cx="146.0" cy="55" r="1.6" class="cut"/>
     <text x="94.0" y="49" class="text">Крепление ручки (М3)</text>

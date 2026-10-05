@@ -18,8 +18,8 @@
     <circle cx="124.0" cy="124.0" r="1.2" class="cut"/>
     <circle cx="110.0" cy="30.0" r="6.0" class="cut"/>
     <text x="80.0" y="21.0" class="text">Кабельный ввод d=12мм (диоды + датчики)</text>
-    <circle cx="30" cy="203.0" r="4.05" class="cut"/>
-    <circle cx="190.0" cy="203.0" r="4.05" class="cut"/>
-    <text x="40" y="205.0" class="text">Ответные магниты 8х2мм N52</text>
+    <circle cx="30" cy="203.0" r="4.05" class="engrave"/>
+    <circle cx="190.0" cy="203.0" r="4.05" class="engrave"/>
+    <text x="40" y="205.0" class="text">Разметка под кронштейны магнитов 8х2мм (снизу)</text>
   </g>
 </svg>
