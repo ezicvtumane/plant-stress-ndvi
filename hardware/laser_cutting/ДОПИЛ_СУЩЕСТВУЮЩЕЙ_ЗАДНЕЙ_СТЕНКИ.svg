@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="238mm" height="325.0mm" viewBox="0 0 238 325.0">
+  <defs>
+    <style>
+      .cut { fill: none; stroke: #ff0000; stroke-width: 0.15; stroke-linecap: round; stroke-linejoin: round; }
+      .engrave { fill: none; stroke: #0000ff; stroke-width: 0.15; stroke-dasharray: 1.5,1.5; }
+      .trim { fill: none; stroke: #00aa00; stroke-width: 0.2; stroke-linecap: round; stroke-linejoin: round; }
+      .text { font-family: Segoe UI, Arial, sans-serif; font-size: 3.5px; fill: #1e293b; }
+      .title { font-family: Segoe UI, Arial, sans-serif; font-size: 5px; font-weight: bold; fill: #0f172a; }
+    </style>
+  </defs>
+  <g id="trim_back_wall">
+    <text x="15" y="6" class="title">ДОРАБОТКА СУЩЕСТВУЮЩЕЙ ЗАДНЕЙ СТЕНКИ (Срез 4мм с каждого торца)</text>
+    <!-- Синяя рамка - контур вашей заготовки 218х305 для проверки позиционирования (Framing) -->
+    <rect x="10.0" y="10.0" width="218" height="305.0" class="engrave"/>
+    <!-- Зеленая линия - фактический лазерный рез торцов и углубление пазов -->
+    <path d="M 14.00 10.00 L 14.00 14.00 L 14.00 41.00 L 18.00 41.00 L 18.00 68.00 L 14.00 68.00 L 14.00 95.00 L 18.00 95.00 L 18.00 122.00 L 14.00 122.00 L 14.00 149.00 L 18.00 149.00 L 18.00 176.00 L 14.00 176.00 L 14.00 203.00 L 18.00 203.00 L 18.00 230.00 L 14.00 230.00 L 14.00 257.00 L 18.00 257.00 L 18.00 284.00 L 14.00 284.00 L 14.00 311.00 L 14.00 315.00" class="trim"/>
+    <path d="M 224.00 10.00 L 224.00 14.00 L 224.00 41.00 L 220.00 41.00 L 220.00 68.00 L 224.00 68.00 L 224.00 95.00 L 220.00 95.00 L 220.00 122.00 L 224.00 122.00 L 224.00 149.00 L 220.00 149.00 L 220.00 176.00 L 224.00 176.00 L 224.00 203.00 L 220.00 203.00 L 220.00 230.00 L 224.00 230.00 L 224.00 257.00 L 220.00 257.00 L 220.00 284.00 L 224.00 284.00 L 224.00 311.00 L 224.00 315.00" class="trim"/>
+  </g>
+</svg>
