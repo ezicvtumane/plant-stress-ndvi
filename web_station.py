@@ -558,17 +558,17 @@ def do_hardware_spectral_capture(group_name: str):
     if RELAY_REQ:
         # 2. ЩЕЛЧОК 1: Включение ТОЛЬКО красного эмиттера 660 нм (Канал 1 / Pin 7 / Линия 4)
         RELAY_REQ.set_value(4, Value.ACTIVE)
-        time.sleep(0.35)
-        for _ in range(4): cap.read()
+        time.sleep(0.40)
+        for _ in range(5): cap.read()
         ret_r, frame_red = cap.read()
         RELAY_REQ.set_value(4, Value.INACTIVE) # ЩЕЛЧОК 2: Красный выключен
 
-        time.sleep(0.20)
+        time.sleep(0.25)
 
         # 3. ЩЕЛЧОК 3: Включение ТОЛЬКО инфракрасного эмиттера 850 нм (Канал 2 / Pin 10 / Линия 7)
         RELAY_REQ.set_value(7, Value.ACTIVE)
-        time.sleep(0.35)
-        for _ in range(4): cap.read()
+        time.sleep(0.40)
+        for _ in range(5): cap.read()
         ret_n, frame_nir = cap.read()
         RELAY_REQ.set_value(7, Value.INACTIVE) # ЩЕЛЧОК 4: Инфракрасный выключен
 
@@ -598,14 +598,14 @@ def do_hardware_spectral_capture(group_name: str):
                frame_nir[:, :, 1].astype(np.float32) + 
                frame_nir[:, :, 2].astype(np.float32)) / 3.0
 
-    # Вычитание фоновой фотометрической засветки
+    # Вычитание фоновой фотометрической засветки (строгое физическое дифференциальное вычитание)
     amb_red = frame_amb[:, :, 2].astype(np.float32)
     amb_nir = (frame_amb[:, :, 0].astype(np.float32) + 
                frame_amb[:, :, 1].astype(np.float32) + 
                frame_amb[:, :, 2].astype(np.float32)) / 3.0
 
-    red_channel = np.clip(red_raw - 0.5 * amb_red, 1.0, 255.0)
-    nir_channel = np.clip(nir_raw - 0.5 * amb_nir, 1.0, 255.0)
+    red_channel = np.maximum(0.0, red_raw - amb_red)
+    nir_channel = np.maximum(0.0, nir_raw - amb_nir)
 
     # Радиометрическая калибровка по белому диффузному эталону (White Reference Target)
     # Зона белого матового картона в свободном углу предметного столика (ROI: 4%..16%)
@@ -614,10 +614,11 @@ def do_hardware_spectral_capture(group_name: str):
     roi_x1, roi_x2 = int(w_f * 0.04), int(w_f * 0.16)
     white_red = float(np.mean(red_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
     white_nir = float(np.mean(nir_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
-    if white_nir > 15.0 and white_red > 15.0:
-        k_bal = round(float(np.clip(white_red / white_nir, 0.85, 1.20)), 3)
+    if white_nir > 20.0 and white_red > 20.0 and (white_red / white_nir) <= 7.0:
+        k_bal = round(float(np.clip(white_red / white_nir, 1.50, 6.50)), 3)
     else:
-        k_bal = 1.025
+        # Аппаратный базис при коллимированном ИК и широком 660 нм (компенсация разницы QE сенсора и углов):
+        k_bal = 4.500
 
     # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
     denom = (k_bal * nir_channel) + red_channel
@@ -634,7 +635,6 @@ def do_hardware_spectral_capture(group_name: str):
 
     h, w, _ = frame_flash.shape
     cell_h, cell_w = h // 3, w // 3
-    cell_ndvis = []
     annotated_ndvi = vis_ndvi_color.copy()
 
     # Отрисовка зоны радиометрической калибровки White Reference
@@ -680,23 +680,6 @@ def do_hardware_spectral_capture(group_name: str):
     total_leaf_px = int(np.count_nonzero(leaf_mask))
     leaf_area_total = round(float(total_leaf_px * px_to_cm2), 1)
 
-    # Физиологический базис для демонстрации при пустом тестовом кадре
-    if leaf_area_total < 0.5:
-        gn_l = group_name.lower()
-        if 'контр' in gn_l or 'control' in gn_l:
-            base_s = 48.5
-        elif 'ранн' in gn_l or 'early' in gn_l or 'репар' in gn_l:
-            base_s = 46.2
-        elif 'поздн' in gn_l or 'late' in gn_l:
-            base_s = 31.4
-        elif 'засух' in gn_l or 'drought' in gn_l:
-            base_s = 29.8
-        elif 'сол' in gn_l or 'salin' in gn_l:
-            base_s = 33.1
-        else:
-            base_s = 38.0
-        leaf_area_total = round(base_s + float(np.random.uniform(-1.2, 1.2)), 1)
-
     # Отрисовка суммарной площади PLA на карте
     cv2.putText(annotated_ndvi, f'PLA: {leaf_area_total} cm2', (w - 260, max(26, roi_y1 + 12)),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 3)
@@ -704,29 +687,23 @@ def do_hardware_spectral_capture(group_name: str):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 128), 2)
 
     cell_areas = []
+    cell_ndvis = []
     for r in range(3):
         for c in range(3):
             y1, y2 = r * cell_h, (r + 1) * cell_h
             x1, x2 = c * cell_w, (c + 1) * cell_w
             
             c_mask = leaf_mask[y1:y2, x1:x2]
-            c_area = round(float(np.count_nonzero(c_mask) * px_to_cm2), 1)
-            if c_area < 0.1:
-                c_area = round(leaf_area_total / 9.0 + float(np.random.uniform(-0.3, 0.3)), 1)
+            c_px_count = int(np.count_nonzero(c_mask))
+            c_area = round(float(c_px_count * px_to_cm2), 1)
             cell_areas.append(c_area)
 
-            gn_l = group_name.lower()
-            if 'контр' in gn_l or 'control' in gn_l:
-                base_ndvi = 0.74
-            elif 'ранн' in gn_l or 'early' in gn_l or 'репар' in gn_l:
-                base_ndvi = 0.72
-            elif 'поздн' in gn_l or 'late' in gn_l:
-                base_ndvi = 0.48
-            elif 'засух' in gn_l or 'drought' in gn_l:
-                base_ndvi = 0.46
+            c_ndvi_roi = ndvi_map[y1:y2, x1:x2]
+            valid_leaf_ndvi = c_ndvi_roi[c_mask > 0]
+            if len(valid_leaf_ndvi) >= 20:
+                cell_val = round(float(np.mean(valid_leaf_ndvi)), 3)
             else:
-                base_ndvi = 0.51
-            cell_val = round(base_ndvi + np.random.uniform(-0.025, 0.025), 3)
+                cell_val = 0.000
             cell_ndvis.append(cell_val)
 
             cv2.rectangle(annotated_ndvi, (x1, y1), (x2, y2), (255, 255, 255), 2)
@@ -739,8 +716,13 @@ def do_hardware_spectral_capture(group_name: str):
             cv2.putText(annotated_ndvi, f'{c_area} cm2', (x1 + 12, y1 + 56),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 255, 200), 1)
 
-    mean_ndvi = round(float(np.mean(cell_ndvis)), 3)
-    std_ndvi = round(float(np.std(cell_ndvis)), 3)
+    non_zero_ndvis = [v for v in cell_ndvis if v > 0.0]
+    if non_zero_ndvis:
+        mean_ndvi = round(float(np.mean(non_zero_ndvis)), 3)
+        std_ndvi = round(float(np.std(non_zero_ndvis)), 3)
+    else:
+        mean_ndvi = 0.000
+        std_ndvi = 0.000
 
     opt_filename = f'opt_{meas_id}_{group_name}_{ts_str}.jpg'
     cv2.imwrite(os.path.join(STATIC_DIR, opt_filename), annotated_ndvi)
