@@ -8,18 +8,12 @@
     </style>
   </defs>
   <g id="front_facade_corrected">
-    <text x="15" y="10" class="title">6. Front Facade 210x305 mm (Flush full height, clean corner magnets)</text>
+    <text x="15" y="10" class="title">6. Front Facade 210x305 mm (Solid clean facade, hidden magnets)</text>
     
     <!-- 1. Контур реза фасада 210х305 мм заподлицо с крышкой и дном (КРАСНЫЙ СЛОЙ CUT) -->
     <path d="M 5.00 5.00 L 215.00 5.00 L 215.00 310.00 L 5.00 310.00 Z" class="cut"/>
     
-    <!-- 2. 4 угловых магнита d=8.1мм (отступ ровно 12.0 мм от всех внешних кромок) -->
-    <circle cx="17.0" cy="17.0" r="4.05" class="cut"/>
-    <circle cx="203.0" cy="17.0" r="4.05" class="cut"/>
-    <circle cx="17.0" cy="298.0" r="4.05" class="cut"/>
-    <circle cx="203.0" cy="298.0" r="4.05" class="cut"/>
-    
-    <!-- 3. ПРИБОРНЫЙ ШИЛЬДИК-ПАСПОРТ -->
+    <!-- 2. ПРИБОРНЫЙ ШИЛЬДИК-ПАСПОРТ -->
     <rect x="25.0" y="38.0" width="170.0" height="102.0" rx="4" ry="4" class="engrave_line"/>
     <rect x="26.5" y="39.5" width="167.0" height="99.0" rx="3" ry="3" class="engrave_line"/>
     
