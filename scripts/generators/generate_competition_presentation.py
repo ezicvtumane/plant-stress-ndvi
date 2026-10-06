@@ -232,10 +232,10 @@ slides_data = [
             <h2>Аппаратная архитектура комплекса</h2>
         </div>
         <div style="background: #0f172a; border: 1px solid rgba(0, 164, 153, 0.3); border-radius: 12px; padding: 20px; font-family: monospace; font-size: 12pt; color: #e2e8f0; line-height: 1.45; margin-top: 15px;">
-<span style="color:#2dd4bf;">[ КАССЕТА РАСТЕНИЙ В КУБИЧЕСКОМ БОКСЕ 200x200x200 мм ]</span>
+<span style="color:#2dd4bf;">[ КАССЕТА РАСТЕНИЙ В ФОТОМЕТРИЧЕСКОМ БОКСЕ 210x210x297 мм ]</span>
      │
-     ├──&gt; <span style="color:#ef4444;">[СТРОБИРОВАННЫЙ ОСВЕТИТЕЛЬ]</span> ──&gt; Канал 1: 660 нм Deep Red (Mini360, 550 мА, 2.45 В)
-     │                                    Канал 2: 850 нм NIR (Mini360, 450 мА, 1.85 В)
+     ├──&gt; <span style="color:#ef4444;">[СТРОБИРОВАННЫЙ ОСВЕТИТЕЛЬ]</span> ──&gt; Канал 1: 660 нм Deep Red (Mini360, 500 мА, 2.20 В)
+     │                                    Канал 2: 850 нм NIR (Mini360, 420 мА, 1.60 В)
      │                                    Управление: 2-канальное реле (/dev/gpiochip1 PL4/PL7)
      │
      ├──&gt; <span style="color:#38bdf8;">[NoIR USB КАМЕРА V4L2]</span> ─────&gt; Фиксация экспозиции = 120, AWB = OFF
@@ -505,7 +505,7 @@ slides_data = [
         <div style="font-size: 12pt; color: #94a3b8; line-height: 1.5;">
             <b>Автор:</b> Ковалева Алиса Ивановна (10 класс, ГБОУ СОШ №282 Санкт-Петербурга)<br>
             <b>Научно-технический руководитель:</b> Ковалев Иван Викторович<br>
-            <i>Email: ezicvtumane@gmail.com</i>
+            <i>Email: v1m@mail.ru</i>
         </div>
     </div>
     '''
