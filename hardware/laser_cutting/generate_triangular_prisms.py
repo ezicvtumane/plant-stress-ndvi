@@ -66,6 +66,7 @@ bracket_up_mirrored = bracket_up.copy()
 rot_mirror = trimesh.transformations.reflection_matrix([0, 0, 0], [1, 0, 0])
 bracket_up_mirrored.apply_transform(rot_mirror)
 bracket_up_mirrored.apply_translation([Lx, 0, 0])
-bracket_up_mirrored.export(os.path.join(out_dir, "upper_corner_bracket_mirrored.stl"))
+bracket_up.export(os.path.join(out_dir, "universal_corner_bracket.stl"))
+bracket_up_mirrored.export(os.path.join(out_dir, "universal_corner_bracket_mirrored.stl"))
 
 print("All triangular prism STL models successfully generated!")
