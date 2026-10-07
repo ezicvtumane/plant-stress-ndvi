@@ -596,7 +596,7 @@ with open(html_out_path, "w", encoding="utf-8") as f:
 print(f"[+] HTML written: {html_out_path}")
 
 # Конвертируем в PDF через Chrome Headless
-chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+chrome_path = r"/usr/bin/chromium"
 pdf_out_name = "Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf"
 pdf_docs_path = os.path.join(DOCS_DIR, pdf_out_name)
 pdf_user_docs = os.path.join(r"C:\Users\Администратор\Documents", pdf_out_name)

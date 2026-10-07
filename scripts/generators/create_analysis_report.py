@@ -464,7 +464,7 @@ with open(html_path, 'w', encoding='utf-8') as f:
 print(f"[1] HTML report generated: {html_path}")
 
 # 2. Компиляция в PDF через headless Chrome
-chrome_path = r'C:\Program Files\Google\Chrome\Application\chrome.exe'
+chrome_path = r'/usr/bin/chromium'
 pdf_name = 'Анализ_проделанной_работы_Комплекс_NDVI.pdf'
 local_pdf_path = os.path.join(CURRENT_DIR, pdf_name)
 

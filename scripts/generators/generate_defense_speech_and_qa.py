@@ -11,7 +11,7 @@ import shutil
 DOCS_DIR = r"c:\Users\Администратор\Documents\Coglet\plant-stress-ndvi\docs"
 USER_DOCS = r"C:\Users\Администратор\Documents"
 STATIC_DIR = r"c:\Users\Администратор\Documents\Coglet\plant-stress-ndvi\static"
-CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+CHROME_PATH = r"/usr/bin/chromium"
 
 # ==============================================================================
 # 1. ТЕКСТ РЕЧИ НА ЗАЩИТУ (7 МИНУТ)

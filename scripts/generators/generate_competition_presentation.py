@@ -635,7 +635,7 @@ with open(pres_html_path, "w", encoding="utf-8") as f:
 
 print(f"[+] Presentation HTML written: {pres_html_path}")
 
-chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+chrome_path = r"/usr/bin/chromium"
 pres_pdf_name = "Презентация_Большие_Вызовы_Ковалева_Алиса.pdf"
 pres_pdf_docs = os.path.join(DOCS_DIR, pres_pdf_name)
 pres_pdf_user = os.path.join(r"C:\Users\Администратор\Documents", pres_pdf_name)

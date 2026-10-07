@@ -20,7 +20,7 @@ from docx.oxml.ns import nsdecls
 BASE_DIR = r"c:\Users\Администратор\Documents\Coglet\plant-stress-ndvi"
 DOCS_DIR = os.path.join(BASE_DIR, "docs")
 USER_DOCS = r"C:\Users\Администратор\Documents"
-CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+CHROME_PATH = r"/usr/bin/chromium"
 
 # ==============================================================================
 # 1. ТЕКСТ ЛАБОРАТОРНОГО ЖУРНАЛА (MARKDOWN)
