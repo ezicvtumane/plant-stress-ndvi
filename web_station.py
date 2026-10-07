@@ -21,6 +21,7 @@ import glob
 import math
 import socket
 from datetime import datetime
+import subprocess
 import numpy as np
 import cv2
 try:
@@ -108,20 +109,19 @@ def read_xiaomi_climate():
     # 1. Прямое аппаратное чтение по I2C-0
     try:
         import smbus2
-        bus = smbus2.SMBus(0)
-        # Команда замера высокой повторяемости (High repeatability, clock stretching disabled: 0x2C, 0x06)
-        bus.write_i2c_block_data(0x44, 0x2C, [0x06])
-        time.sleep(0.05)
-        d = bus.read_i2c_block_data(0x44, 0x00, 6)
-        bus.close()
-        t_c = -45.0 + (175.0 * ((d[0] << 8) | d[1]) / 65535.0)
-        rh = 100.0 * (((d[3] << 8) | d[4]) / 65535.0)
-        if -20.0 <= t_c <= 70.0 and 0.0 <= rh <= 100.0:
-            t = round(float(t_c), 1)
-            rh = round(float(rh), 1)
-            v_rail = 3.30
-            LAST_VALID_CLIMATE = (t, rh, v_rail)
-            return t, rh, v_rail
+        with smbus2.SMBus(0) as bus:
+            # Команда замера высокой повторяемости (High repeatability, clock stretching disabled: 0x2C, 0x06)
+            bus.write_i2c_block_data(0x44, 0x2C, [0x06])
+            time.sleep(0.05)
+            d = bus.read_i2c_block_data(0x44, 0x00, 6)
+            t_c = -45.0 + (175.0 * ((d[0] << 8) | d[1]) / 65535.0)
+            rh = 100.0 * (((d[3] << 8) | d[4]) / 65535.0)
+            if -20.0 <= t_c <= 70.0 and 0.0 <= rh <= 100.0:
+                t = round(float(t_c), 1)
+                rh = round(float(rh), 1)
+                v_rail = 3.30
+                LAST_VALID_CLIMATE = (t, rh, v_rail)
+                return t, rh, v_rail
     except Exception:
         pass
 
@@ -273,11 +273,24 @@ def init_relay():
             )
             RELAY_REQ.set_value(4, Value.INACTIVE)
             RELAY_REQ.set_value(7, Value.INACTIVE)
-            print('[GPIO] Relay hold initialized with active_low=True (OFF in standby): Pin 7 (PL4) & Pin 10 (PL7)')
+            print('[GPIO] Relay hold initialized with active_low=True (OFF in standby): Pin 7 (PL4) & Pin 10 (PL7)', flush=True)
         except Exception as e:
-            print('[GPIO] Relay init error:', e)
+            print('[GPIO] Relay init error:', e, flush=True)
 
 init_relay()
+
+@app.on_event("shutdown")
+def cleanup_gpio():
+    global RELAY_REQ
+    if RELAY_REQ:
+        try:
+            RELAY_REQ.set_value(4, Value.INACTIVE)
+            RELAY_REQ.set_value(7, Value.INACTIVE)
+            RELAY_REQ.release()
+            RELAY_REQ = None
+            print('[GPIO] Relay lines released cleanly on shutdown', flush=True)
+        except Exception:
+            pass
 
 def get_next_id():
     if not os.path.exists(CSV_LOG): return 1
@@ -303,12 +316,11 @@ def read_moisture_mock(group_name: str = ''):
     """
     try:
         import smbus2
-        bus = smbus2.SMBus(0)
-        # Регистр конфигурации 0x01: одиночное преобразование, AIN0 относительно GND, диапазон +/-4.096 В, 128 SPS
-        bus.write_i2c_block_data(0x48, 0x01, [0xC3, 0x83])
-        time.sleep(0.04)
-        c = bus.read_i2c_block_data(0x48, 0x00, 2)
-        bus.close()
+        with smbus2.SMBus(0) as bus:
+            # Регистр конфигурации 0x01: одиночное преобразование, AIN0 относительно GND, диапазон +/-4.096 В, 128 SPS
+            bus.write_i2c_block_data(0x48, 0x01, [0xC3, 0x83])
+            time.sleep(0.04)
+            c = bus.read_i2c_block_data(0x48, 0x00, 2)
         raw = (c[0] << 8) | c[1]
         if raw > 32767:
             raw -= 65536
@@ -378,29 +390,25 @@ def detect_aruco_in_image(img_bgr):
             cv2.aruco.DICT_5X5_50
         ]
 
-        # Настройка гибких параметров детектора (адаптивные окна, допуск к границам)
+        # Настройка параметров детектора (фильтрация шумов матрицы)
         params = (
             cv2.aruco.DetectorParameters()
             if hasattr(cv2.aruco, 'DetectorParameters')
             else cv2.aruco.DetectorParameters_create()
         )
-        params.adaptiveThreshWinSizeMin = 3
-        params.adaptiveThreshWinSizeMax = 53
-        params.adaptiveThreshWinSizeStep = 4
-        params.minMarkerPerimeterRate = 0.01
-        params.maxMarkerPerimeterRate = 4.0
+        params.adaptiveThreshWinSizeMin = 5
+        params.adaptiveThreshWinSizeMax = 45
+        params.adaptiveThreshWinSizeStep = 5
+        params.minMarkerPerimeterRate = 0.04  # Защита от шума: периметр не менее 160 px
+        params.maxMarkerPerimeterRate = 3.0
         params.polygonalApproxAccuracyRate = 0.05
-        params.maxErroneousBitsInBorderRate = 0.45
+        params.maxErroneousBitsInBorderRate = 0.25
         params.perspectiveRemoveIgnoredMarginPerCell = 0.13
-        params.errorCorrectionRate = 0.8
+        params.errorCorrectionRate = 0.6
         if hasattr(cv2.aruco, 'CORNER_REFINE_SUBPIX'):
             params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
         # Подготовка вариантов изображения для надежного распознавания:
-        # 1. Оригинал в градациях серого
-        # 2. Бинаризация по Оцу (идеально для монохромной подсветки 660 нм и цветных меток)
-        # 3. CLAHE (адаптивное контрастирование)
-        # 4. Фиксированные пороги для экстремальной экспозиции
         images_to_try = [gray]
         try:
             _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -409,17 +417,10 @@ def detect_aruco_in_image(img_bgr):
             pass
 
         try:
-            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
             images_to_try.append(clahe.apply(gray))
         except Exception:
             pass
-
-        for t_val in [100, 120, 140]:
-            try:
-                _, b_fix = cv2.threshold(gray, t_val, 255, cv2.THRESH_BINARY)
-                images_to_try.append(b_fix)
-            except Exception:
-                pass
 
         for d_type in dict_candidates:
             aruco_dict = (
@@ -437,18 +438,20 @@ def detect_aruco_in_image(img_bgr):
                 if ids is not None and len(ids) > 0:
                     for i_idx, id_arr in enumerate(ids):
                         m_id = int(id_arr[0])
+                        # Проверка физической площади маркера (защита от фантомных артефактов матрицы)
+                        c_area = float(cv2.contourArea(corners[i_idx].reshape((-1, 2)).astype(np.float32)))
+                        if c_area < 250.0:
+                            continue
                         if m_id in CASSETTE_CATALOG:
                             grp = CASSETTE_CATALOG[m_id]['name']
-                            print(f"[ArUco Detected] Найдена кассета #{m_id}: {grp} (словарь {d_type})")
+                            print(f"[ArUco Detected] Найдена кассета #{m_id}: {grp} (area={c_area:.0f}px, словарь {d_type})", flush=True)
                             return m_id, grp, corners[i_idx]
                         elif 1 <= m_id <= 6:
                             grp = ARUCO_CASSETTE_MAP.get(m_id, f'Кассета #{m_id}')
+                            print(f"[ArUco Detected] Найдена кассета #{m_id}: {grp} (area={c_area:.0f}px)", flush=True)
                             return m_id, grp, corners[i_idx]
-                    m_id = int(ids[0][0])
-                    grp = ARUCO_CASSETTE_MAP.get(m_id, f'Кассета #{m_id}')
-                    return m_id, grp, corners[0]
     except Exception as e:
-        print('[ArUco Detect Error]:', e)
+        print('[ArUco Detect Error]:', e, flush=True)
     return None, None, None
 
 def auto_mount_uti():
@@ -542,70 +545,66 @@ def do_hardware_spectral_capture(group_name: str):
     ts_str = ts_now.strftime('%Y%m%d_%H%M%S')
     ts_display = format_ru_datetime(ts_now)
 
-    # Программная оптимизация выдержки NoIR камеры для ИК и Красного спектров:
-    # ИК 850 нм требует длинной экспозиции (3500) для глубокого сбора фотонов,
-    # а Красный 660 нм требует короткой экспозиции (380) для защиты от пересвета матрицы (0% насыщения).
-    try:
-        subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=1', '-c', 'gain=80', '-c', 'exposure_time_absolute=3500'], check=False)
-    except Exception:
-        pass
+    # Спектральная съемка Logitech C270: 1280x960 (полный сенсор 4:3 без кропа)
+    def set_v4l2_exposure(exp_val, gain_val):
+        try:
+            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 
+                            f'auto_exposure=1,exposure_time_absolute={exp_val},gain={gain_val},white_balance_automatic=0'], 
+                           check=False)
+        except Exception:
+            pass
 
     cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
-
-    # 1. Темновой фон при выдержке ИК-канала (3500)
-    time.sleep(0.20)
-    for _ in range(5): cap.read()
-    ret, frame_amb_nir = cap.read()
-    if not ret:
-        cap.release()
-        try:
-            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=3'], check=False)
-        except Exception:
-            pass
-        raise RuntimeError('Камера /dev/video0 недоступна')
-
-    frame_amb = frame_amb_nir
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
     init_relay()
     if RELAY_REQ:
-        # 2. ЩЕЛЧОК 1: Включение ТОЛЬКО инфракрасного эмиттера 850 нм при длинной выдержке 3500
+        # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
+        # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
+        set_v4l2_exposure(2500, 200)
+        time.sleep(0.20)
         RELAY_REQ.set_value(7, Value.ACTIVE)
-        time.sleep(0.50)
-        for _ in range(6): cap.read()
+        time.sleep(0.40)
+        for _ in range(8): cap.read()
         ret_n, frame_nir = cap.read()
-        RELAY_REQ.set_value(7, Value.INACTIVE) # ЩЕЛЧОК 2: Инфракрасный выключен
+        RELAY_REQ.set_value(7, Value.INACTIVE) # Инфракрасный выключен
 
-        time.sleep(0.20)
+        # Темновой фон NIR
+        time.sleep(0.15)
+        for _ in range(5): cap.read()
+        _, frame_amb_nir = cap.read()
 
-        # 3. Переключение выдержки на 380 для Красного канала 660 нм
-        try:
-            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=1,exposure_time_absolute=380'], check=False)
-        except Exception:
-            pass
+        # 2. Спектральная съемка RED 660 нм (калиброванная экспозиция 120/40 без клиппинга)
+        set_v4l2_exposure(120, 40)
         time.sleep(0.20)
+        for _ in range(8): cap.read()
+        RELAY_REQ.set_value(4, Value.ACTIVE)
+        time.sleep(0.40)
+        for _ in range(8): cap.read()
+        ret_r, frame_red = cap.read()
+        RELAY_REQ.set_value(4, Value.INACTIVE) # Красный выключен
+
+        # Темновой фон RED
+        time.sleep(0.15)
         for _ in range(5): cap.read()
         _, frame_amb_red = cap.read()
 
-        # 4. ЩЕЛЧОК 3: Включение ТОЛЬКО красного эмиттера 660 нм при выдержке 380 (без насыщения)
-        RELAY_REQ.set_value(4, Value.ACTIVE)
-        time.sleep(0.40)
-        for _ in range(6): cap.read()
-        ret_r, frame_red = cap.read()
-        RELAY_REQ.set_value(4, Value.INACTIVE) # ЩЕЛЧОК 4: Красный выключен
-
         if not ret_r: frame_red = frame_amb_red
         if not ret_n: frame_nir = frame_amb_nir
+        frame_amb = frame_amb_red
     else:
+        set_v4l2_exposure(2500, 200)
+        for _ in range(5): cap.read()
+        ret, frame_amb_nir = cap.read()
         frame_red = frame_amb_nir
         frame_nir = frame_amb_nir
         frame_amb_red = frame_amb_nir
+        frame_amb = frame_amb_nir
 
     cap.release()
-
-    # Возврат камеры в режим авто-экспозиции
+    # Возвращаем камеру в штатный режим
     try:
         subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=3'], check=False)
     except Exception:
@@ -619,7 +618,7 @@ def do_hardware_spectral_capture(group_name: str):
         aruco_id, aruco_group, aruco_corners = detect_aruco_in_image(frame_amb)
     if aruco_id is not None:
         group_name = aruco_group
-        print(f'[ArUco Optical Link] Авто-привязка кассеты: Маркер #{aruco_id} -> {group_name}')
+        print(f'[ArUco Optical Link] Авто-привязка кассеты: Маркер #{aruco_id} -> {group_name}', flush=True)
 
     # ЧЕСТНОЕ АППАРАТНОЕ РАЗДЕЛЕНИЕ КАНАЛОВ (БЕЗ ПРОГРАММНОЙ АППРОКСИМАЦИИ):
     # Канал 660 нм: чистый красный подуровень матрицы под узкополосным светом 660 нм
@@ -639,17 +638,17 @@ def do_hardware_spectral_capture(group_name: str):
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
 
     # Радиометрическая калибровка по белому диффузному эталону (White Reference Target)
-    # Зона белого матового картона в свободном углу предметного столика (ROI: 4%..16%)
     h_f, w_f, _ = frame_flash.shape
     roi_y1, roi_y2 = int(h_f * 0.04), int(h_f * 0.16)
     roi_x1, roi_x2 = int(w_f * 0.04), int(w_f * 0.16)
     white_red = float(np.mean(red_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
     white_nir = float(np.mean(nir_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
-    if white_nir > 15.0 and white_red > 15.0 and (white_red / white_nir) <= 4.0:
-        k_bal = round(float(np.clip(white_red / white_nir, 0.50, 3.50)), 3)
+    is_valid_white = (white_nir > 10.0 and white_red > 10.0 and 0.50 <= (white_red / white_nir) <= 2.50)
+    if is_valid_white:
+        k_bal = round(float(np.clip(white_red / white_nir, 0.50, 2.50)), 3)
     else:
-        # Аппаратный базис при выдержках t_nir=3500 и t_red=380:
-        k_bal = 1.850
+        # Аппаратный баланс эмиттеров для C270 (NIR exp=8000/gain=255 vs RED exp=200/gain=48)
+        k_bal = 1.35
 
     # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
     denom = (k_bal * nir_channel) + red_channel
@@ -657,11 +656,22 @@ def do_hardware_spectral_capture(group_name: str):
     ndvi_map = (k_bal * nir_channel - red_channel) / denom
     ndvi_map = np.clip(ndvi_map, -1.0, 1.0)
 
+    # Сегментация проективной листовой поверхности (Projected Leaf Area, PLA)
+    # Растения: выраженное ИК-отражение мезофилла над темновым шумом (> 20.0 DN) + положительный NDVI (> 0.05)
+    leaf_mask = ((ndvi_map > 0.05) & (nir_channel > 20.0)).astype(np.uint8)
+    if is_valid_white:
+        leaf_mask[roi_y1:roi_y2, roi_x1:roi_x2] = 0
+    if aruco_corners is not None:
+        cv2.fillPoly(leaf_mask, [aruco_corners.reshape((-1, 1, 2)).astype(np.int32)], 0)
+
+    print(f'[DEBUG Capture] NIR: mean={nir_raw.mean():.1f}, p90={np.percentile(nir_raw, 90):.1f}, amb={amb_nir.mean():.1f}', flush=True)
+    print(f'[DEBUG Capture] RED: mean={red_raw.mean():.1f}, p90={np.percentile(red_raw, 90):.1f}, amb={amb_red.mean():.1f}', flush=True)
+    print(f'[DEBUG Capture] k_bal={k_bal}, ndvi: mean={ndvi_map.mean():.3f}, max={ndvi_map.max():.3f}, leaf_mask={np.sum(leaf_mask)}', flush=True)
+
     # Физические визуализации:
     vis_red = frame_red.copy()
 
     # Адаптивное автоконтрастирование ИК-канала для наглядного отображения на экране:
-    # (физический массив nir_channel в формуле NDVI остается абсолютно неизменным!)
     p_high = float(np.percentile(nir_channel, 99.5))
     if p_high > 6.0:
         vis_nir_mono = np.clip((nir_channel / p_high) * 255.0, 0, 255).astype(np.uint8)
@@ -671,19 +681,27 @@ def do_hardware_spectral_capture(group_name: str):
     else:
         vis_nir = frame_nir.copy()
 
-    ndvi_norm = np.clip((ndvi_map + 0.1) / 1.0 * 255, 0, 255).astype(np.uint8)
-    vis_ndvi_color = cv2.applyColorMap(ndvi_norm, cv2.COLORMAP_TURBO)
+    # Высококонтрастная палитра Turbo для отображения вегетации (диапазон 0.05 .. 0.65):
+    ndvi_disp = np.clip((ndvi_map - 0.05) / 0.60 * 255.0, 0, 255).astype(np.uint8)
+    vis_ndvi_color = cv2.applyColorMap(ndvi_disp, cv2.COLORMAP_TURBO)
+    vis_ndvi_color[leaf_mask == 0] = [35, 15, 30] # Темный нейтральный фон для почвы и артефактов
 
     h, w, _ = frame_flash.shape
     cell_h, cell_w = h // 3, w // 3
     annotated_ndvi = vis_ndvi_color.copy()
 
-    # Отрисовка зоны радиометрической калибровки White Reference
-    cv2.rectangle(annotated_ndvi, (roi_x1, roi_y1), (roi_x2, roi_y2), (255, 255, 255), 2)
-    cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 0, 0), 3)
-    cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
+    # Отрисовка зоны радиометрической калибровки White Reference (только если найден реальный эталон)
+    if is_valid_white:
+        cv2.rectangle(annotated_ndvi, (roi_x1, roi_y1), (roi_x2, roi_y2), (255, 255, 255), 2)
+        cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 0, 0), 3)
+        cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
+    else:
+        cv2.putText(annotated_ndvi, f'Calib: k={k_bal}', (15, 25),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.50, (0, 0, 0), 3)
+        cv2.putText(annotated_ndvi, f'Calib: k={k_bal}', (15, 25),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.50, (200, 255, 200), 1)
 
     # Отрисовка обнаруженного фидуциального маркера ArUco
     if aruco_corners is not None and aruco_id is not None:
@@ -691,9 +709,9 @@ def do_hardware_spectral_capture(group_name: str):
         cv2.polylines(annotated_ndvi, [pts], True, (0, 255, 128), 3)
         cx = int(np.mean(pts[:, 0, 0]))
         cy = int(np.mean(pts[:, 0, 1]))
-        cv2.putText(annotated_ndvi, f'ArUco #{aruco_id}: {group_name}', (max(10, cx - 60), max(30, cy - 12)),
+        cv2.putText(annotated_ndvi, f'ArUco #{aruco_id}', (max(10, cx - 50), max(30, cy - 12)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 3)
-        cv2.putText(annotated_ndvi, f'ArUco #{aruco_id}: {group_name}', (max(10, cx - 60), max(30, cy - 12)),
+        cv2.putText(annotated_ndvi, f'ArUco #{aruco_id}', (max(10, cx - 50), max(30, cy - 12)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 128), 2)
 
     # ---------------- МОРФОЛОГИЧЕСКИЙ АНАЛИЗ (PLA - Площадь Листьев) ----------------
@@ -701,23 +719,14 @@ def do_hardware_spectral_capture(group_name: str):
     if aruco_corners is not None:
         pts_fl = aruco_corners.reshape((-1, 2)).astype(np.float32)
         aruco_area_px = float(cv2.contourArea(pts_fl))
-        if aruco_area_px > 100.0:
-            px_to_cm2 = 6.25 / aruco_area_px
+        if aruco_area_px > 120.0:
+            px_to_cm2 = float(np.clip(6.25 / aruco_area_px, 0.00020, 0.00150))
         else:
-            px_to_cm2 = 0.00038
+            px_to_cm2 = 0.00045
     else:
-        # Номинальный масштаб бокса при разрешении 1600x1200 (при отсутствии маркера)
-        px_to_cm2 = 0.00018
+        # Номинальный масштаб бокса при разрешении 1280x720 (при отсутствии маркера)
+        px_to_cm2 = 0.00045
 
-    # 2. Сегментация проективной листовой поверхности (Projected Leaf Area, PLA)
-    # Порог вегетационного индекса для зеленой биомассы: NDVI > 0.22
-    leaf_mask = (ndvi_map > 0.22).astype(np.uint8)
-    
-    # Исключаем эталон белого (картон) и саму фидуциальную наклейку ArUco из маски листьев
-    leaf_mask[roi_y1:roi_y2, roi_x1:roi_x2] = 0
-    if aruco_corners is not None:
-        cv2.fillPoly(leaf_mask, [aruco_corners.reshape((-1, 1, 2)).astype(np.int32)], 0)
-    
     total_leaf_px = int(np.count_nonzero(leaf_mask))
     leaf_area_total = round(float(total_leaf_px * px_to_cm2), 1)
 
@@ -764,6 +773,8 @@ def do_hardware_spectral_capture(group_name: str):
     else:
         mean_ndvi = 0.000
         std_ndvi = 0.000
+
+    print(f'[Spectral Capture] ID #{meas_id} [{group_name}]: leaves={total_leaf_px} px ({leaf_area_total} cm2), NDVI mean={mean_ndvi}, cells={cell_ndvis}', flush=True)
 
     opt_filename = f'opt_{meas_id}_{group_name}_{ts_str}.jpg'
     cv2.imwrite(os.path.join(STATIC_DIR, opt_filename), annotated_ndvi)
@@ -1687,7 +1698,7 @@ def index(
                         </select>
                     </div>
 
-                    <img src="/static/{s.get('opt_file', 'last_ndvi.jpg')}?t={t_now}" style="height:68px; border-radius:4px; object-fit:cover; width:100%; border:1px solid #e2e8f0; margin-bottom:6px;">
+                    <img src="/static/{s.get('opt_file', 'last_ndvi.jpg')}?t={t_now}" style="height:68px; border-radius:4px; object-fit:contain; background:#0f172a; width:100%; border:1px solid #e2e8f0; margin-bottom:6px;">
                     
                     <div style="font-size:11px; color:#047857; font-weight:bold; text-align:center; margin-bottom:8px;">
                         NDVI: {s.get("mean_ndvi", "--")} · PLA: {s.get("leaf_area_cm2", "--")} см²
@@ -1787,7 +1798,7 @@ def index(
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
                         <div style="text-align:center;">
                             <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">Спектр NoIR (кадр #{shot_order})</span>
-                            <img src="/static/{s['opt_file']}?t={t_now}" style="width:100%; height:85px; object-fit:cover; border-radius:6px; border:1px solid #e2e8f0;">
+                            <img src="/static/{s['opt_file']}?t={t_now}" style="width:100%; height:85px; object-fit:contain; background:#0f172a; border-radius:6px; border:1px solid #e2e8f0;">
                         </div>
                         <div style="text-align:center;">
                             <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">Тепловизор ({item['thermal_filename']})</span>
