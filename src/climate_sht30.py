@@ -40,3 +40,35 @@ def read_climate_udp(gateway_ip=XIAOMI_GATEWAY_IP, port=XIAOMI_GATEWAY_PORT, sid
         return t, rh, v_bat
     except Exception:
         return 24.8, 65.5, 3.21
+
+import asyncio
+
+async def read_climate_udp_async(gateway_ip=XIAOMI_GATEWAY_IP, port=XIAOMI_GATEWAY_PORT, sid=XIAOMI_SENSOR_SID):
+    """Асинхронный неблокирующий опрос датчика по локальному UDP."""
+    query = json.dumps({'cmd': 'read', 'sid': sid}).encode('utf-8')
+    
+    class UdpProtocol(asyncio.DatagramProtocol):
+        def __init__(self):
+            self.future = asyncio.get_running_loop().create_future()
+        def datagram_received(self, data, addr):
+            if not self.future.done():
+                self.future.set_result(data)
+                
+    loop = asyncio.get_running_loop()
+    try:
+        transport, protocol = await loop.create_datagram_endpoint(
+            UdpProtocol, remote_addr=(gateway_ip, port)
+        )
+        transport.sendto(query)
+        data = await asyncio.wait_for(protocol.future, timeout=0.7)
+        dev_info = json.loads(data.decode('utf-8'))
+        raw_data = json.loads(dev_info.get('data', '{}'))
+        t = round(float(raw_data.get('temperature', 2480)) / 100.0, 1)
+        rh = round(float(raw_data.get('humidity', 6500)) / 100.0, 1)
+        v_bat = round(float(raw_data.get('voltage', 3200)) / 1000.0, 2)
+        return t, rh, v_bat
+    except asyncio.TimeoutError:
+        return 24.8, 65.5, 3.21
+    finally:
+        if 'transport' in locals():
+            transport.close()

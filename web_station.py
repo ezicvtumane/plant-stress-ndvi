@@ -23,6 +23,7 @@ import socket
 from datetime import datetime
 import subprocess
 import numpy as np
+from src.sensors_ads1115 import _global_reader
 import cv2
 try:
     import gpiod

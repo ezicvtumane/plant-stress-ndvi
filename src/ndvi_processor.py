@@ -9,6 +9,7 @@ from typing import Dict, Tuple, Optional
 import numpy as np
 import cv2
 from src import config
+from src.profiler import profile_performance
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ class NDVIProcessor:
                     self.k_factor, mean_red, mean_nir)
         return self.k_factor
 
+    @profile_performance
     def compute_ndvi_map(
         self,
         ambient_frame: np.ndarray,
@@ -104,12 +106,15 @@ class NDVIProcessor:
         nir_band = self._extract_band(nir_frame, "nir")
         red_band = self._extract_band(red_frame, "red")
 
-        # Radiometric ambient subtraction
-        nir_clean = np.maximum(0.0, nir_band - amb_nir)
-        red_clean = np.maximum(0.0, red_band - amb_red)
+        # In-place вычитание для минимизации аллокаций памяти O(5N) -> O(2N)
+        np.subtract(nir_band, amb_nir, out=nir_band)
+        np.maximum(nir_band, 0.0, out=nir_band)  # nir_band теперь является nir_clean
+        
+        np.subtract(red_band, amb_red, out=red_band)
+        np.maximum(red_band, 0.0, out=red_band)  # red_band теперь является red_clean
 
         # Vegetative mask: reflection in 850nm above threshold
-        mask = (nir_clean > config.NIR_BACKGROUND_THRESHOLD).astype(np.uint8) * 255
+        mask = (nir_band > config.NIR_BACKGROUND_THRESHOLD).astype(np.uint8) * 255
 
         # Morphological clean-up
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -117,13 +122,16 @@ class NDVIProcessor:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
         # Scaled NIR
-        nir_scaled = self.k_factor * nir_clean
-        numerator = nir_scaled - red_clean
-        denominator = nir_scaled + red_clean + 1e-6
-
-        # Calculate NDVI
-        ndvi_map = np.divide(numerator, denominator)
-        ndvi_map = np.clip(ndvi_map, -1.0, 1.0)
+        nir_scaled = np.multiply(nir_band, self.k_factor)
+        
+        # Вычисление NDVI с переиспользованием буфера (numerator) для экономии RAM
+        numerator = np.subtract(nir_scaled, red_band)
+        denominator = np.add(nir_scaled, red_band)
+        np.add(denominator, 1e-6, out=denominator)
+        
+        np.divide(numerator, denominator, out=numerator) # В numerator теперь итоговый ndvi_map
+        np.clip(numerator, -1.0, 1.0, out=numerator)
+        ndvi_map = numerator
 
         # Filter outside mask
         plant_pixels = ndvi_map[mask > 0]
