@@ -1647,7 +1647,7 @@ def index(
                                     <label style="font-size:11px; font-weight:bold; color:#0284c7; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
                                         💧 Влажность, %:
                                     </label>
-                                    <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="64.0" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
+                                    <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="" placeholder="Авто (I2C)" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                                 </div>
                             </div>
                         </div>
