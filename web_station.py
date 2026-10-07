@@ -2738,18 +2738,16 @@ def index(
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <h2 style="margin:0; font-size:16px; border:none; padding:0; color:var(--sirius-teal-dark);">📋 Журнал физиологических замеров</h2>
                 <div style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px;">
-                    <a href="/?phase=all" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='all' else 'color:#475569;'}">Все когорты ({len(rows)})</a>
-                    <a href="/?phase=1" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='1' else 'color:#475569;'}">🧪 Этап 1: Скрининг</a>
-                    <a href="/?phase=2" style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; text-decoration:none; {'background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);' if phase=='2' else 'color:#475569;'}">💧 Этап 2: Репарация</a>
+                    <span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);">Все замеры ({len(rows)})</span>
                 </div>
             </div>
             <div style="display:flex; gap:5px; flex-wrap:wrap;">
                 <span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #a7f3d0;">🌱 К1: Контроль</span>
-                <span style="background:#fffbeb; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fde68a;">🍂 К2: Засуха</span>
-                <span style="background:#f5f3ff; color:#5b21b6; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #ddd6fe;">🧂 К3: Соль</span>
-                <span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #a7f3d0;">🌱 К4: Эталон (Оптимум)</span>
-                <span style="background:#f0fdfa; color:#0f766e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #99f6e4;">💧 К5: Репарация (~40ч)</span>
-                <span style="background:#fff1f2; color:#be123c; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fecdd3;">⚠️ К6: Критический стресс (~72ч)</span>
+                <span style="background:#f5f3ff; color:#5b21b6; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #ddd6fe;">🧂 К2: Осмос</span>
+                <span style="background:#fff1f2; color:#9f1239; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fecdd3;">🍂 К3: Засуха</span>
+                <span style="background:#fffbeb; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fde68a;">🌡 К4: Превенция</span>
+                <span style="background:#eff6ff; color:#1e40af; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #bfdbfe;">👁 К5: Реакция</span>
+                <span style="background:#f8fafc; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #cbd5e1;">⚙️ Стенд №0</span>
             </div>
         </div>
         <div style="max-height: 320px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; background:#ffffff;">
