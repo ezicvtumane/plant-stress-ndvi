@@ -377,7 +377,7 @@ shutil.copy2(sheet_html_path, user_html)
 # ==============================================================================
 pdf_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.pdf')
 chrome_paths = [
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"/usr/bin/chromium",
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
     "google-chrome",
     "chromium"
