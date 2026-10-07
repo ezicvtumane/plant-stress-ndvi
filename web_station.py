@@ -556,21 +556,22 @@ def do_hardware_spectral_capture(group_name: str):
     # 1. Кадр фоновой засветки (Ambient: оба излучателя выключены)
     init_relay()
     if RELAY_REQ:
-        # 2. ЩЕЛЧОК 1: Включение ТОЛЬКО красного эмиттера 660 нм (Канал 1 / Pin 7 / Линия 4)
-        RELAY_REQ.set_value(4, Value.ACTIVE)
-        time.sleep(0.40)
-        for _ in range(5): cap.read()
-        ret_r, frame_red = cap.read()
-        RELAY_REQ.set_value(4, Value.INACTIVE) # ЩЕЛЧОК 2: Красный выключен
+        # 2. ЩЕЛЧОК 1: Включение ТОЛЬКО инфракрасного эмиттера 850 нм (Канал 2 / Pin 10 / Линия 7)
+        # Съемка ИК сразу после темнового кадра обеспечивает высокую чувствительность матрицы NoIR
+        RELAY_REQ.set_value(7, Value.ACTIVE)
+        time.sleep(0.50)
+        for _ in range(8): cap.read()
+        ret_n, frame_nir = cap.read()
+        RELAY_REQ.set_value(7, Value.INACTIVE) # ЩЕЛЧОК 2: Инфракрасный выключен
 
         time.sleep(0.25)
 
-        # 3. ЩЕЛЧОК 3: Включение ТОЛЬКО инфракрасного эмиттера 850 нм (Канал 2 / Pin 10 / Линия 7)
-        RELAY_REQ.set_value(7, Value.ACTIVE)
+        # 3. ЩЕЛЧОК 3: Включение ТОЛЬКО красного эмиттера 660 нм (Канал 1 / Pin 7 / Линия 4)
+        RELAY_REQ.set_value(4, Value.ACTIVE)
         time.sleep(0.40)
-        for _ in range(5): cap.read()
-        ret_n, frame_nir = cap.read()
-        RELAY_REQ.set_value(7, Value.INACTIVE) # ЩЕЛЧОК 4: Инфракрасный выключен
+        for _ in range(6): cap.read()
+        ret_r, frame_red = cap.read()
+        RELAY_REQ.set_value(4, Value.INACTIVE) # ЩЕЛЧОК 4: Красный выключен
 
         if not ret_r: frame_red = frame_amb
         if not ret_n: frame_nir = frame_amb
@@ -626,9 +627,19 @@ def do_hardware_spectral_capture(group_name: str):
     ndvi_map = (k_bal * nir_channel - red_channel) / denom
     ndvi_map = np.clip(ndvi_map, -1.0, 1.0)
 
-    # Физические визуализации: реальный кадр под 660 нм и реальный кадр под 850 нм
+    # Физические визуализации:
     vis_red = frame_red.copy()
-    vis_nir = frame_nir.copy()
+
+    # Адаптивное автоконтрастирование ИК-канала для наглядного отображения на экране:
+    # (физический массив nir_channel в формуле NDVI остается абсолютно неизменным!)
+    p_high = float(np.percentile(nir_channel, 99.5))
+    if p_high > 6.0:
+        vis_nir_mono = np.clip((nir_channel / p_high) * 255.0, 0, 255).astype(np.uint8)
+        clahe_nir = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        vis_nir_mono = clahe_nir.apply(vis_nir_mono)
+        vis_nir = cv2.cvtColor(vis_nir_mono, cv2.COLOR_GRAY2BGR)
+    else:
+        vis_nir = frame_nir.copy()
 
     ndvi_norm = np.clip((ndvi_map + 0.1) / 1.0 * 255, 0, 255).astype(np.uint8)
     vis_ndvi_color = cv2.applyColorMap(ndvi_norm, cv2.COLORMAP_TURBO)
@@ -765,6 +776,25 @@ def handle_start_spectral(group_name: str = Form('Контроль')):
     except Exception as e:
         print('[Start Spectral Error]:', e)
         return RedirectResponse(url='/?msg=err_camera', status_code=303)
+
+@app.get('/api/test_relay')
+def handle_test_relay(channel: str = 'nir', sec: float = 3.0):
+    """Аппаратная диагностика: включение выбранного реле (nir или red) на sec секунд."""
+    init_relay()
+    if not RELAY_REQ:
+        return JSONResponse({'status': 'error', 'message': 'Relay not initialized'})
+    line = 7 if channel.lower() == 'nir' else 4
+    pin_name = 'Pin 10 (NIR 850nm)' if line == 7 else 'Pin 7 (Red 660nm)'
+    try:
+        duration = max(0.5, min(10.0, float(sec)))
+        print(f'[Test Relay] Включение {pin_name} на {duration} сек...')
+        RELAY_REQ.set_value(line, Value.ACTIVE)
+        time.sleep(duration)
+        RELAY_REQ.set_value(line, Value.INACTIVE)
+        print(f'[Test Relay] Выключение {pin_name}. Готово.')
+        return JSONResponse({'status': 'ok', 'channel': channel, 'pin': pin_name, 'duration': duration})
+    except Exception as e:
+        return JSONResponse({'status': 'error', 'message': str(e)})
 
 @app.post('/api/save_final_measurement')
 def handle_save_final(
