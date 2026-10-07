@@ -582,7 +582,7 @@ def do_hardware_spectral_capture(group_name: str):
 
         # 3. Переключение выдержки на 380 для Красного канала 660 нм
         try:
-            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'exposure_time_absolute=380'], check=False)
+            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=1,exposure_time_absolute=380'], check=False)
         except Exception:
             pass
         time.sleep(0.20)
@@ -646,10 +646,10 @@ def do_hardware_spectral_capture(group_name: str):
     white_red = float(np.mean(red_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
     white_nir = float(np.mean(nir_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
     if white_nir > 15.0 and white_red > 15.0 and (white_red / white_nir) <= 4.0:
-        k_bal = round(float(np.clip(white_red / white_nir, 0.40, 2.50)), 3)
+        k_bal = round(float(np.clip(white_red / white_nir, 0.50, 3.50)), 3)
     else:
         # Аппаратный базис при выдержках t_nir=3500 и t_red=380:
-        k_bal = 0.950
+        k_bal = 1.850
 
     # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
     denom = (k_bal * nir_channel) + red_channel
