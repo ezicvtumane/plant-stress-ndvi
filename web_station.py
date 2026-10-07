@@ -1518,7 +1518,7 @@ def index(
         slots_html = ''
         short_names = {
             1: "Контроль",
-            2: "Засоление",
+            2: "Осмос",
             3: "Прибор",
             4: "Глаза",
             5: "Гибель",
@@ -2095,10 +2095,10 @@ def index(
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl_ndvi}</b></div>
                     <div style="font-size:8.5px; color:#047857; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #a7f3d0;">Оптимум (100% ПВ)</div>
                 </div>
-                <!-- К2: Засоление -->
+                <!-- К2: Осмос -->
                 <div style="flex:1; background:#f5f3ff; border:1.5px solid #7c3aed; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:10.5px; color:#5b21b6; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#7c3aed; display:inline-block;"></span> К2: Засоление
+                        <span style="width:7px; height:7px; border-radius:50%; background:#7c3aed; display:inline-block;"></span> К2: Осмос
                     </div>
                     <div style="font-size:15px; font-weight:700; color:#6d28d9; margin:2px 0;">{cnt_salt} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt_ndvi}</b></div>
@@ -2107,16 +2107,16 @@ def index(
                 <!-- К3: Терминальная засуха -->
                 <div style="flex:1; background:#fff1f2; border:1.5px solid #dc2626; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:10.5px; color:#9f1239; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#e11d48; display:inline-block;"></span> К3: Гибель
+                        <span style="width:7px; height:7px; border-radius:50%; background:#e11d48; display:inline-block;"></span> К3: Засуха
                     </div>
                     <div style="font-size:15px; font-weight:700; color:#be123c; margin:2px 0;">{cnt_term} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#dc2626;">{m_term_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#9f1239; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fecdd3;">Точка невозврата</div>
+                    <div style="font-size:8.5px; color:#9f1239; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fecdd3;">Терминальная фаза</div>
                 </div>
                 <!-- К4: Предиктивный полив -->
                 <div style="flex:1; background:#fefce8; border:1.5px solid #ca8a04; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:10.5px; color:#854d0e; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#ca8a04; display:inline-block;"></span> К4: Прибор
+                        <span style="width:7px; height:7px; border-radius:50%; background:#ca8a04; display:inline-block;"></span> К4: Превенция
                     </div>
                     <div style="font-size:15px; font-weight:700; color:#a16207; margin:2px 0;">{cnt_inst} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#ca8a04;">{m_inst_ndvi}</b></div>
@@ -2125,11 +2125,11 @@ def index(
                 <!-- К5: Органолептический полив -->
                 <div style="flex:1; background:#eff6ff; border:1.5px solid #2563eb; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:10.5px; color:#1e40af; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#2563eb; display:inline-block;"></span> К5: Глаза
+                        <span style="width:7px; height:7px; border-radius:50%; background:#2563eb; display:inline-block;"></span> К5: Реакция
                     </div>
                     <div style="font-size:15px; font-weight:700; color:#1d4ed8; margin:2px 0;">{cnt_eye} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#2563eb;">{m_eye_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#1e40af; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #bfdbfe;">Визуальн. увядание</div>
+                    <div style="font-size:8.5px; color:#1e40af; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #bfdbfe;">Потеря тургора</div>
                 </div>
             </div>
 
