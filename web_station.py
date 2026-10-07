@@ -542,44 +542,74 @@ def do_hardware_spectral_capture(group_name: str):
     ts_str = ts_now.strftime('%Y%m%d_%H%M%S')
     ts_display = format_ru_datetime(ts_now)
 
+    # Программная оптимизация выдержки NoIR камеры для ИК и Красного спектров:
+    # ИК 850 нм требует длинной экспозиции (3500) для глубокого сбора фотонов,
+    # а Красный 660 нм требует короткой экспозиции (380) для защиты от пересвета матрицы (0% насыщения).
+    try:
+        subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=1', '-c', 'gain=80', '-c', 'exposure_time_absolute=3500'], check=False)
+    except Exception:
+        pass
+
     cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
-    for _ in range(5): cap.read()
 
-    ret, frame_amb = cap.read()
+    # 1. Темновой фон при выдержке ИК-канала (3500)
+    time.sleep(0.20)
+    for _ in range(5): cap.read()
+    ret, frame_amb_nir = cap.read()
     if not ret:
         cap.release()
+        try:
+            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=3'], check=False)
+        except Exception:
+            pass
         raise RuntimeError('Камера /dev/video0 недоступна')
 
-    # 1. Кадр фоновой засветки (Ambient: оба излучателя выключены)
+    frame_amb = frame_amb_nir
+
     init_relay()
     if RELAY_REQ:
-        # 2. ЩЕЛЧОК 1: Включение ТОЛЬКО инфракрасного эмиттера 850 нм (Канал 2 / Pin 10 / Линия 7)
-        # Съемка ИК сразу после темнового кадра обеспечивает высокую чувствительность матрицы NoIR
+        # 2. ЩЕЛЧОК 1: Включение ТОЛЬКО инфракрасного эмиттера 850 нм при длинной выдержке 3500
         RELAY_REQ.set_value(7, Value.ACTIVE)
         time.sleep(0.50)
-        for _ in range(8): cap.read()
+        for _ in range(6): cap.read()
         ret_n, frame_nir = cap.read()
         RELAY_REQ.set_value(7, Value.INACTIVE) # ЩЕЛЧОК 2: Инфракрасный выключен
 
-        time.sleep(0.25)
+        time.sleep(0.20)
 
-        # 3. ЩЕЛЧОК 3: Включение ТОЛЬКО красного эмиттера 660 нм (Канал 1 / Pin 7 / Линия 4)
+        # 3. Переключение выдержки на 380 для Красного канала 660 нм
+        try:
+            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'exposure_time_absolute=380'], check=False)
+        except Exception:
+            pass
+        time.sleep(0.20)
+        for _ in range(5): cap.read()
+        _, frame_amb_red = cap.read()
+
+        # 4. ЩЕЛЧОК 3: Включение ТОЛЬКО красного эмиттера 660 нм при выдержке 380 (без насыщения)
         RELAY_REQ.set_value(4, Value.ACTIVE)
         time.sleep(0.40)
         for _ in range(6): cap.read()
         ret_r, frame_red = cap.read()
         RELAY_REQ.set_value(4, Value.INACTIVE) # ЩЕЛЧОК 4: Красный выключен
 
-        if not ret_r: frame_red = frame_amb
-        if not ret_n: frame_nir = frame_amb
+        if not ret_r: frame_red = frame_amb_red
+        if not ret_n: frame_nir = frame_amb_nir
     else:
-        frame_red = frame_amb
-        frame_nir = frame_amb
+        frame_red = frame_amb_nir
+        frame_nir = frame_amb_nir
+        frame_amb_red = frame_amb_nir
 
     cap.release()
+
+    # Возврат камеры в режим авто-экспозиции
+    try:
+        subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=3'], check=False)
+    except Exception:
+        pass
 
     frame_flash = frame_red
 
@@ -599,11 +629,11 @@ def do_hardware_spectral_capture(group_name: str):
                frame_nir[:, :, 1].astype(np.float32) + 
                frame_nir[:, :, 2].astype(np.float32)) / 3.0
 
-    # Вычитание фоновой фотометрической засветки (строгое физическое дифференциальное вычитание)
-    amb_red = frame_amb[:, :, 2].astype(np.float32)
-    amb_nir = (frame_amb[:, :, 0].astype(np.float32) + 
-               frame_amb[:, :, 1].astype(np.float32) + 
-               frame_amb[:, :, 2].astype(np.float32)) / 3.0
+    # Вычитание фоновой фотометрической засветки с учетом индивидуальных темновых кадров
+    amb_red = frame_amb_red[:, :, 2].astype(np.float32)
+    amb_nir = (frame_amb_nir[:, :, 0].astype(np.float32) + 
+               frame_amb_nir[:, :, 1].astype(np.float32) + 
+               frame_amb_nir[:, :, 2].astype(np.float32)) / 3.0
 
     red_channel = np.maximum(0.0, red_raw - amb_red)
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
@@ -615,11 +645,11 @@ def do_hardware_spectral_capture(group_name: str):
     roi_x1, roi_x2 = int(w_f * 0.04), int(w_f * 0.16)
     white_red = float(np.mean(red_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
     white_nir = float(np.mean(nir_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
-    if white_nir > 20.0 and white_red > 20.0 and (white_red / white_nir) <= 7.0:
-        k_bal = round(float(np.clip(white_red / white_nir, 1.50, 6.50)), 3)
+    if white_nir > 15.0 and white_red > 15.0 and (white_red / white_nir) <= 4.0:
+        k_bal = round(float(np.clip(white_red / white_nir, 0.40, 2.50)), 3)
     else:
-        # Аппаратный базис при коллимированном ИК и широком 660 нм (компенсация разницы QE сенсора и углов):
-        k_bal = 4.500
+        # Аппаратный базис при выдержках t_nir=3500 и t_red=380:
+        k_bal = 0.950
 
     # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
     denom = (k_bal * nir_channel) + red_channel
