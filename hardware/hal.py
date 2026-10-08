@@ -82,3 +82,83 @@ def get_climate_sensor() -> ClimateSensor:
 
 def get_soil_sensor() -> SoilSensor:
     return RealADS1115() if IS_EDGE_DEVICE else MockADS1115()
+
+from core.config import settings
+
+# --- Relay Controller ---
+class RelayController(ABC):
+    @abstractmethod
+    def set_nir(self, active: bool):
+        pass
+
+    @abstractmethod
+    def set_red(self, active: bool):
+        pass
+
+    @abstractmethod
+    def cleanup(self):
+        pass
+
+class RealGPIODRelay(RelayController):
+    def __init__(self):
+        self._req = None
+        try:
+            import gpiod
+            from gpiod.line import Direction, Value
+            
+            line_settings = gpiod.LineSettings(
+                direction=Direction.OUTPUT,
+                output_value=Value.INACTIVE,
+                active_low=settings.RELAY_ACTIVE_LOW
+            )
+            self._req = gpiod.request_lines(
+                '/dev/gpiochip4',
+                consumer='plant-stress-relay',
+                config={
+                    settings.RELAY_PIN_NIR: line_settings,
+                    settings.RELAY_PIN_RED: line_settings
+                }
+            )
+            # Ensure off
+            self.set_nir(False)
+            self.set_red(False)
+            print('[HAL] GPIO Relay initialized.')
+        except Exception as e:
+            print(f'[HAL] GPIOD Init Error: {e}')
+
+    def _set_pin(self, pin: int, active: bool):
+        if not self._req:
+            return
+        from gpiod.line import Value
+        val = Value.ACTIVE if active else Value.INACTIVE
+        self._req.set_value(pin, val)
+
+    def set_nir(self, active: bool):
+        self._set_pin(settings.RELAY_PIN_NIR, active)
+
+    def set_red(self, active: bool):
+        self._set_pin(settings.RELAY_PIN_RED, active)
+
+    def cleanup(self):
+        if self._req:
+            self.set_nir(False)
+            self.set_red(False)
+            self._req.release()
+            self._req = None
+
+class MockRelay(RelayController):
+    def __init__(self):
+        print('[HAL] Mock Relay initialized.')
+    def set_nir(self, active: bool):
+        pass
+    def set_red(self, active: bool):
+        pass
+    def cleanup(self):
+        pass
+
+_relay_instance = None
+def get_relay_controller() -> RelayController:
+    global _relay_instance
+    if not _relay_instance:
+        _relay_instance = RealGPIODRelay() if IS_EDGE_DEVICE else MockRelay()
+    return _relay_instance
