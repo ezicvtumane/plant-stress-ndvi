@@ -73,7 +73,7 @@ for m_id, name, strat, reg, status in ARUCO_CASSETTES:
 # ==============================================================================
 import base64
 import json
-with open("/tmp/icons_mockup_b64.json", "r") as f_ic:
+with open("/tmp/icons_perfect_b64.json", "r") as f_ic:
     ICONS_B64 = json.load(f_ic)
 cards_html = ""
 for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
