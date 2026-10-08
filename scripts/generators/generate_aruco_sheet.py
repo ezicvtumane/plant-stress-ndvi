@@ -92,42 +92,7 @@ for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
                 <div class="aruco-caption">ARUCO #{m_id}</div>
             </div>
 
-            <!-- 2. Юстировочная зона калибровки камеры (CV Alignment & Focus Reticle) -->
-            <div class="calib-zone" title="Оптическая зона юстировки и калибровки камеры">
-                <!-- Оптическая мишень Сименса / прецизионное перекрестие -->
-                <svg width="22" height="22" viewBox="0 0 24 24" style="display:block;">
-                    <circle cx="12" cy="12" r="10" fill="none" stroke="#000000" stroke-width="1.2"/>
-                    <circle cx="12" cy="12" r="6" fill="none" stroke="#000000" stroke-width="0.8"/>
-                    <circle cx="12" cy="12" r="2.2" fill="#000000"/>
-                    <path d="M12,2 A10,10 0 0,1 22,12 L12,12 Z" fill="#000000" opacity="0.18"/>
-                    <path d="M12,12 L2,12 A10,10 0 0,1 12,22 Z" fill="#000000" opacity="0.18"/>
-                    <line x1="12" y1="0" x2="12" y2="24" stroke="#000000" stroke-width="1"/>
-                    <line x1="0" y1="12" x2="24" y2="12" stroke="#000000" stroke-width="1"/>
-                </svg>
-                <!-- Масштабная шкала 5 мм -->
-                <div class="calib-scale-wrap">
-                    <div class="calib-scale-label">5 мм</div>
-                    <svg width="22" height="7" viewBox="0 0 22 7">
-                        <line x1="1" y1="3.5" x2="21" y2="3.5" stroke="#000" stroke-width="0.8"/>
-                        <line x1="1" y1="0" x2="1" y2="7" stroke="#000" stroke-width="1.2"/>
-                        <line x1="6" y1="1.5" x2="6" y2="5.5" stroke="#000" stroke-width="0.6"/>
-                        <line x1="11" y1="0.5" x2="11" y2="6.5" stroke="#000" stroke-width="1"/>
-                        <line x1="16" y1="1.5" x2="16" y2="5.5" stroke="#000" stroke-width="0.6"/>
-                        <line x1="21" y1="0" x2="21" y2="7" stroke="#000" stroke-width="1.2"/>
-                    </svg>
-                </div>
-                <!-- Шахматный паттерн высокого контраста для оценки резкости MTF -->
-                <svg width="18" height="18" viewBox="0 0 16 16" style="display:block;">
-                    <rect x="0" y="0" width="8" height="8" fill="#000000"/>
-                    <rect x="8" y="0" width="8" height="8" fill="#ffffff" stroke="#000000" stroke-width="0.5"/>
-                    <rect x="0" y="8" width="8" height="8" fill="#ffffff" stroke="#000000" stroke-width="0.5"/>
-                    <rect x="8" y="8" width="8" height="8" fill="#000000"/>
-                    <rect x="0" y="0" width="16" height="16" fill="none" stroke="#000000" stroke-width="1"/>
-                </svg>
-                <div class="calib-subtext">ЮСТ</div>
-            </div>
-
-            <!-- 3. Центральный блок: Пиктограмма с номером (СТРОГО 70x70 px) -->
+            <!-- 2. Центральный блок: Пиктограмма с номером (СТРОГО 70x70 px) -->
             <div class="num-badge">
                 <img src="{icon_src}" alt="Icon" class="num-icon">
                 <div class="num-digit">{m_id}</div>
@@ -257,43 +222,7 @@ html_content = f"""<!DOCTYPE html>
             letter-spacing: 0.2px;
         }}
 
-        /* 2. Юстировочная зона калибровки камеры (между ArUco и пиктограммой) */
-        .calib-zone {{
-            width: 32px;
-            height: 70px;
-            border: 1.5px dashed #444444;
-            border-radius: 6px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            padding: 3px 1px;
-            background: #f8fafc;
-            flex-shrink: 0;
-        }}
-        .calib-scale-wrap {{
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1px;
-        }}
-        .calib-scale-label {{
-            font-size: 5.5px;
-            font-weight: 800;
-            font-family: monospace;
-            color: #000000;
-            line-height: 1;
-        }}
-        .calib-subtext {{
-            font-size: 5.5px;
-            font-family: monospace;
-            font-weight: 800;
-            color: #333333;
-            line-height: 1;
-            letter-spacing: 0.5px;
-        }}
-
-        /* 3. Блок пиктограммы (СТРОГО ОДИНАКОВЫЙ РАЗМЕР С ARUCO: 70x70 px) */
+        /* 2. Блок пиктограммы (СТРОГО ОДИНАКОВЫЙ РАЗМЕР С ARUCO: 70x70 px) */
         .num-badge {{
             width: 70px;
             height: 70px;
