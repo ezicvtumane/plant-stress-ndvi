@@ -769,17 +769,26 @@ def do_hardware_spectral_capture(group_name: str):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 128), 2)
 
     # ---------------- МОРФОЛОГИЧЕСКИЙ АНАЛИЗ (PLA - Площадь Листьев) ----------------
-    # 1. Размерная субпиксельная калибровка масштаба (пиксели -> см²) по ArUco-маркеру (25x25 мм = 6.25 см²)
+    # 1. Субпиксельная калибровка масштаба по ArUco-маркеру:
+    #    Фактический размер маркера на клипсе: 15x15 мм = 2.25 см² (вместо 25x25 мм = 6.25 см²)
+    # 2. Оптическая перспективная Z-компенсация высоты побегов гороха (бокс 210x210x297 мм):
+    #    Z_marker ≈ 24.5 см, H_canopy = 10.0 см -> k_z = (14.5 / 24.5)² ≈ 0.3504.
+    ARUCO_REAL_AREA_CM2 = 2.25   # 15x15 мм
+    Z_CAMERA_MARKER_CM = 24.5    # Дистанция от камеры до клипсы маркера (см)
+    CANOPY_HEIGHT_CM = 10.0      # Средняя высота листового яруса побегов гороха (см)
+    k_perspective = float(((Z_CAMERA_MARKER_CM - CANOPY_HEIGHT_CM) / Z_CAMERA_MARKER_CM) ** 2)
+
     if aruco_corners is not None:
         pts_fl = aruco_corners.reshape((-1, 2)).astype(np.float32)
         aruco_area_px = float(cv2.contourArea(pts_fl))
         if aruco_area_px > 120.0:
-            px_to_cm2 = float(np.clip(6.25 / aruco_area_px, 0.00020, 0.00150))
+            scale_marker = ARUCO_REAL_AREA_CM2 / aruco_area_px
+            px_to_cm2 = float(np.clip(scale_marker * k_perspective, 0.00002, 0.00040))
         else:
-            px_to_cm2 = 0.00045
+            px_to_cm2 = 0.00008
     else:
-        # Номинальный масштаб бокса при разрешении 1280x720 (при отсутствии маркера)
-        px_to_cm2 = 0.00045
+        # Номинальный масштаб бокса 1280x960 с учетом Z-перспективы H=10 см
+        px_to_cm2 = 0.00008
 
     total_leaf_px = int(np.count_nonzero(leaf_mask))
     leaf_area_total = round(float(total_leaf_px * px_to_cm2), 1)
