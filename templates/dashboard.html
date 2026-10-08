@@ -417,11 +417,49 @@
 
     <!-- НИЖНИЙ БЛОК: ЖУРНАЛ ИЗМЕРЕНИЙ НА ВСЮ ШИРИНУ -->
     <div class="card">
+        <!-- БЛОК ВЫБОРА И УПРАВЛЕНИЯ СЕРИЯМИ ОПЫТОВ (РАЗНЫЕ КУЛЬТУРЫ / РАСТЕНИЯ) -->
+        <div style="background: linear-gradient(135deg, #f0fdfa 0%, #eff6ff 100%); border: 1.5px solid #99f6e4; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 6px rgba(0, 164, 153, 0.08);">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div style="width: 34px; height: 34px; border-radius: 8px; background: #00a499; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,164,153,0.3);">
+                    🔬
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10.5px; text-transform: uppercase; font-weight: 800; color: #0f766e; letter-spacing: 0.5px;">Серия опытов / Культура:</span>
+                        <span style="background: #ccfbf1; color: #0f766e; font-size: 9.5px; font-weight: 700; padding: 1px 7px; border-radius: 4px; border: 1px solid #99f6e4;" title="Локальная папка на Orange Pi">📁 data/experiments/{{ active_exp.folder }}/</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 3px;">
+                        <form action="/api/experiment/switch" method="post" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+                            <select name="exp_id" onchange="this.form.submit()" style="font-size: 13px; font-weight: 700; color: #0f172a; background: #ffffff; border: 1.5px solid #00a499; border-radius: 6px; padding: 4px 10px; cursor: pointer; outline: none; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+                                {% for exp in experiments %}
+                                <option value="{{ exp.id }}" {% if exp.id == active_exp.id %}selected{% endif %}>
+                                    🌿 {{ exp.name }} {% if exp.plant %}({{ exp.plant }}){% endif %} — {{ exp.count }} изм.
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                        {% if active_exp.description %}
+                        <span style="font-size: 11px; color: #64748b; font-style: italic;">«{{ active_exp.description }}»</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button type="button" onclick="openNewExpModal()" style="display: flex; align-items: center; gap: 5px; background: #059669; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(5,150,105,0.25);" onmouseover="this.style.background='#047857';" onmouseout="this.style.background='#059669';">
+                    ➕ Новая серия опытов
+                </button>
+                <a href="/download/experiment_zip" style="display: flex; align-items: center; gap: 5px; background: #0284c7; color: #ffffff; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; transition: all 0.2s; box-shadow: 0 2px 4px rgba(2,132,199,0.25);" onmouseover="this.style.background='#0369a1';" onmouseout="this.style.background='#0284c7';">
+                    📁 Скачать архив серии (.ZIP)
+                </a>
+            </div>
+        </div>
+
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:10px; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <h2 style="margin:0; font-size:16px; border:none; padding:0; color:var(--sirius-teal-dark);">📋 Журнал физиологических замеров</h2>
                 <div style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px;">
-                    <span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);">Все замеры ({len(rows)})</span>
+                    <span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);">Замеры серии ({{ rows_count }})</span>
                 </div>
             </div>
             <div style="display:flex; gap:5px; flex-wrap:wrap;">
@@ -561,5 +599,43 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+<!-- МОДАЛЬНОЕ ОКНО СОЗДАНИЯ НОВОЙ СЕРИИ ОПЫТОВ -->
+<div id="newExpModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(15,23,42,0.6); align-items:center; justify-content:center; backdrop-filter:blur(2px);">
+    <div style="background:#ffffff; padding:22px; border-radius:12px; width:390px; box-shadow:0 12px 36px rgba(0,0,0,0.25); border:2px solid var(--sirius-teal);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+            <h3 style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">🌱 Новая серия опытов</h3>
+            <button type="button" onclick="closeNewExpModal()" style="background:none; border:none; font-size:16px; cursor:pointer; color:#94a3b8;">✕</button>
+        </div>
+        <form action="/api/experiment/create" method="post">
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:#334155; margin-bottom:4px;">Название серии:</label>
+                <input type="text" name="name" required placeholder="Например: Серия #2 (Фасоль)" style="width:100%; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:#334155; margin-bottom:4px;">Культура / Растение:</label>
+                <input type="text" name="plant" placeholder="Например: Горох / Фасоль / Пшеница" style="width:100%; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:#334155; margin-bottom:4px;">Описание / Цель серии (опционально):</label>
+                <textarea name="description" rows="2" placeholder="Например: Стресс-тест засоления и засухи на втором виде растений" style="width:100%; padding:7px 10px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:12px; box-sizing:border-box; resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button type="button" onclick="closeNewExpModal()" style="padding:7px 14px; background:#f1f5f9; color:#475569; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">Отмена</button>
+                <button type="submit" style="padding:7px 16px; background:var(--sirius-teal); color:#ffffff; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; box-shadow:0 2px 4px rgba(0,164,153,0.3);">Создать серию</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+function openNewExpModal() {
+    let m = document.getElementById('newExpModal');
+    if (m) m.style.display = 'flex';
+}
+function closeNewExpModal() {
+    let m = document.getElementById('newExpModal');
+    if (m) m.style.display = 'none';
+}
+</script>
+
 </body>
 </html>
