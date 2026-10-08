@@ -954,16 +954,20 @@ def handle_save_final(
         shutil.copyfile(src_thumb, dst_path)
         shutil.copyfile(dst_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
 
-    with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            meas_id, ts_display, group_name, weight_val,
-            s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
-            t_leaf_val, delta_t_val, s['vpd'],
-            s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
-            s['opt_file'], jpg_stored_name,
-            *s['cell_ndvis']
-        ])
+    row_data = [
+        meas_id, ts_display, group_name, weight_val,
+        s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+        t_leaf_val, delta_t_val, s['vpd'],
+        s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
+        s['opt_file'], jpg_stored_name,
+        *s['cell_ndvis']
+    ]
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    exp_mgr.save_measurement_row(row_data)
+    if s.get('opt_file'):
+        exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, s['opt_file']))
+    if jpg_stored_name:
+        exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, jpg_stored_name))
 
     PENDING_SESSION = None
     return RedirectResponse(url=f'/?msg=saved&last_grp={group_name}', status_code=303)
@@ -1218,10 +1222,12 @@ async def handle_batch_save_manual(request: Request):
     # Сортируем записи по ID кассеты перед записью в журнал
     records_to_save.sort(key=lambda x: x['cid'])
 
-    with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        for r in records_to_save:
-            writer.writerow(r['row'])
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    for r in records_to_save:
+        exp_mgr.save_measurement_row(r['row'])
+        opt_f = r['row'][14] if len(r['row']) > 14 else ''
+        if opt_f:
+            exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, opt_f))
 
     stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', 'Серия 5 кассет (5-в-1)')
     BATCH_STATE = {
@@ -1305,10 +1311,15 @@ async def handle_batch_save_final(request: Request):
 
     records_to_save.sort(key=lambda r: r['cid'])
 
-    with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        for rec in records_to_save:
-            writer.writerow(rec['row'])
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    for rec in records_to_save:
+        exp_mgr.save_measurement_row(rec['row'])
+        opt_f = rec['row'][14] if len(rec['row']) > 14 else ''
+        th_f = rec['row'][15] if len(rec['row']) > 15 else ''
+        if opt_f:
+            exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, opt_f))
+        if th_f:
+            exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, th_f))
 
     stage_name = BATCH_CONFIG.get(BATCH_STATE.get('stage_key', 'batch5'), {}).get('title', 'Пакетная серия')
     BATCH_STATE = {
@@ -1322,42 +1333,51 @@ async def handle_batch_save_final(request: Request):
 
 
 def do_delete_measurement(meas_id: str):
-    """Удаление некорректного замера по ID из CSV базы данных."""
+    """Удаление некорректного замера по ID из CSV базы данных (глобальной и серий опытов)."""
     meas_id = str(meas_id).strip()
-    if not os.path.exists(CSV_LOG) or not meas_id:
+    if not meas_id:
         return RedirectResponse(url='/?msg=err_not_found', status_code=303)
-    
-    with open(CSV_LOG, 'r', encoding='utf-8') as f:
-        rows = list(csv.reader(f))
-    
-    if not rows or len(rows) <= 1:
-        return RedirectResponse(url='/', status_code=303)
-        
-    header = rows[0]
-    data_rows = rows[1:]
-    
-    new_data = []
-    found = False
-    for r in data_rows:
-        if r and str(r[0]).strip() == meas_id:
-            found = True
-            try:
-                if len(r) > 13 and r[13]:
-                    opt_p = os.path.join(STATIC_DIR, r[13])
-                    if os.path.exists(opt_p): os.remove(opt_p)
-                if len(r) > 14 and r[14]:
-                    th_p = os.path.join(STATIC_DIR, r[14])
-                    if os.path.exists(th_p): os.remove(th_p)
-            except Exception:
-                pass
-        else:
-            new_data.append(r)
-            
-    if found:
-        with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-            writer.writerows(new_data)
+
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    csv_paths = {CSV_LOG, exp_mgr.get_active_csv_path()}
+    for exp in exp_mgr.get_experiments():
+        p = os.path.join(DATA_DIR, 'experiments', exp.get('folder', ''), 'measurements.csv')
+        if os.path.exists(p):
+            csv_paths.add(p)
+
+    any_found = False
+    for csv_file in csv_paths:
+        if not os.path.exists(csv_file):
+            continue
+        try:
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                rows = list(csv.reader(f))
+            if not rows or len(rows) <= 1:
+                continue
+            header = rows[0]
+            new_data = []
+            for r in rows[1:]:
+                if r and str(r[0]).strip() == meas_id:
+                    any_found = True
+                    try:
+                        if len(r) > 13 and r[13]:
+                            opt_p = os.path.join(STATIC_DIR, r[13])
+                            if os.path.exists(opt_p): os.remove(opt_p)
+                        if len(r) > 14 and r[14]:
+                            th_p = os.path.join(STATIC_DIR, r[14])
+                            if os.path.exists(th_p): os.remove(th_p)
+                    except Exception:
+                        pass
+                else:
+                    new_data.append(r)
+            with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(header)
+                writer.writerows(new_data)
+        except Exception as e:
+            print(f"[Delete error in {csv_file}]:", e)
+
+    if any_found:
         return RedirectResponse(url=f'/?msg=deleted&del_id={meas_id}', status_code=303)
     else:
         return RedirectResponse(url='/?msg=err_not_found', status_code=303)
@@ -1382,98 +1402,111 @@ def handle_update_measurement(
 ):
     """
     Интерактивная коррекция параметров ранее сохраненного замера (T_leaf, Weight, Soil, Thermal image).
-    Автоматически пересчитывает Delta_T = T_leaf - T_air и сохраняет в measurements.csv.
+    Автоматически пересчитывает Delta_T = T_leaf - T_air и сохраняет во все CSV (глобальный и серий).
     """
     meas_id = str(meas_id).strip()
     cohort = str(cohort).strip()
     timestamp = str(timestamp).strip()
-    if not os.path.exists(CSV_LOG) or not meas_id:
+    if not meas_id:
         return RedirectResponse(url='/?msg=err_not_found', status_code=303)
 
-    with open(CSV_LOG, 'r', encoding='utf-8') as f:
-        rows = list(csv.reader(f))
+    out_fname = None
+    if thermal_file and thermal_file.filename:
+        try:
+            safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', os.path.basename(thermal_file.filename))
+            if safe_name:
+                out_fname = f"therm_{meas_id}_{safe_name}"
+                out_path = os.path.join(STATIC_DIR, out_fname)
+                with open(out_path, 'wb') as buf:
+                    shutil.copyfileobj(thermal_file.file, buf)
+                exp_mgr = get_experiment_manager(DATA_DIR)
+                exp_mgr.copy_file_to_active(out_path)
+        except Exception as e:
+            print('[Upload thermal error]:', e)
 
-    if not rows or len(rows) <= 1:
-        return RedirectResponse(url='/', status_code=303)
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    csv_paths = {CSV_LOG, exp_mgr.get_active_csv_path()}
+    for exp in exp_mgr.get_experiments():
+        p = os.path.join(DATA_DIR, 'experiments', exp.get('folder', ''), 'measurements.csv')
+        if os.path.exists(p):
+            csv_paths.add(p)
 
-    header = rows[0]
-    data_rows = rows[1:]
-
-    found = False
-    for r in data_rows:
-        if not r:
+    any_found = False
+    for csv_file in csv_paths:
+        if not os.path.exists(csv_file):
             continue
-        if str(r[0]).strip() == meas_id:
-            # Если указана когорта, проверяем точное совпадение когорты в батче
-            if cohort and len(r) > 2 and r[2].strip() != cohort:
-                continue
-            # Если указана временная метка, проверяем совпадение
-            if timestamp and len(r) > 1 and timestamp not in r[1] and r[1] not in timestamp:
+        try:
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                rows = list(csv.reader(f))
+            if not rows or len(rows) <= 1:
                 continue
 
-            found = True
-            # Обновление T_leaf и пересчет Delta_T
-            if t_leaf.strip():
-                try:
-                    tl = float(t_leaf.strip().replace(',', '.'))
-                    tl_str = str(round(tl, 1))
-                    if len(r) >= 24:
-                        r[8] = tl_str
-                        # r[4] is T_Air_C
-                        if len(r) > 4 and r[4]:
-                            try:
-                                t_air = float(r[4])
-                                r[9] = str(round(tl - t_air, 1))
-                            except Exception:
-                                pass
-                    elif len(r) >= 20:
-                        r[6] = tl_str
-                    elif len(r) >= 16:
-                        r[4] = tl_str
-                except Exception:
-                    pass
+            header = rows[0]
+            data_rows = rows[1:]
+            file_found = False
 
-            # Обновление массы
-            if weight_g.strip():
-                if len(r) >= 20:
-                    r[3] = weight_g.strip().replace(',', '.')
+            for r in data_rows:
+                if not r:
+                    continue
+                if str(r[0]).strip() == meas_id:
+                    if cohort and len(r) > 2 and r[2].strip() != cohort:
+                        continue
+                    if timestamp and len(r) > 1 and timestamp not in r[1] and r[1] not in timestamp:
+                        continue
 
-            # Обновление влажности субстрата
-            if pct_soil.strip():
-                try:
-                    ps = float(pct_soil.strip().replace(',', '.'))
-                    ps = round(max(0.0, min(100.0, ps)), 1)
-                    if len(r) >= 24:
-                        r[7] = str(ps)
-                        # r[6] is Moisture_V
-                        r[6] = str(round(3.0 - (ps / 100.0) * 1.8, 2))
-                    elif len(r) >= 20:
-                        r[5] = str(ps)
-                except Exception:
-                    pass
+                    file_found = True
+                    any_found = True
 
-            # Прикрепление файла термограммы, если загружен
-            if thermal_file and thermal_file.filename:
-                try:
-                    safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', os.path.basename(thermal_file.filename))
-                    if safe_name:
-                        out_fname = f"therm_{meas_id}_{safe_name}"
-                        out_path = os.path.join(STATIC_DIR, out_fname)
-                        with open(out_path, 'wb') as buf:
-                            shutil.copyfileobj(thermal_file.file, buf)
+                    if t_leaf.strip():
+                        try:
+                            tl = float(t_leaf.strip().replace(',', '.'))
+                            tl_str = str(round(tl, 1))
+                            if len(r) >= 24:
+                                r[8] = tl_str
+                                if len(r) > 4 and r[4]:
+                                    try:
+                                        t_air = float(r[4])
+                                        r[9] = str(round(tl - t_air, 1))
+                                    except Exception:
+                                        pass
+                            elif len(r) >= 20:
+                                r[6] = tl_str
+                            elif len(r) >= 16:
+                                r[4] = tl_str
+                        except Exception:
+                            pass
+
+                    if weight_g.strip() and len(r) >= 20:
+                        r[3] = weight_g.strip().replace(',', '.')
+
+                    if pct_soil.strip():
+                        try:
+                            ps = float(pct_soil.strip().replace(',', '.'))
+                            ps = round(max(0.0, min(100.0, ps)), 1)
+                            if len(r) >= 24:
+                                r[7] = str(ps)
+                                r[6] = str(round(3.0 - (ps / 100.0) * 1.8, 2))
+                            elif len(r) >= 20:
+                                r[5] = str(ps)
+                        except Exception:
+                            pass
+
+                    if out_fname:
                         if len(r) >= 24:
                             r[15] = out_fname
                         elif len(r) >= 20:
                             r[10] = out_fname
-                except Exception as e:
-                    print('[Upload thermal error]:', e)
-            break
+                    break
 
-    if found:
-        with open(CSV_LOG, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-            writer.writerows(data_rows)
+            if file_found:
+                with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(header)
+                    writer.writerows(data_rows)
+        except Exception as e:
+            print(f"[Update error in {csv_file}]:", e)
+
+    if any_found:
         return RedirectResponse(url=f'/?msg=updated&upd_id={meas_id}', status_code=303)
 
     return RedirectResponse(url='/?msg=err_not_found', status_code=303)
@@ -1542,6 +1575,12 @@ async def index(
         banner_bg = '#10b981'
     elif msg == 'saved':
         raw_banner = '✅ Замер сохранен в базу! Переставьте следующую кассету.'
+        banner_bg = '#10b981'
+    elif msg == 'exp_switched':
+        raw_banner = '🔄 Серия опытов успешно переключена!'
+        banner_bg = '#0284c7'
+    elif msg == 'exp_created':
+        raw_banner = '🌱 Новая серия опытов успешно создана и выбрана как активная!'
         banner_bg = '#10b981'
     elif msg == 'updated':
         u_lbl = f' #{upd_id}' if upd_id else ''
@@ -2618,6 +2657,64 @@ def download_aruco_pdf():
     if os.path.exists(html_path):
         return FileResponse(html_path, filename='aruco_markers_cassettes.html', media_type='text/html')
     return HTMLResponse('Лист маркеров не найден')
+
+@app.post('/api/experiment/switch')
+async def handle_experiment_switch(request: Request):
+    """Переключение активной серии опытов."""
+    form = await request.form()
+    exp_id = form.get('exp_id', '').strip()
+    if exp_id:
+        exp_mgr = get_experiment_manager(DATA_DIR)
+        exp_mgr.set_active_experiment(exp_id)
+    return RedirectResponse(url='/?msg=exp_switched', status_code=303)
+
+@app.post('/api/experiment/create')
+async def handle_experiment_create(request: Request):
+    """Создание новой серии опытов и её активация."""
+    form = await request.form()
+    name = form.get('name', '').strip()
+    plant = form.get('plant', '').strip()
+    desc = form.get('description', '').strip()
+    if name:
+        exp_mgr = get_experiment_manager(DATA_DIR)
+        exp_mgr.create_experiment(name, plant, desc)
+    return RedirectResponse(url='/?msg=exp_created', status_code=303)
+
+@app.get('/download/experiment_zip')
+def download_experiment_zip():
+    """Скачивание полного архива активной серии опытов (CSV + снимки)."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    active_exp = exp_mgr.get_active_experiment()
+    exp_id = active_exp.get('id', 'exp_1')
+    exp_name = active_exp.get('name', 'experiment').replace(' ', '_')
+    out_zip = os.path.join(DATA_DIR, f"temp_{exp_id}.zip")
+    exp_mgr.generate_zip(exp_id, out_zip)
+    if os.path.exists(out_zip):
+        return FileResponse(out_zip, filename=f"{exp_name}_export.zip", media_type='application/zip')
+    return HTMLResponse('Ошибка формирования архива серии')
+
+@app.get('/download/csv')
+def download_active_csv():
+    """Скачивание CSV журнала активной серии опытов."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    active_csv = exp_mgr.get_active_csv_path()
+    active_exp = exp_mgr.get_active_experiment()
+    exp_name = active_exp.get('name', 'measurements').replace(' ', '_')
+    if os.path.exists(active_csv):
+        return FileResponse(active_csv, filename=f"{exp_name}.csv", media_type='text/csv')
+    return HTMLResponse('Файл CSV не найден')
+
+@app.get('/download/images_zip')
+def download_images_zip():
+    """Скачивание архива снимков активной серии."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    active_exp = exp_mgr.get_active_experiment()
+    exp_id = active_exp.get('id', 'exp_1')
+    out_zip = os.path.join(DATA_DIR, f"temp_{exp_id}.zip")
+    exp_mgr.generate_zip(exp_id, out_zip)
+    if os.path.exists(out_zip):
+        return FileResponse(out_zip, filename=f"images_{exp_id}.zip", media_type='application/zip')
+    return HTMLResponse('Архив снимков не найден')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
