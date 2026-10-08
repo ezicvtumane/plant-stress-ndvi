@@ -112,7 +112,7 @@ class RealGPIODRelay(RelayController):
                 active_low=settings.RELAY_ACTIVE_LOW
             )
             self._req = gpiod.request_lines(
-                '/dev/gpiochip4',
+                '/dev/gpiochip1',
                 consumer='plant-stress-relay',
                 config={
                     settings.RELAY_PIN_NIR: line_settings,
