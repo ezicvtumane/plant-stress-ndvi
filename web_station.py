@@ -530,7 +530,7 @@ def do_hardware_spectral_capture(group_name: str):
         time.sleep(0.40)
         for _ in range(8): cap.read()
         ret_n, frame_nir = cap.read()
-        RELAY_REQ.set_value(7, Value.INACTIVE) # Инфракрасный выключен
+        relay.set_nir(False) # Инфракрасный выключен
 
         # Темновой фон NIR
         time.sleep(0.15)
@@ -541,11 +541,11 @@ def do_hardware_spectral_capture(group_name: str):
         set_v4l2_exposure(120, 40)
         time.sleep(0.20)
         for _ in range(8): cap.read()
-        RELAY_REQ.set_value(4, Value.ACTIVE)
+        relay.set_red(True)
         time.sleep(0.40)
         for _ in range(8): cap.read()
         ret_r, frame_red = cap.read()
-        RELAY_REQ.set_value(4, Value.INACTIVE) # Красный выключен
+        relay.set_red(False) # Красный выключен
 
         # Темновой фон RED
         time.sleep(0.15)
@@ -781,16 +781,17 @@ def handle_start_spectral(group_name: str = Form('Контроль')):
 def handle_test_relay(channel: str = 'nir', sec: float = 3.0):
     """Аппаратная диагностика: включение выбранного реле (nir или red) на sec секунд."""
     init_relay()
-    if not RELAY_REQ:
+    relay = get_relay_controller()
+    if False:
         return JSONResponse({'status': 'error', 'message': 'Relay not initialized'})
     line = 7 if channel.lower() == 'nir' else 4
     pin_name = 'Pin 10 (NIR 850nm)' if line == 7 else 'Pin 7 (Red 660nm)'
     try:
         duration = max(0.5, min(10.0, float(sec)))
         print(f'[Test Relay] Включение {pin_name} на {duration} сек...')
-        RELAY_REQ.set_value(line, Value.ACTIVE)
+        relay.set_red(True) if line==4 else relay.set_nir(True)
         time.sleep(duration)
-        RELAY_REQ.set_value(line, Value.INACTIVE)
+        relay.set_red(False) if line==4 else relay.set_nir(False)
         print(f'[Test Relay] Выключение {pin_name}. Готово.')
         return JSONResponse({'status': 'ok', 'channel': channel, 'pin': pin_name, 'duration': duration})
     except Exception as e:
