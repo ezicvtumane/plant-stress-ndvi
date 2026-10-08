@@ -73,7 +73,7 @@ for m_id, name, strat, reg, status in ARUCO_CASSETTES:
 # ==============================================================================
 import base64
 import json
-with open("/tmp/icons_perfect_b64.json", "r") as f_ic:
+with open("/tmp/icons_perfect_b64_v2.json", "r") as f_ic:
     ICONS_B64 = json.load(f_ic)
 cards_html = ""
 for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
@@ -95,9 +95,9 @@ for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
             </div>
 
             <!-- Центральный блок: Пиктограмма с номером (встроенная) -->
-            <div class="num-badge" style="position:relative; background:#ffffff; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                <img src="{icon_src}" alt="Icon" style="width:54px; height:54px; object-fit:contain; border-radius:4px;">
-                <div style="position:absolute; bottom:-3px; right:3px; font-size:32px; font-family:Arial, sans-serif; color:#000000; font-weight:normal; line-height:1;">{m_id}</div>
+            <div class="num-badge" style="position:relative; background:#ffffff; overflow:hidden;">
+                <img src="{icon_src}" alt="Icon" style="position:absolute; top:6px; left:6px; width:44px; height:44px; object-fit:contain;">
+                <div style="position:absolute; bottom:2px; right:6px; font-size:28px; font-family:Arial, sans-serif; color:#000000; font-weight:normal; line-height:1;">{m_id}</div>
             </div>
 
             <!-- Правый блок: Научный регламент и статус -->
