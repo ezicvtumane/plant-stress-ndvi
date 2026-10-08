@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Сириус: Большие вызовы | Оптико-электронный комплекс</title>
     <style>
-        :root {{
+        :root {
             --sirius-teal: #00a499;
             --sirius-teal-dark: #008276;
             --sirius-teal-light: #2dd4bf;
@@ -17,8 +17,8 @@
             --card-shadow: 0 4px 20px rgba(0, 164, 153, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
             --text-primary: #0f172a;
             --text-secondary: #475569;
-        }}
-        body {{
+        }
+        body {
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
             background-color: #f0fdfa;
             background-image: linear-gradient(180deg, rgba(240, 253, 250, 0.94) 0%, rgba(248, 250, 252, 0.97) 260px, rgba(241, 245, 249, 0.99) 100%), url('/static/logos/sirius_bg.png');
@@ -31,14 +31,14 @@
             padding: 16px 22px;
             min-height: 100vh;
             box-sizing: border-box;
-        }}
-        .container {{
+        }
+        .container {
             width: 100%;
             max-width: 1440px;
             margin: 0 auto;
-        }}
+        }
         /* ХЕДЕР В ОФИЦИАЛЬНОМ СТИЛЕ СИРИУС (БИРЮЗОВЫЙ С БЕЛЫМИ АКЦЕНТАМИ) */
-        .header {{
+        .header {
             background: linear-gradient(135deg, #00a499 0%, #008b80 100%);
             border: 1px solid rgba(0, 164, 153, 0.3);
             border-radius: 16px;
@@ -46,14 +46,14 @@
             margin-bottom: 14px;
             box-shadow: 0 8px 24px rgba(0, 164, 153, 0.25);
             color: #ffffff;
-        }}
-        .header-inner {{
+        }
+        .header-inner {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 20px;
-        }}
-        .header-logos {{
+        }
+        .header-logos {
             display: flex;
             align-items: center;
             gap: 12px;
@@ -61,26 +61,26 @@
             padding: 4px 10px;
             border-radius: 10px;
             border: 1px solid rgba(255, 255, 255, 0.3);
-        }}
-        .header-titles {{
+        }
+        .header-titles {
             flex: 1;
             text-align: center;
-        }}
-        .header-titles h1 {{
+        }
+        .header-titles h1 {
             color: #ffffff;
             margin: 0 0 6px 0;
             font-size: 20px;
             letter-spacing: 0.4px;
             font-weight: 700;
-        }}
-        .header-badges {{
+        }
+        .header-badges {
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
-        }}
-        .badge-sirius {{
+        }
+        .badge-sirius {
             background: rgba(255, 255, 255, 0.2);
             color: #ffffff;
             font-size: 11px;
@@ -89,8 +89,8 @@
             border-radius: 20px;
             letter-spacing: 0.5px;
             border: 1px solid rgba(255, 255, 255, 0.35);
-        }}
-        .badge-track {{
+        }
+        .badge-track {
             background: #ffffff;
             color: #008276;
             font-size: 11px;
@@ -99,8 +99,8 @@
             border-radius: 20px;
             letter-spacing: 0.5px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }}
-        .badge-author {{
+        }
+        .badge-author {
             background: rgba(255, 255, 255, 0.15);
             color: #ffffff;
             font-size: 11px;
@@ -108,12 +108,12 @@
             padding: 3px 10px;
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.25);
-        }}
-        .header-status {{
+        }
+        .header-status {
             text-align: right;
             min-width: 140px;
-        }}
-        .status-online {{
+        }
+        .status-online {
             display: inline-flex;
             align-items: center;
             gap: 6px;
@@ -125,31 +125,31 @@
             font-size: 11px;
             font-weight: bold;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-        }}
-        .pulsing-dot {{
+        }
+        .pulsing-dot {
             width: 8px;
             height: 8px;
             background: #10b981;
             border-radius: 50%;
             box-shadow: 0 0 8px #10b981;
-        }}
-        .station-hw {{
+        }
+        .station-hw {
             font-size: 10px;
             color: rgba(255, 255, 255, 0.9);
             margin-top: 4px;
             font-family: monospace;
-        }}
-        .header-subnote {{
+        }
+        .header-subnote {
             margin-top: 10px;
             padding-top: 8px;
             border-top: 1px solid rgba(255, 255, 255, 0.18);
             font-size: 11px;
             color: rgba(255, 255, 255, 0.9);
             text-align: center;
-        }}
+        }
 
         /* КЛИМАТИЧЕСКАЯ ПАНЕЛЬ */
-        .climate-bar {{
+        .climate-bar {
             background: #ffffff;
             border: 1px solid var(--card-border);
             border-radius: 14px;
@@ -159,52 +159,52 @@
             justify-content: space-around;
             align-items: center;
             box-shadow: var(--card-shadow);
-        }}
-        .clim-item {{
+        }
+        .clim-item {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 2px;
-        }}
-        .clim-label {{
+        }
+        .clim-label {
             font-size: 11px;
             font-weight: 700;
             color: #64748b;
             letter-spacing: 0.6px;
             text-transform: uppercase;
-        }}
-        .clim-val {{
+        }
+        .clim-val {
             font-size: 16px;
             font-weight: 700;
             font-family: 'Segoe UI', monospace;
-        }}
-        .clim-divider {{
+        }
+        .clim-divider {
             width: 1px;
             height: 32px;
             background: #e2e8f0;
-        }}
-        .val-purple {{ color: #7c3aed; }}
-        .val-cyan {{ color: #0284c7; }}
-        .val-teal {{ color: #0d9488; }}
-        .val-amber {{ color: #d97706; }}
-        .val-slate {{ color: #475569; }}
+        }
+        .val-purple { color: #7c3aed; }
+        .val-cyan { color: #0284c7; }
+        .val-teal { color: #0d9488; }
+        .val-amber { color: #d97706; }
+        .val-slate { color: #475569; }
 
         /* СЕТКА И КАРТОЧКИ */
-        .grid-top {{
+        .grid-top {
             display: grid;
             grid-template-columns: 440px 1fr;
             gap: 16px;
             align-items: stretch;
             margin-bottom: 16px;
-        }}
-        .card {{
+        }
+        .card {
             background: #ffffff;
             border-radius: 16px;
             padding: 18px;
             border: 1px solid var(--card-border);
             box-shadow: var(--card-shadow);
-        }}
-        .card h2 {{
+        }
+        .card h2 {
             color: var(--sirius-teal-dark);
             margin-top: 0;
             font-size: 16px;
@@ -215,16 +215,16 @@
             display: flex;
             align-items: center;
             gap: 8px;
-        }}
-        label {{
+        }
+        label {
             display: block;
             margin-top: 10px;
             font-weight: 600;
             color: #334155;
             font-size: 12px;
             letter-spacing: 0.2px;
-        }}
-        select, input[type="text"] {{
+        }
+        select, input[type="text"] {
             width: 100%;
             padding: 10px 12px;
             border-radius: 8px;
@@ -237,15 +237,15 @@
             font-weight: 500;
             outline: none;
             transition: all 0.2s;
-        }}
-        select:focus, input[type="text"]:focus {{
+        }
+        select:focus, input[type="text"]:focus {
             border-color: var(--sirius-teal);
             background: #ffffff;
             box-shadow: 0 0 0 3px rgba(0, 164, 153, 0.15);
-        }}
+        }
 
         /* КНОПКА ЗАПУСКА СИРИУС-ГРАДИЕНТ */
-        .btn-run {{
+        .btn-run {
             width: 100%;
             padding: 15px;
             background: linear-gradient(135deg, #00a499 0%, #0d9488 50%, #059669 100%);
@@ -259,52 +259,52 @@
             box-shadow: 0 4px 14px rgba(0, 164, 153, 0.35);
             transition: all 0.2s ease;
             letter-spacing: 0.4px;
-        }}
-        .btn-run:hover {{
+        }
+        .btn-run:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0, 164, 153, 0.5);
             filter: brightness(1.05);
-        }}
-        .btn-run:active {{
+        }
+        .btn-run:active {
             transform: translateY(1px);
-        }}
+        }
 
         /* МАТРИЦА КАНАЛОВ */
-        .channels {{
+        .channels {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             align-content: start;
-        }}
-        .ch-box {{
+        }
+        .ch-box {
             background: #f8fafc;
             padding: 10px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
             text-align: center;
             transition: all 0.2s;
-        }}
-        .ch-box:hover {{
+        }
+        .ch-box:hover {
             border-color: var(--sirius-teal);
             box-shadow: 0 4px 12px rgba(0, 164, 153, 0.12);
-        }}
-        .preview-img {{
+        }
+        .preview-img {
             width: 100%;
             height: 155px;
             border-radius: 8px;
             border: 1px solid #e2e8f0;
             background: #f8fafc;
             object-fit: contain;
-        }}
+        }
 
         /* ТАБЛИЦА ЖУРНАЛА */
-        table {{
+        table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
             font-size: 12px;
-        }}
-        th {{
+        }
+        th {
             background: #f1f5f9;
             color: #475569;
             padding: 11px 8px;
@@ -317,40 +317,40 @@
             top: 0;
             z-index: 10;
             letter-spacing: 0.3px;
-        }}
-        td {{
+        }
+        td {
             padding: 9px 8px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
             text-align: center;
             color: #1e293b;
             background: #ffffff;
-        }}
-        tr:nth-child(even) td {{
+        }
+        tr:nth-child(even) td {
             background: #f8fafc;
-        }}
-        tr:hover td {{
+        }
+        tr:hover td {
             background: #e6fffa;
-        }}
-        th.col-actions, td.col-actions {{
+        }
+        th.col-actions, td.col-actions {
             position: sticky;
             right: 0;
             box-shadow: -3px 0 6px rgba(0, 0, 0, 0.06);
-        }}
-        th.col-actions {{
+        }
+        th.col-actions {
             z-index: 15;
             background: #f1f5f9;
-        }}
-        td.col-actions {{
+        }
+        td.col-actions {
             z-index: 5;
             background: #ffffff;
-        }}
-        tr:nth-child(even) td.col-actions {{
+        }
+        tr:nth-child(even) td.col-actions {
             background: #f8fafc;
-        }}
-        tr:hover td.col-actions {{
+        }
+        tr:hover td.col-actions {
             background: #e6fffa;
-        }}
+        }
     </style>
 </head>
 <body>
@@ -509,21 +509,21 @@
 </div>
 
 <script>
-function adjTemp(id, delta) {{
+function adjTemp(id, delta) {
     let inp = document.getElementById(id);
     if (!inp) return;
     let cur = parseFloat(inp.value.replace(',', '.')) || 23.5;
     inp.value = (cur + delta).toFixed(1);
-}}
-function openEditModal(id, grp, ts, tLeaf, weight, soil) {{
+}
+function openEditModal(id, grp, ts, tLeaf, weight, soil) {
     document.getElementById('edit_meas_id').value = id;
     document.getElementById('edit_cohort').value = grp || '';
     document.getElementById('edit_timestamp').value = ts || '';
     document.getElementById('editModalTitle').innerText = '✏️ Коррекция замера #' + id + (grp ? ' (' + grp + ')' : '');
     let cleanT = (tLeaf || '').replace(' °C', '').replace('°C', '').trim();
-    if (cleanT === '--' || cleanT.toLowerCase().indexOf('none') !== -1) {{
+    if (cleanT === '--' || cleanT.toLowerCase().indexOf('none') !== -1) {
         cleanT = (id === '73' && grp === 'Соль') ? '30.2' : '23.5';
-    }}
+    }
     document.getElementById('edit_t_leaf').value = cleanT;
     let cleanW = (weight || '').replace(' г', '').replace('г', '').trim();
     if (cleanW === '--') cleanW = '';
@@ -533,33 +533,33 @@ function openEditModal(id, grp, ts, tLeaf, weight, soil) {{
     document.getElementById('edit_soil').value = cleanS;
     let modal = document.getElementById('editModal');
     modal.style.display = 'flex';
-}}
-function closeEditModal() {{
+}
+function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
-}}
-function dismissBanner() {{
+}
+function dismissBanner() {
     let el = document.getElementById('statusAlert');
-    if (el) {{
+    if (el) {
         el.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
         el.style.opacity = '0';
         el.style.transform = 'translateY(-8px)';
         setTimeout(() => el.remove(), 400);
-    }}
-    if (window.history && window.history.replaceState) {{
-        window.history.replaceState({{}}, document.title, window.location.pathname);
-    }}
-}}
+    }
+    if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
 
-document.addEventListener('DOMContentLoaded', function() {{
-    if (document.getElementById('statusAlert')) {{
-        if (window.history && window.history.replaceState) {{
-            window.history.replaceState({{}}, document.title, window.location.pathname);
-        }}
-        setTimeout(function() {{
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('statusAlert')) {
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        setTimeout(function() {
             dismissBanner();
-        }}, 4500);
-    }}
-}});
+        }, 4500);
+    }
+});
 </script>
 </body>
 </html>
