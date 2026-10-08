@@ -3,22 +3,16 @@ import cv2
 import numpy as np
 import shutil
 import subprocess
+import base64
+import json
 
 CURRENT_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
-if os.path.basename(CURRENT_FILE_DIR) in ["generators", "tests"]:
-    LOCAL_DIR = os.path.dirname(os.path.dirname(CURRENT_FILE_DIR))
-elif os.path.basename(CURRENT_FILE_DIR) == "scripts":
-    LOCAL_DIR = os.path.dirname(CURRENT_FILE_DIR)
-else:
-    LOCAL_DIR = CURRENT_FILE_DIR
-
+LOCAL_DIR = r"/home/pi/plant-stress-ndvi" if os.name != 'nt' else r"C:\Users\Администратор\Documents\Coglet"
 STATIC_DIR = os.path.join(LOCAL_DIR, 'static')
 ARUCO_DIR = os.path.join(STATIC_DIR, 'aruco')
 DOCS_DIR = os.path.join(LOCAL_DIR, 'docs')
-USER_DOCS_DIR = r"C:\Users\Администратор\Documents"
 os.makedirs(ARUCO_DIR, exist_ok=True)
 os.makedirs(DOCS_DIR, exist_ok=True)
-os.makedirs(USER_DOCS_DIR, exist_ok=True)
 
 # 5 основных когорт биологического эксперимента (Синхронный посев 29.09.2026)
 ARUCO_CASSETTES = [
@@ -26,20 +20,20 @@ ARUCO_CASSETTES = [
         "ФИЗИОЛОГИЧЕСКИЙ ОПТИМУМ",
         "Полив чистой водой 100% ПВ (20 мл/сут) · Базовый эталон", 
         "НОРМА"),
-    (2, "КАССЕТА №2: ЗАСОЛЕНИЕ", 
-        "ОСМОТИЧЕСКИЙ СТРЕСС (NaCl 150 мМ)",
+    (2, "КАССЕТА №2: ОСМОС", 
+        "ОСМОТИЧЕСКИЙ СТРЕСС",
         "Раствор 150 мМ NaCl · Строго отдельный лоток-поддон!", 
         "ОСМОС"),
-    (3, "КАССЕТА №3: ТЕРМИНАЛЬНАЯ ЗАСУХА", 
-        "ПРЕДЕЛ ЖИЗНЕСПОСОБНОСТИ ТКАНИ",
+    (3, "КАССЕТА №3: ЗАСУХА", 
+        "ВОДНЫЙ ДЕФИЦИТ",
         "Полное прекращение полива 96+ ч (контроль гибели)", 
         "ГИБЕЛЬ"),
-    (4, "КАССЕТА №4: ПРЕВЕНТИВНАЯ РЕГИДРАТАЦИЯ", 
-        "КУПИРОВАНИЕ СТРЕССА ПО АЛЕРТУ СТАНЦИИ",
+    (4, "КАССЕТА №4: ПРЕВЕНЦИЯ", 
+        "РАННИЙ ПОЛИВ ПО АЛЕРТУ",
         "Полив строго при ΔT ≥ +0.8°C (~40 ч, до потери тургора)", 
         "АЛЕРТ"),
-    (5, "КАССЕТА №5: ВИЗУАЛЬНЫЙ КОНТРОЛЬ", 
-        "РЕАКТИВНЫЙ ПОЛИВ (ТРАДИЦИОННЫЙ ОСМОТР)",
+    (5, "КАССЕТА №5: РЕАКЦИЯ", 
+        "ПОЛИВ ПО ВИЗУАЛЬНЫМ ПРИЗНАКАМ",
         "Полив только при макро-поникании листьев (72–84 ч)", 
         "УВЯДАНИЕ"),
 ]
@@ -48,6 +42,7 @@ ARUCO_CASSETTES = [
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50) if hasattr(cv2.aruco, 'getPredefinedDictionary') else cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
 
 # Генерируем чистовые монохромные PNG маркеров (25x25 мм калибровочные с белой Quiet Zone и тонким черным контуром реза)
+aruco_b64 = {}
 for m_id, name, strat, reg, status in ARUCO_CASSETTES:
     if hasattr(aruco_dict, 'generateImageMarker'):
         marker_raw = aruco_dict.generateImageMarker(m_id, 240)
@@ -65,42 +60,80 @@ for m_id, name, strat, reg, status in ARUCO_CASSETTES:
 
     png_path = os.path.join(ARUCO_DIR, f'aruco_{m_id}.png')
     _, buf = cv2.imencode('.png', marker_outlined)
-    buf.tofile(png_path)
-    print(f'Created clean B&W marker: {png_path}')
+    with open(png_path, 'wb') as f_out:
+        f_out.write(buf.tobytes())
+    b64_str = base64.b64encode(buf.tobytes()).decode('utf-8')
+    aruco_b64[m_id] = b64_str
 
-# ==============================================================================
-# 1. HTML-ВЕРСИЯ ЛИСТА МАРКЕРОВ (КОНТУРНЫЙ Ч/Б ДИЗАЙН ДЛЯ МОНОХРОМНОЙ ПЕЧАТИ)
-# ==============================================================================
-import base64
-import json
-with open("/tmp/icons_perfect_b64_v2.json", "r") as f_ic:
+# Иконки из json
+icons_json_path = os.path.join(STATIC_DIR, "icons_perfect_b64_v2.json")
+if not os.path.exists(icons_json_path):
+    icons_json_path = "/tmp/icons_perfect_b64_v2.json"
+if not os.path.exists(icons_json_path):
+    icons_json_path = r"C:\Users\Администратор\.gemini\antigravity\brain\7e11935d-0a78-4d40-8cd3-6cf60934260e\scratch\icons_perfect_b64_v2.json"
+
+with open(icons_json_path, "r", encoding="utf-8") as f_ic:
     ICONS_B64 = json.load(f_ic)
+
+# Генерация HTML-карточек
 cards_html = ""
 for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
-    png_path = os.path.join(ARUCO_DIR, f'aruco_{m_id}.png')
-    with open(png_path, "rb") as img_file:
-        b64_string = base64.b64encode(img_file.read()).decode('utf-8')
-    img_src = f"data:image/png;base64,{b64_string}"
+    img_src = f"data:image/png;base64,{aruco_b64[m_id]}"
     b64_icon = ICONS_B64[m_id - 1]
     icon_src = f"data:image/png;base64,{b64_icon}"
     
     cards_html += f"""
         <div class="marker-card">
-            <!-- Левый блок: ArUco-маркер для камеры (основной) -->
+            <!-- 1. Левый блок: ArUco-маркер (СТРОГО 70x70 px, аналогично пиктограмме) -->
             <div class="aruco-box">
                 <div class="aruco-img-wrap">
-                    <img src="{img_src}" alt="ArUco {m_id}">
+                    <img src="{img_src}" alt="ArUco #{m_id}">
                 </div>
                 <div class="aruco-caption">ARUCO #{m_id}</div>
             </div>
 
-            <!-- Центральный блок: Пиктограмма с номером (встроенная) -->
-            <div class="num-badge" style="position:relative; background:#ffffff; overflow:hidden;">
-                <img src="{icon_src}" alt="Icon" style="position:absolute; top:6px; left:6px; width:44px; height:44px; object-fit:contain;">
-                <div style="position:absolute; bottom:2px; right:6px; font-size:28px; font-family:Arial, sans-serif; color:#000000; font-weight:normal; line-height:1;">{m_id}</div>
+            <!-- 2. Юстировочная зона калибровки камеры (CV Alignment & Focus Reticle) -->
+            <div class="calib-zone" title="Оптическая зона юстировки и калибровки камеры">
+                <!-- Оптическая мишень Сименса / прецизионное перекрестие -->
+                <svg width="22" height="22" viewBox="0 0 24 24" style="display:block;">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="#000000" stroke-width="1.2"/>
+                    <circle cx="12" cy="12" r="6" fill="none" stroke="#000000" stroke-width="0.8"/>
+                    <circle cx="12" cy="12" r="2.2" fill="#000000"/>
+                    <path d="M12,2 A10,10 0 0,1 22,12 L12,12 Z" fill="#000000" opacity="0.18"/>
+                    <path d="M12,12 L2,12 A10,10 0 0,1 12,22 Z" fill="#000000" opacity="0.18"/>
+                    <line x1="12" y1="0" x2="12" y2="24" stroke="#000000" stroke-width="1"/>
+                    <line x1="0" y1="12" x2="24" y2="12" stroke="#000000" stroke-width="1"/>
+                </svg>
+                <!-- Масштабная шкала 5 мм -->
+                <div class="calib-scale-wrap">
+                    <div class="calib-scale-label">5 мм</div>
+                    <svg width="22" height="7" viewBox="0 0 22 7">
+                        <line x1="1" y1="3.5" x2="21" y2="3.5" stroke="#000" stroke-width="0.8"/>
+                        <line x1="1" y1="0" x2="1" y2="7" stroke="#000" stroke-width="1.2"/>
+                        <line x1="6" y1="1.5" x2="6" y2="5.5" stroke="#000" stroke-width="0.6"/>
+                        <line x1="11" y1="0.5" x2="11" y2="6.5" stroke="#000" stroke-width="1"/>
+                        <line x1="16" y1="1.5" x2="16" y2="5.5" stroke="#000" stroke-width="0.6"/>
+                        <line x1="21" y1="0" x2="21" y2="7" stroke="#000" stroke-width="1.2"/>
+                    </svg>
+                </div>
+                <!-- Шахматный паттерн высокого контраста для оценки резкости MTF -->
+                <svg width="18" height="18" viewBox="0 0 16 16" style="display:block;">
+                    <rect x="0" y="0" width="8" height="8" fill="#000000"/>
+                    <rect x="8" y="0" width="8" height="8" fill="#ffffff" stroke="#000000" stroke-width="0.5"/>
+                    <rect x="0" y="8" width="8" height="8" fill="#ffffff" stroke="#000000" stroke-width="0.5"/>
+                    <rect x="8" y="8" width="8" height="8" fill="#000000"/>
+                    <rect x="0" y="0" width="16" height="16" fill="none" stroke="#000000" stroke-width="1"/>
+                </svg>
+                <div class="calib-subtext">ЮСТ</div>
             </div>
 
-            <!-- Правый блок: Научный регламент и статус -->
+            <!-- 3. Центральный блок: Пиктограмма с номером (СТРОГО 70x70 px) -->
+            <div class="num-badge">
+                <img src="{icon_src}" alt="Icon" class="num-icon">
+                <div class="num-digit">{m_id}</div>
+            </div>
+
+            <!-- 4. Правый блок: Научный регламент и статус когорты -->
             <div class="info-block">
                 <div class="header-line">
                     <span class="card-title">{title}</span>
@@ -111,10 +144,10 @@ for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
                 <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:{m_id} | S_calib = 6.25 см²</div>
             </div>
 
-            <!-- Резервный компактный маркер для противоположного борта -->
+            <!-- 5. Резервный маркер для тыльного борта (встроенный base64, без ошибки!) -->
             <div class="reserve-box">
                 <div class="reserve-img-wrap">
-                    <img src="/static/aruco/aruco_{m_id}.png" alt="ArUco {m_id} Reserve">
+                    <img src="{img_src}" alt="ArUco #{m_id} Reserve">
                 </div>
                 <div class="reserve-caption">№{m_id} (Резерв)</div>
             </div>
@@ -184,76 +217,116 @@ html_content = f"""<!DOCTYPE html>
             align-items: center;
             background: #ffffff;
             page-break-inside: avoid;
-            gap: 10px;
+            gap: 8px;
         }}
-        /* ArUco box */
+        
+        /* 1. Блок ArUco (СТРОГО ОДИНАКОВЫЙ РАЗМЕР С ПИКТОГРАММОЙ: 70x70 px) */
         .aruco-box {{
+            width: 70px;
+            height: 70px;
+            border: 2px solid #000000;
+            border-radius: 8px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 74px;
+            background: #ffffff;
             flex-shrink: 0;
+            position: relative;
+            padding: 2px;
         }}
         .aruco-img-wrap {{
-            width: 68px;
-            height: 68px;
+            width: 52px;
+            height: 52px;
             display: flex;
             align-items: center;
             justify-content: center;
         }}
         .aruco-img-wrap img {{
-            width: 64px;
-            height: 64px;
+            width: 50px;
+            height: 50px;
             image-rendering: pixelated;
         }}
         .aruco-caption {{
-            font-size: 7.5px;
-            font-weight: bold;
+            font-size: 7px;
+            font-weight: 800;
             font-family: monospace;
-            margin-top: 2px;
-            color: #222222;
+            color: #000000;
+            line-height: 1;
+            margin-top: 1px;
+            letter-spacing: 0.2px;
         }}
-        /* Pictogram */
-        .pictogram-box {{
+
+        /* 2. Юстировочная зона калибровки камеры (между ArUco и пиктограммой) */
+        .calib-zone {{
+            width: 32px;
+            height: 70px;
+            border: 1.5px dashed #444444;
+            border-radius: 6px;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 0 10px;
+            justify-content: space-between;
+            padding: 3px 1px;
+            background: #f8fafc;
+            flex-shrink: 0;
         }}
-        .pictogram-box img {{
-            height: 60px;
-            width: auto;
+        .calib-scale-wrap {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
         }}
-        /* Number badge */
+        .calib-scale-label {{
+            font-size: 5.5px;
+            font-weight: 800;
+            font-family: monospace;
+            color: #000000;
+            line-height: 1;
+        }}
+        .calib-subtext {{
+            font-size: 5.5px;
+            font-family: monospace;
+            font-weight: 800;
+            color: #333333;
+            line-height: 1;
+            letter-spacing: 0.5px;
+        }}
+
+        /* 3. Блок пиктограммы (СТРОГО ОДИНАКОВЫЙ РАЗМЕР С ARUCO: 70x70 px) */
         .num-badge {{
             width: 70px;
             height: 70px;
-            border: 2.5px solid #000000;
-            border-radius: 10px;
+            border: 2px solid #000000;
+            border-radius: 8px;
             display: flex;
-            flex-direction: column;
+            position: relative;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
             background: #ffffff;
+            overflow: hidden;
         }}
-        .num-sub {{
-            font-size: 7.5px;
-            font-weight: 700;
-            font-family: monospace;
-            letter-spacing: 0.5px;
-            color: #444444;
-            margin-bottom: -4px;
+        .num-icon {{
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
         }}
-        .num-val {{
-            font-size: 42px;
+        .num-digit {{
+            position: absolute;
+            bottom: 2px;
+            right: 6px;
+            font-size: 28px;
+            font-family: Arial, sans-serif;
+            color: #000000;
             font-weight: 900;
             line-height: 1;
-            color: #000000;
-            font-family: Arial, sans-serif;
         }}
-        /* Info block */
+
+        /* 4. Блок информации */
         .info-block {{
             flex: 1;
             min-width: 0;
@@ -297,7 +370,8 @@ html_content = f"""<!DOCTYPE html>
             border-radius: 3px;
             color: #222222;
         }}
-        /* Reserve box */
+
+        /* 5. Резервный маркер (справа) */
         .reserve-box {{
             display: flex;
             flex-direction: column;
@@ -306,26 +380,30 @@ html_content = f"""<!DOCTYPE html>
             width: 58px;
             flex-shrink: 0;
             border-left: 1px dashed #888888;
-            padding-left: 8px;
+            padding-left: 6px;
         }}
         .reserve-img-wrap {{
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
         }}
         .reserve-img-wrap img {{
-            width: 46px;
-            height: 46px;
+            width: 44px;
+            height: 44px;
             image-rendering: pixelated;
         }}
         .reserve-caption {{
             font-size: 7px;
             font-family: monospace;
-            margin-top: 1px;
-            color: #444444;
+            font-weight: bold;
+            margin-top: 2px;
+            color: #333333;
+            text-align: center;
+            line-height: 1.1;
         }}
+
         .footer {{
             margin-top: 8px;
             font-size: 8px;
@@ -388,19 +466,19 @@ with open(sheet_html_path, 'w', encoding='utf-8') as f:
     f.write(html_content)
 print(f'Created printable HTML: {sheet_html_path}')
 
-# Copy to docs and user Documents
+# Copy to docs
 docs_html = os.path.join(DOCS_DIR, 'aruco_markers_sheet.html')
 shutil.copy2(sheet_html_path, docs_html)
-user_html = os.path.join(USER_DOCS_DIR, 'Лист_ArUco_маркеров_для_5_кассет.html')
-shutil.copy2(sheet_html_path, user_html)
 
 # ==============================================================================
-# 2. КОМПИЛЯЦИЯ ВЫСОКОТОЧНОГО ВЕКТОРНОГО PDF ЧЕРЕЗ CHROME HEADLESS
+# 2. КОМПИЛЯЦИЯ ВЫСОКОТОЧНОГО ВЕКТОРНОГО PDF ЧЕРЕЗ CHROME / CHROMIUM HEADLESS
 # ==============================================================================
 pdf_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.pdf')
 chrome_paths = [
     r"/usr/bin/chromium",
+    r"/usr/bin/chromium-browser",
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     "google-chrome",
     "chromium"
 ]
@@ -421,9 +499,6 @@ if chrome_bin:
         print(f'Compiled clean B&W PDF: {pdf_path} ({os.path.getsize(pdf_path)/1024:.1f} KB)')
         docs_pdf = os.path.join(DOCS_DIR, 'aruco_markers_sheet.pdf')
         shutil.copy2(pdf_path, docs_pdf)
-        user_pdf = os.path.join(USER_DOCS_DIR, 'Лист_ArUco_маркеров_для_5_кассет.pdf')
-        shutil.copy2(pdf_path, user_pdf)
-        print(f'Copied PDF to {docs_pdf} and {user_pdf}')
     else:
         print('Chrome headless warning:', res.stderr)
 else:
