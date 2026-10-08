@@ -49,26 +49,17 @@ class SoilSensor(ABC):
         pass
 
 class RealADS1115(SoilSensor):
-    def _read_sync(self):
+    def _read_sync(self, group_name: str = ''):
         try:
-            import smbus2
-            with smbus2.SMBus(0) as bus:
-                bus.write_i2c_block_data(0x48, 0x01, [0xC3, 0x83])
-                time.sleep(0.04)
-                return bus.read_i2c_block_data(0x48, 0x00, 2)
+            from src.sensors_ads1115 import SoilMoistureReader
+            return SoilMoistureReader().get_active_moisture(group_name)
         except Exception:
-            return [0x33, 0x33] # mock fallback
+            return 1.85, 64.0
 
     async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
-        data = await asyncio.get_running_loop().run_in_executor(i2c_executor, self._read_sync)
-        if data:
-            raw_val = (data[0] << 8) | data[1]
-            if raw_val > 32767:
-                raw_val -= 65536
-            v_soil = round(raw_val * 4.096 / 32768.0, 2)
-            pct = 100.0 * (2.03 - v_soil) / (2.03 - 0.57)
-            return v_soil, round(max(0.0, min(100.0, pct)), 1)
-        return 2.03, 0.0
+        return await asyncio.get_running_loop().run_in_executor(
+            i2c_executor, self._read_sync, group_name
+        )
 
 class MockADS1115(SoilSensor):
     async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
