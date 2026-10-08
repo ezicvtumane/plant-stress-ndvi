@@ -2061,10 +2061,10 @@ async def index(
             </div>
         '''
 
-    # ТАБЛИЦА ЖУРНАЛА
+    # ТАБЛИЦА ЖУРНАЛА АКТИВНОЙ СЕРИИ ОПЫТОВ
     rows = []
-    if os.path.exists(CSV_LOG):
-        with open(CSV_LOG, 'r', encoding='utf-8') as f:
+    if os.path.exists(active_csv):
+        with open(active_csv, 'r', encoding='utf-8') as f:
             all_r = list(csv.reader(f))
             if len(all_r) > 1:
                 rows = all_r[1:]
@@ -2390,7 +2390,10 @@ async def index(
         "cur_t": cur_t,
         "cur_rh": cur_rh,
         "cur_vpd": cur_vpd,
-        "cur_v": cur_v
+        "cur_v": cur_v,
+        "active_exp": active_exp,
+        "experiments": experiments,
+        "rows_count": len(rows)
     })
 @app.get('/download/pdf')
 def download_pdf():
@@ -2453,6 +2456,55 @@ def download_aruco_pdf():
     if os.path.exists(html_path):
         return FileResponse(html_path, filename='aruco_markers_cassettes.html', media_type='text/html')
     return HTMLResponse('Лист маркеров не найден')
+
+
+# ----------------- ЭНДПОИНТЫ УПРАВЛЕНИЯ СЕРИЯМИ ОПЫТОВ -----------------
+@app.post('/api/experiment/switch')
+def handle_experiment_switch(exp_id: str = Form(...)):
+    """Переключение активной серии опытов (культуры/растения)."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    exp_mgr.set_active_experiment(exp_id)
+    return RedirectResponse(url=f'/?msg=exp_switched&set_exp={exp_id}', status_code=303)
+
+@app.post('/api/experiment/create')
+def handle_experiment_create(
+    name: str = Form(...),
+    plant: str = Form(''),
+    description: str = Form('')
+):
+    """Создание новой серии опытов с выделенной папкой."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    new_e = exp_mgr.create_experiment(name=name, plant=plant, description=description)
+    return RedirectResponse(url=f'/?msg=exp_created&set_exp={new_e["id"]}', status_code=303)
+
+@app.get('/download/experiment_zip')
+def handle_download_experiment_zip(exp_id: str = ''):
+    """Выгрузка ZIP-архива конкретной серии (CSV + все снимки серии)."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    target_id = exp_id if exp_id else exp_mgr.get_active_experiment().get('id', 'exp_1')
+    target_exp = None
+    for e in exp_mgr.get_experiments():
+        if e['id'] == target_id:
+            target_exp = e
+            break
+    if not target_exp:
+        target_exp = exp_mgr.get_active_experiment()
+
+    safe_name = "".join(c for c in target_exp.get('name', 'experiment') if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    zip_fname = f"{safe_name}.zip"
+    zip_path = os.path.join(DATA_DIR, f"temp_{target_id}.zip")
+    exp_mgr.generate_zip(target_id, zip_path)
+    return FileResponse(zip_path, filename=zip_fname, media_type='application/zip')
+
+@app.get('/download/csv')
+def download_active_csv():
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    csv_p = exp_mgr.get_active_csv_path()
+    active_exp = exp_mgr.get_active_experiment()
+    safe_name = "".join(c for c in active_exp.get('name', 'experiment') if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    if os.path.exists(csv_p):
+        return FileResponse(csv_p, filename=f'{safe_name}_measurements.csv', media_type='text/csv')
+    return HTMLResponse('Файл журнала пуст')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
