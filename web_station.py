@@ -853,7 +853,12 @@ def do_hardware_spectral_capture(group_name: str):
         _reader = SoilMoistureReader()
         v_soil, pct_soil = _reader.get_active_moisture(group_name)
     except Exception:
-        v_soil, pct_soil = 1.85, 64.0
+        v_soil, pct_soil = '', ''
+    if v_soil is None: v_soil = ''
+    if pct_soil is None: pct_soil = ''
+    # Кассеты К4 (Превенция) и К5 (Реакция) не имеют почвенного датчика
+    if aruco_id in (4, 5) or ('превенци' in group_name.lower()) or ('реакци' in group_name.lower()):
+        v_soil, pct_soil = '', ''
     live_t, live_rh, _ = _read_climate_sync()
     cur_vpd = calc_vpd(live_t, live_rh)
 
@@ -933,14 +938,19 @@ def handle_save_final(
     weight_val = weight_g.strip().replace(',', '.') if weight_g else ''
     t_leaf_val = t_leaf.strip().replace(',', '.') if t_leaf else ''
 
-    # Влажность субстрата из подтвержденного оператором поля
-    if pct_soil.strip():
+    # Влажность субстрата из подтвержденного оператором поля (поддержка -- / n/a / нет датчика)
+    ps_clean = str(pct_soil or '').strip().lower()
+    if ps_clean in ('-', '--', 'n/a', 'na', 'нет', 'нет датчика', 'none', 'null', ''):
+        s['pct_soil'] = ''
+        s['v_soil'] = ''
+    else:
         try:
-            ps_val = float(pct_soil.strip().replace(',', '.'))
+            ps_val = float(ps_clean.replace(',', '.'))
             s['pct_soil'] = round(max(0.0, min(100.0, ps_val)), 1)
             s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
         except Exception:
-            pass
+            s['pct_soil'] = ''
+            s['v_soil'] = ''
 
     # Расчет Delta_T
     delta_t_val = ''
@@ -1020,7 +1030,7 @@ def handle_batch_capture_next(
     cohort_choice: str = Form('auto'),
     weight_g: str = Form(''),
     t_leaf: str = Form(''),
-    pct_soil: str = Form('64.0')
+    pct_soil: str = Form('')
 ):
     """Съемка очередной кассеты в боксе NoIR камерой с авто-детекцией ArUco, мягкими предупреждениями и ручным выбором когорты."""
     global BATCH_STATE
@@ -1073,10 +1083,33 @@ def handle_batch_capture_next(
                 session['group'] = expected_cassette['name']
                 warn_query = f"&msg=warn_no_aruco&exp_id={expected_cassette['id']}&exp_name={expected_cassette['name']}"
 
-        # 2. Фиксация введенных ручных параметров
+        # 2. Фиксация введенных ручных параметров (с поддержкой отсутствия датчика на К4 и К5)
+        eff_cid = session.get('aruco_id') or (chosen_id if manual_mode else expected_cassette['id'])
         session['user_weight'] = weight_g.strip().replace(',', '.') if weight_g.strip() else ''
         session['user_t_leaf'] = t_leaf.strip().replace(',', '.') if t_leaf.strip() else ''
-        session['user_pct_soil'] = pct_soil.strip().replace(',', '.') if pct_soil.strip() else '64.0'
+        
+        ps_clean = str(pct_soil or '').strip().lower()
+        if ps_clean in ('-', '--', 'n/a', 'na', 'нет', 'нет датчика', 'none', 'null'):
+            session['user_pct_soil'] = '--'
+            session['pct_soil'] = ''
+            session['v_soil'] = ''
+        elif ps_clean:
+            try:
+                ps_num = round(float(ps_clean.replace(',', '.')), 1)
+                session['user_pct_soil'] = str(ps_num)
+                session['pct_soil'] = ps_num
+                session['v_soil'] = round(3.0 - (ps_num / 100.0) * 1.8, 2)
+            except Exception:
+                session['user_pct_soil'] = ''
+                session['pct_soil'] = ''
+                session['v_soil'] = ''
+        else:
+            if eff_cid in (4, 5):
+                session['user_pct_soil'] = '--'
+                session['pct_soil'] = ''
+                session['v_soil'] = ''
+            else:
+                session['user_pct_soil'] = str(session.get('pct_soil') or '')
         session['shot_order'] = len(BATCH_STATE['sessions']) + 1
 
         BATCH_STATE['sessions'].append(session)
@@ -1195,13 +1228,35 @@ async def handle_batch_save_manual(request: Request):
             t_l_val = str(round(float(s['t_air']), 1))
 
         pct_raw = form.get(f'pct_soil_{i}', '')
-        pct_s = str(pct_raw).strip().replace(',', '.') if str(pct_raw).strip() else s.get('user_pct_soil', '64.0')
-        try:
-            ps = float(pct_s)
-            s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-            s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
-        except Exception:
-            pass
+        ps_clean = str(pct_raw or '').strip().lower()
+        if ps_clean in ('-', '--', 'n/a', 'na', 'нет', 'нет датчика', 'none', 'null'):
+            s['pct_soil'] = ''
+            s['v_soil'] = ''
+        elif ps_clean:
+            try:
+                ps = float(ps_clean.replace(',', '.'))
+                s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
+                s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+            except Exception:
+                s['pct_soil'] = ''
+                s['v_soil'] = ''
+        else:
+            if cid in (4, 5):
+                s['pct_soil'] = ''
+                s['v_soil'] = ''
+            else:
+                user_p = str(s.get('user_pct_soil', '')).strip().lower()
+                if user_p in ('', '-', '--', 'n/a', 'na', 'нет', 'none'):
+                    s['pct_soil'] = ''
+                    s['v_soil'] = ''
+                else:
+                    try:
+                        ps = float(user_p.replace(',', '.'))
+                        s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
+                        s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+                    except Exception:
+                        s['pct_soil'] = ''
+                        s['v_soil'] = ''
 
         delta_t_val = ''
         if t_l_val:
@@ -1276,13 +1331,22 @@ async def handle_batch_save_final(request: Request):
         t_l_val = str(t_raw).strip().replace(',', '.') if str(t_raw).strip() else str(item['t_ocr'])
 
         pct_raw = form.get(f'pct_soil_{i}', '')
-        if str(pct_raw).strip():
+        ps_clean = str(pct_raw or '').strip().lower()
+        if ps_clean in ('-', '--', 'n/a', 'na', 'нет', 'нет датчика', 'none', 'null'):
+            s['pct_soil'] = ''
+            s['v_soil'] = ''
+        elif ps_clean:
             try:
-                ps = float(str(pct_raw).strip().replace(',', '.'))
+                ps = float(ps_clean.replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
                 s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
             except Exception:
-                pass
+                s['pct_soil'] = ''
+                s['v_soil'] = ''
+        else:
+            if cid in (4, 5):
+                s['pct_soil'] = ''
+                s['v_soil'] = ''
 
         delta_t_val = ''
         if t_l_val:
@@ -1485,9 +1549,16 @@ def handle_update_measurement(
                     if weight_g.strip() and len(r) >= 20:
                         r[3] = weight_g.strip().replace(',', '.')
 
-                    if pct_soil.strip():
+                    ps_clean = str(pct_soil or '').strip().lower()
+                    if ps_clean in ('-', '--', 'n/a', 'na', 'нет', 'нет датчика', 'none', 'null'):
+                        if len(r) >= 24:
+                            r[7] = ''
+                            r[6] = ''
+                        elif len(r) >= 20:
+                            r[5] = ''
+                    elif ps_clean:
                         try:
-                            ps = float(pct_soil.strip().replace(',', '.'))
+                            ps = float(ps_clean.replace(',', '.'))
                             ps = round(max(0.0, min(100.0, ps)), 1)
                             if len(r) >= 24:
                                 r[7] = str(ps)
@@ -1783,10 +1854,13 @@ async def index(
                                     <input type="number" step="0.1" name="t_leaf" placeholder="напр. 23.5" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #f59e0b; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                                 </div>
                                 <div style="display:flex; flex-direction:column;">
-                                    <label style="font-size:11px; font-weight:bold; color:#0284c7; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
-                                        💧 Влажность, %:
-                                    </label>
-                                    <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="" placeholder="Авто (I2C)" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
+                                    <div style="height:18px; display:flex; justify-content:space-between; align-items:flex-end; margin:0 0 3px 0;">
+                                        <label style="font-size:11px; font-weight:bold; color:#0284c7; white-space:nowrap; margin:0;">
+                                            💧 Влажность, %:
+                                        </label>
+                                        <button type="button" onclick="document.getElementsByName('pct_soil')[0].value='--'" style="font-size:9.5px; color:#64748b; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; padding:0 4px; cursor:pointer;" title="Установить прочерк (нет датчика)">нет датчика</button>
+                                    </div>
+                                    <input type="text" name="pct_soil" value="" placeholder="Авто или -- (N/A)" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                                 </div>
                             </div>
                         </div>
@@ -1872,7 +1946,12 @@ async def index(
                 
             w_val = str(s.get('user_weight', '')).strip()
             t_val = s.get('user_t_leaf', '')
-            p_val = s.get('user_pct_soil', '64.0')
+            raw_p = str(s.get('user_pct_soil', '')).strip()
+            if raw_p == '64.0': raw_p = ''
+            if m_id in (4, 5) and not raw_p:
+                p_val = '--'
+            else:
+                p_val = raw_p
             
             w_is_missing = (not w_val)
             if w_is_missing:
@@ -1918,8 +1997,11 @@ async def index(
                             <input type="number" step="0.1" name="t_leaf_{i}" value="{t_val}" placeholder="напр. 23.8" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #f59e0b; border-radius:4px; box-sizing:border-box;">
                         </div>
                         <div>
-                            <label style="font-size:10px; font-weight:bold; color:#0284c7; display:block;">💧 Влажность почвы, %:</label>
-                            <input type="number" step="0.1" min="0" max="100" name="pct_soil_{i}" value="{p_val}" style="width:100%; padding:5px; font-size:12px; border:1px solid #38bdf8; border-radius:4px; box-sizing:border-box;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                <label style="font-size:10px; font-weight:bold; color:#0284c7;">💧 Влажность почвы, %:</label>
+                                <button type="button" onclick="document.getElementsByName('pct_soil_{i}')[0].value='--'" style="font-size:9px; color:#64748b; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; padding:0 3px; cursor:pointer;" title="Установить прочерк (нет датчика)">нет датчика</button>
+                            </div>
+                            <input type="text" name="pct_soil_{i}" value="{p_val}" placeholder="-- (N/A) или %" style="width:100%; padding:5px; font-size:12px; border:1px solid #38bdf8; border-radius:4px; box-sizing:border-box;">
                         </div>
                     </div>
                 </div>
@@ -2018,6 +2100,21 @@ async def index(
             detected_id = item.get('detected_id')
             shot_order = item.get('shot_order', i + 1)
             c_info = CASSETTE_CATALOG.get(assigned_id, {'id': assigned_id, 'name': s.get('group', 'Кассета'), 'color': '#0d9488'})
+            raw_v_soil = str(s.get('pct_soil', '')).strip()
+            if assigned_id in (4, 5):
+                if raw_v_soil in ('64.0', '64', 'None', '', '--'):
+                    soil_v_str = '--'
+                else:
+                    soil_v_str = raw_v_soil
+            else:
+                if raw_v_soil in ('64.0', '64', 'None'):
+                    soil_v_str = ''
+                else:
+                    soil_v_str = raw_v_soil
+            if soil_v_str in ('--', '-', 'n/a', 'na', ''):
+                soil_v_badge = '<div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; font-weight:600; white-space:nowrap;">Нет датчика (N/A)</div>'
+            else:
+                soil_v_badge = f'<div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">{soil_v_str}% ПВ</div>'
 
             if detected_id:
                 marker_badge = f'<span style="background:#ecfdf5; color:#065f46; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ ArUco #{detected_id} распознан (снята #{shot_order}-й)</span>'
@@ -2069,9 +2166,10 @@ async def index(
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
                                 <label style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; margin:0;">💧 Влажность (%):</label>
+                                <button type="button" onclick="document.getElementsByName('pct_soil_{i}')[0].value='--'" style="font-size:9.5px; color:#64748b; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; padding:1px 4px; cursor:pointer;" title="Установить прочерк (нет датчика)">нет датчика</button>
                             </div>
-                            <input type="number" step="0.1" min="0" max="100" name="pct_soil_{i}" value="{s.get('pct_soil', 64.0)}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
-                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">{s.get('pct_soil', 64.0)}% ПВ</div>
+                            <input type="text" name="pct_soil_{i}" value="{soil_v_str}" placeholder="-- (N/A) или %" style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            {soil_v_badge}
                         </div>
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
@@ -2178,6 +2276,22 @@ async def index(
             </div>
         '''
 
+        s_cid = s.get('aruco_id', 1)
+        raw_s_soil = str(s.get('pct_soil', '')).strip()
+        if s_cid in (4, 5):
+            if raw_s_soil in ('64.0', '64', 'None', '', '--'):
+                s_soil_val = '--'
+            else:
+                s_soil_val = raw_s_soil
+        else:
+            if raw_s_soil in ('64.0', '64', 'None'):
+                s_soil_val = ''
+            else:
+                s_soil_val = raw_s_soil
+        if s_soil_val in ('--', '-', 'n/a', 'na', ''):
+            s_soil_badge = '<div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#64748b; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:4px; font-weight:600; white-space:nowrap;">Нет датчика (N/A)</div>'
+        else:
+            s_soil_badge = f'<div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">{s_soil_val}% ПВ</div>'
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); background: #ffffff;">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px; gap:8px;">
@@ -2220,11 +2334,10 @@ async def index(
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
                                 <label style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; margin:0;">💧 Влажность (%):</label>
+                                <button type="button" onclick="document.getElementsByName('pct_soil')[0].value='--'" style="font-size:9.5px; color:#64748b; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; padding:1px 4px; cursor:pointer;" title="Установить прочерк (нет датчика)">нет датчика</button>
                             </div>
-                            <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="{s['pct_soil']}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
-                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">
-                                {s.get('pct_soil', 0.0)}% ПВ
-                            </div>
+                            <input type="text" name="pct_soil" value="{s_soil_val}" placeholder="-- (N/A) или %" style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            {s_soil_badge}
                         </div>
 
                         <!-- Колонка 3: Температура листа -->
@@ -2470,7 +2583,7 @@ async def index(
                 t_air_str = f'<span style="white-space:nowrap;font-size:11px;color:#334155;">{r[4]}°C <span style="color:#cbd5e1;">·</span> <span style="color:#059669;font-weight:600;">{r[5]}%</span></span>'
             else:
                 t_air_str = '<span style="color:#94a3b8;">--</span>'
-            pct = f"{r[7]}%" if r[7] else "--"
+            pct = f"{r[7]}%" if (r[7] and str(r[7]).strip() not in ("--", "-", "n/a", "na", "none")) else "--"
             t_show = f"{r[8]} °C" if r[8] else "--"
             delta_str = f"{r[9]}°C" if r[9] else "--"
             ndvi_txt = f"{r[11]}±{r[12]}" if len(r)>12 else "--"
@@ -2500,7 +2613,7 @@ async def index(
                 t_air_str = f'<span style="white-space:nowrap;font-size:11px;color:#334155;">{r[4]}°C <span style="color:#cbd5e1;">·</span> <span style="color:#059669;font-weight:600;">{r[5]}%</span></span>'
             else:
                 t_air_str = '<span style="color:#94a3b8;">--</span>'
-            pct = f"{r[7]}%" if r[7] else "--"
+            pct = f"{r[7]}%" if (r[7] and str(r[7]).strip() not in ("--", "-", "n/a", "na", "none")) else "--"
             t_show = f"{r[8]} °C" if r[8] else "--"
             delta_str = f"{r[9]}°C" if r[9] else "--"
             ndvi_txt = f"{r[11]}±{r[12]}" if len(r)>12 else "--"
@@ -2531,7 +2644,7 @@ async def index(
             m_id, ts, grp = r[0], r[1], r[2]
             wt = f"{r[3]} г" if r[3] else "--"
             t_air_str = '<span style="color:#94a3b8;">--</span>'
-            pct = f"{r[5]}%" if r[5] else "--"
+            pct = f"{r[5]}%" if (r[5] and str(r[5]).strip() not in ("--", "-", "n/a", "na", "none")) else "--"
             t_show = f"{r[6]} °C" if r[6] else "--"
             stress_badge = '<span style="color:#94a3b8;">--</span>'
             ndvi_txt = f"{r[7]}±{r[8]}" if len(r)>8 else "--"
