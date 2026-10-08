@@ -55,6 +55,7 @@ import zipfile
 from PIL import Image
 import pytesseract
 from core.experiments import get_experiment_manager
+from core.xiaomi_climate import get_windowsill_climate
 
 RELAY_REQ = None
 app = FastAPI(title='Plant Stress Lab Gallery Station')
@@ -831,6 +832,7 @@ def do_hardware_spectral_capture(group_name: str):
     live_t, live_rh, _ = _read_climate_sync()
     cur_vpd = calc_vpd(live_t, live_rh)
 
+    win_c = get_windowsill_climate()
     PENDING_SESSION = {
         'id': meas_id,
         'timestamp': ts_display,
@@ -838,6 +840,8 @@ def do_hardware_spectral_capture(group_name: str):
         'aruco_id': aruco_id,
         't_air': live_t,
         'rh_air': live_rh,
+        't_air_win': win_c.get('t_c', live_t),
+        'rh_air_win': win_c.get('rh_pct', live_rh),
         'vpd': cur_vpd,
         'v_soil': v_soil,
         'pct_soil': pct_soil,
@@ -1173,7 +1177,9 @@ async def handle_batch_save_manual(request: Request):
         delta_t_val = ''
         if t_l_val:
             try:
-                dt = round(float(t_l_val) - float(s['t_air']), 1)
+                # Опорная температура берется с датчика подоконника (или бокса, если недоступен)
+                base_air_t = float(s.get('t_air_win') or s.get('t_air', 24.5))
+                dt = round(float(t_l_val) - base_air_t, 1)
                 delta_t_val = str(dt)
             except Exception:
                 pass
@@ -1250,7 +1256,9 @@ async def handle_batch_save_final(request: Request):
         delta_t_val = ''
         if t_l_val:
             try:
-                dt = round(float(t_l_val) - float(s['t_air']), 1)
+                # Опорная температура берется с датчика подоконника (или бокса, если недоступен)
+                base_air_t = float(s.get('t_air_win') or s.get('t_air', 24.5))
+                dt = round(float(t_l_val) - base_air_t, 1)
                 delta_t_val = str(dt)
             except Exception:
                 pass
@@ -1475,6 +1483,11 @@ async def index(
     cur_t, cur_rh, cur_v = await get_climate_sensor().read_climate()
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
+
+    # Беспроводной датчик микроклимата Xiaomi на подоконнике
+    win_clim = get_windowsill_climate()
+    win_t = win_clim.get('t_c', cur_t)
+    win_rh = win_clim.get('rh_pct', cur_rh)
 
     # Инициализация и выбор активной серии опытов
     exp_mgr = get_experiment_manager(DATA_DIR)
@@ -2521,7 +2534,9 @@ async def index(
         "cur_v": cur_v,
         "active_exp": active_exp,
         "experiments": experiments,
-        "rows_count": len(rows)
+        "rows_count": len(rows),
+        "win_t": win_t,
+        "win_rh": win_rh
     })
 @app.get('/download/pdf')
 def download_pdf():
