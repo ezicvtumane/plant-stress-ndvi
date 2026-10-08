@@ -56,10 +56,6 @@ os.makedirs(TH_CACHE_DIR, exist_ok=True)
 
 CSV_LOG = os.path.join(DATA_DIR, 'measurements.csv')
 
-# Настройки шлюза Xiaomi Gateway для SHT30
-XIAOMI_GATEWAY_IP = '192.168.0.9'
-XIAOMI_GATEWAY_PORT = 9898
-XIAOMI_SENSOR_SID = '158d0001576282'
 
 # Текущая активная сессия одиночного замера
 PENDING_SESSION = None
@@ -102,18 +98,16 @@ BATCH_STATE = {
 
 LAST_VALID_CLIMATE = (24.9, 65.7, 3.21)
 
-def read_xiaomi_climate():
+def _read_climate_sync():
     """
-    Опрос аппаратного микроклиматического сенсора Sensirion SHT30 по прямой шине I2C-0 (адрес 0x44).
-    При сбое I2C — резервный опрос по UDP шлюзу Xiaomi.
+    Синхронный опрос I2C-0. Xiaomi Gateway удален.
     """
     global LAST_VALID_CLIMATE
-    # 1. Прямое аппаратное чтение по I2C-0
     try:
         import smbus2
         with smbus2.SMBus(0) as bus:
-            # Команда замера высокой повторяемости (High repeatability, clock stretching disabled: 0x2C, 0x06)
             bus.write_i2c_block_data(0x44, 0x2C, [0x06])
+            import time
             time.sleep(0.05)
             d = bus.read_i2c_block_data(0x44, 0x00, 6)
             t_c = -45.0 + (175.0 * ((d[0] << 8) | d[1]) / 65535.0)
@@ -126,31 +120,11 @@ def read_xiaomi_climate():
                 return t, rh, v_rail
     except Exception:
         pass
+    return LAST_VALID_CLIMATE
 
-    # 2. Резервный опрос через шлюз Xiaomi
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(0.7)
-        query = json.dumps({'cmd': 'read', 'sid': XIAOMI_SENSOR_SID}).encode('utf-8')
-        sock.sendto(query, (XIAOMI_GATEWAY_IP, XIAOMI_GATEWAY_PORT))
-        data, _ = sock.recvfrom(2048)
-        sock.close()
-        dev_info = json.loads(data.decode('utf-8'))
-        raw_data = json.loads(dev_info.get('data', '{}'))
-        raw_t = float(raw_data.get('temperature', 2480))
-        raw_rh = float(raw_data.get('humidity', 6500))
-        v_bat = round(float(raw_data.get('voltage', 3200)) / 1000.0, 2)
-
-        # 10000 / 0 - специальный код ожидания/ошибки шлюза Xiaomi (датчик спит или не ответил)
-        if raw_t >= 9000 or raw_t <= -4000 or raw_rh <= 0.0 or raw_rh > 10000:
-            return LAST_VALID_CLIMATE
-
-        t = round(raw_t / 100.0, 1)
-        rh = round(raw_rh / 100.0, 1)
-        LAST_VALID_CLIMATE = (t, rh, v_bat)
-        return t, rh, v_bat
-    except Exception:
-        return LAST_VALID_CLIMATE
+async def read_climate_async():
+    import asyncio
+    return await asyncio.to_thread(_read_climate_sync)
 
 def calc_vpd(t_c: float, rh_pct: float) -> float:
     """Расчет дефицита упругости водяного пара (Vapor Pressure Deficit, кПа)."""
@@ -1408,7 +1382,8 @@ def handle_update_measurement(
     return RedirectResponse(url='/?msg=err_not_found', status_code=303)
 
 @app.get('/', response_class=HTMLResponse)
-def index(
+async def index(
+    request: Request,
     stage: str = 'idle',
     offset: int = 0,
     msg: str = '',
@@ -1427,7 +1402,7 @@ def index(
 ):
     global PENDING_SESSION, BATCH_STATE
 
-    cur_t, cur_rh, cur_v = read_xiaomi_climate()
+    cur_t, cur_rh, cur_v = await read_climate_async()
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
 
@@ -2312,574 +2287,19 @@ def index(
                     <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img" style="height:175px;">
                 </div>
             </div>
-        </div>
-    '''
-
-    html = f'''<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сириус: Большие вызовы | Оптико-электронный комплекс</title>
-    <style>
-        :root {{
-            --sirius-teal: #00a499;
-            --sirius-teal-dark: #008276;
-            --sirius-teal-light: #2dd4bf;
-            --sirius-purple: #7c3aed;
-            --sirius-indigo: #4338ca;
-            --bg-main: #f0fdfa;
-            --card-bg: #ffffff;
-            --card-border: #e2e8f0;
-            --card-shadow: 0 4px 20px rgba(0, 164, 153, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-        }}
-        body {{
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            background-color: #f0fdfa;
-            background-image: linear-gradient(180deg, rgba(240, 253, 250, 0.94) 0%, rgba(248, 250, 252, 0.97) 260px, rgba(241, 245, 249, 0.99) 100%), url('/static/logos/sirius_bg.png');
-            background-size: cover;
-            background-position: center top;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-            color: var(--text-primary);
-            margin: 0;
-            padding: 16px 22px;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }}
-        .container {{
-            width: 100%;
-            max-width: 1440px;
-            margin: 0 auto;
-        }}
-        /* ХЕДЕР В ОФИЦИАЛЬНОМ СТИЛЕ СИРИУС (БИРЮЗОВЫЙ С БЕЛЫМИ АКЦЕНТАМИ) */
-        .header {{
-            background: linear-gradient(135deg, #00a499 0%, #008b80 100%);
-            border: 1px solid rgba(0, 164, 153, 0.3);
-            border-radius: 16px;
-            padding: 14px 22px;
-            margin-bottom: 14px;
-            box-shadow: 0 8px 24px rgba(0, 164, 153, 0.25);
-            color: #ffffff;
-        }}
-        .header-inner {{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-        }}
-        .header-logos {{
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(255, 255, 255, 0.18);
-            padding: 4px 10px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }}
-        .header-titles {{
-            flex: 1;
-            text-align: center;
-        }}
-        .header-titles h1 {{
-            color: #ffffff;
-            margin: 0 0 6px 0;
-            font-size: 20px;
-            letter-spacing: 0.4px;
-            font-weight: 700;
-        }}
-        .header-badges {{
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }}
-        .badge-sirius {{
-            background: rgba(255, 255, 255, 0.2);
-            color: #ffffff;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 3px 10px;
-            border-radius: 20px;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(255, 255, 255, 0.35);
-        }}
-        .badge-track {{
-            background: #ffffff;
-            color: #008276;
-            font-size: 11px;
-            font-weight: bold;
-            padding: 3px 12px;
-            border-radius: 20px;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }}
-        .badge-author {{
-            background: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
-            font-size: 11px;
-            font-weight: 500;
-            padding: 3px 10px;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.25);
-        }}
-        .header-status {{
-            text-align: right;
-            min-width: 140px;
-        }}
-        .status-online {{
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.9);
-            color: #047857;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: bold;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-        }}
-        .pulsing-dot {{
-            width: 8px;
-            height: 8px;
-            background: #10b981;
-            border-radius: 50%;
-            box-shadow: 0 0 8px #10b981;
-        }}
-        .station-hw {{
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.9);
-            margin-top: 4px;
-            font-family: monospace;
-        }}
-        .header-subnote {{
-            margin-top: 10px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.18);
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.9);
-            text-align: center;
-        }}
-
-        /* КЛИМАТИЧЕСКАЯ ПАНЕЛЬ */
-        .climate-bar {{
-            background: #ffffff;
-            border: 1px solid var(--card-border);
-            border-radius: 14px;
-            padding: 12px 20px;
-            margin-bottom: 14px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            box-shadow: var(--card-shadow);
-        }}
-        .clim-item {{
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }}
-        .clim-label {{
-            font-size: 11px;
-            font-weight: 700;
-            color: #64748b;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-        }}
-        .clim-val {{
-            font-size: 16px;
-            font-weight: 700;
-            font-family: 'Segoe UI', monospace;
-        }}
-        .clim-divider {{
-            width: 1px;
-            height: 32px;
-            background: #e2e8f0;
-        }}
-        .val-purple {{ color: #7c3aed; }}
-        .val-cyan {{ color: #0284c7; }}
-        .val-teal {{ color: #0d9488; }}
-        .val-amber {{ color: #d97706; }}
-        .val-slate {{ color: #475569; }}
-
-        /* СЕТКА И КАРТОЧКИ */
-        .grid-top {{
-            display: grid;
-            grid-template-columns: 440px 1fr;
-            gap: 16px;
-            align-items: stretch;
-            margin-bottom: 16px;
-        }}
-        .card {{
-            background: #ffffff;
-            border-radius: 16px;
-            padding: 18px;
-            border: 1px solid var(--card-border);
-            box-shadow: var(--card-shadow);
-        }}
-        .card h2 {{
-            color: var(--sirius-teal-dark);
-            margin-top: 0;
-            font-size: 16px;
-            font-weight: 700;
-            border-bottom: 1.5px solid #f1f5f9;
-            padding-bottom: 10px;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }}
-        label {{
-            display: block;
-            margin-top: 10px;
-            font-weight: 600;
-            color: #334155;
-            font-size: 12px;
-            letter-spacing: 0.2px;
-        }}
-        select, input[type="text"] {{
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: 8px;
-            border: 1.5px solid #cbd5e1;
-            background: #f8fafc;
-            color: #0f172a;
-            margin-top: 4px;
-            box-sizing: border-box;
-            font-size: 13px;
-            font-weight: 500;
-            outline: none;
-            transition: all 0.2s;
-        }}
-        select:focus, input[type="text"]:focus {{
-            border-color: var(--sirius-teal);
-            background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(0, 164, 153, 0.15);
-        }}
-
-        /* КНОПКА ЗАПУСКА СИРИУС-ГРАДИЕНТ */
-        .btn-run {{
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #00a499 0%, #0d9488 50%, #059669 100%);
-            color: #ffffff;
-            border: none;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            margin-top: 15px;
-            box-shadow: 0 4px 14px rgba(0, 164, 153, 0.35);
-            transition: all 0.2s ease;
-            letter-spacing: 0.4px;
-        }}
-        .btn-run:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 164, 153, 0.5);
-            filter: brightness(1.05);
-        }}
-        .btn-run:active {{
-            transform: translateY(1px);
-        }}
-
-        /* МАТРИЦА КАНАЛОВ */
-        .channels {{
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            align-content: start;
-        }}
-        .ch-box {{
-            background: #f8fafc;
-            padding: 10px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            text-align: center;
-            transition: all 0.2s;
-        }}
-        .ch-box:hover {{
-            border-color: var(--sirius-teal);
-            box-shadow: 0 4px 12px rgba(0, 164, 153, 0.12);
-        }}
-        .preview-img {{
-            width: 100%;
-            height: 155px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            background: #f8fafc;
-            object-fit: contain;
-        }}
-
-        /* ТАБЛИЦА ЖУРНАЛА */
-        table {{
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 12px;
-        }}
-        th {{
-            background: #f1f5f9;
-            color: #475569;
-            padding: 11px 8px;
-            font-weight: 700;
-            border-bottom: 2px solid var(--sirius-teal);
-            white-space: nowrap;
-            text-align: center;
-            font-size: 11px;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            letter-spacing: 0.3px;
-        }}
-        td {{
-            padding: 9px 8px;
-            border-bottom: 1px solid #f1f5f9;
-            vertical-align: middle;
-            text-align: center;
-            color: #1e293b;
-            background: #ffffff;
-        }}
-        tr:nth-child(even) td {{
-            background: #f8fafc;
-        }}
-        tr:hover td {{
-            background: #e6fffa;
-        }}
-        th.col-actions, td.col-actions {{
-            position: sticky;
-            right: 0;
-            box-shadow: -3px 0 6px rgba(0, 0, 0, 0.06);
-        }}
-        th.col-actions {{
-            z-index: 15;
-            background: #f1f5f9;
-        }}
-        td.col-actions {{
-            z-index: 5;
-            background: #ffffff;
-        }}
-        tr:nth-child(even) td.col-actions {{
-            background: #f8fafc;
-        }}
-        tr:hover td.col-actions {{
-            background: #e6fffa;
-        }}
-    </style>
-</head>
-<body>
-<div class="container">
-    <!-- ОФИЦИАЛЬНЫЙ БРЕНДИРОВАННЫЙ ХЕДЕР СИРИУС -->
-    <div class="header">
-        <div class="header-inner">
-            <div class="header-logos">
-                <img src="/static/logos/bv_logo_badge.png" style="height: 42px; border-radius: 4px; object-fit: contain; box-shadow: 0 2px 8px rgba(0,0,0,0.2);" alt="Большие вызовы">
-                <div style="width: 1px; height: 34px; background: rgba(255,255,255,0.3);"></div>
-                <img src="/static/logos/agrobiotech_track_logo.png" style="height: 40px; object-fit: contain;" alt="Агропромышленные и биотехнологии">
-            </div>
-            <div class="header-titles">
-                <h1>Оптико-электронный комплекс фенотипирования стресса растений</h1>
-                <div class="header-badges">
-                    <span class="badge-sirius">★ СИРИУС · БОЛЬШИЕ ВЫЗОВЫ 2025/2026</span>
-                    <span class="badge-track">🌾 АГРОПРОМЫШЛЕННЫЕ И БИОТЕХНОЛОГИИ</span>
-                    <span class="badge-author">👩‍🔬 Автор: Ковалева Алиса Ивановна · 10 класс (СОШ №282 СПб)</span>
-                </div>
-            </div>
-            <div class="header-status">
-                <div class="status-online"><span class="pulsing-dot"></span> СТАНЦИЯ ОНЛАЙН</div>
-                <div class="station-hw">Orange Pi 4 Pro · Wi-Fi: <b>PlantStation</b> (192.168.4.1)</div>
-            </div>
-        </div>
-        <div class="header-subnote">
-            ⚠️ <b>Калибровочный испытательный стенд</b> (двухволновое стробирование Red 660 нм / NIR 850 нм + термография UTi120S)
-        </div>
-    </div>
-
-    <!-- МЕТЕОРОЛОГИЧЕСКАЯ ПАНЕЛЬ МИКРОКЛИМАТА -->
-    <div class="climate-bar">
-        <div class="clim-item">
-            <span class="clim-label">📡 Сенсор климата</span>
-            <span class="clim-val val-purple">Sensirion SHT30 (I2C-0)</span>
-        </div>
-        <div class="clim-divider"></div>
-        <div class="clim-item">
-            <span class="clim-label">🌡️ T воздуха</span>
-            <span class="clim-val val-cyan">{cur_t} °C</span>
-        </div>
-        <div class="clim-divider"></div>
-        <div class="clim-item">
-            <span class="clim-label">💧 Влажность RH</span>
-            <span class="clim-val val-teal">{cur_rh}%</span>
-        </div>
-        <div class="clim-divider"></div>
-        <div class="clim-item">
-            <span class="clim-label">🌬️ Дефицит VPD</span>
-            <span class="clim-val val-amber">{cur_vpd} кПа</span>
-        </div>
-        <div class="clim-divider"></div>
-        <div class="clim-item">
-            <span class="clim-label">⚡ Линия 3.3V</span>
-            <span class="clim-val val-slate">{cur_v} В</span>
-        </div>
-    </div>
-
-    {status_banner}
-
-    <div class="grid-top">
-        {grid_top_content}
-    </div>
-
-    <!-- НИЖНИЙ БЛОК: ЖУРНАЛ ИЗМЕРЕНИЙ НА ВСЮ ШИРИНУ -->
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:10px; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                <h2 style="margin:0; font-size:16px; border:none; padding:0; color:var(--sirius-teal-dark);">📋 Журнал физиологических замеров</h2>
-                <div style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px;">
-                    <span style="padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; background:var(--sirius-teal); color:#fff; box-shadow:0 1px 4px rgba(0,164,153,0.3);">Все замеры ({len(rows)})</span>
-                </div>
-            </div>
-            <div style="display:flex; gap:5px; flex-wrap:wrap;">
-                <span style="background:#ecfdf5; color:#065f46; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #a7f3d0;">🌱 К1: Контроль</span>
-                <span style="background:#f5f3ff; color:#5b21b6; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #ddd6fe;">🧂 К2: Осмос</span>
-                <span style="background:#fff1f2; color:#9f1239; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fecdd3;">🍂 К3: Засуха</span>
-                <span style="background:#fffbeb; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #fde68a;">🌡 К4: Превенция</span>
-                <span style="background:#eff6ff; color:#1e40af; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #bfdbfe;">👁 К5: Реакция</span>
-                <span style="background:#f8fafc; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700; font-size:10.5px; border:1px solid #cbd5e1;">⚙️ Стенд №0</span>
-            </div>
-        </div>
-        <div style="max-height: 320px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; background:#ffffff;">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width:45px;">№</th>
-                        <th style="width:130px;">Дата и время</th>
-                        <th style="width:115px;">Когорта</th>
-                        <th style="width:75px;">Масса</th>
-                        <th style="width:120px;">T возд / RH</th>
-                        <th style="width:80px;">T листа</th>
-                        <th style="width:135px;">ΔT (Стресс)</th>
-                        <th style="width:90px;">NDVI</th>
-                        <th style="width:85px;">🌿 PLA (см²)</th>
-                        <th style="width:65px;">Почва</th>
-                        <th style="width:105px;">Тепловизор</th>
-                        <th class="col-actions" style="width:72px;">Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {table_html}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- МОДАЛЬНОЕ ОКНО КОРРЕКЦИИ ЗАМЕРА -->
-<div id="editModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(15,23,42,0.6); align-items:center; justify-content:center; backdrop-filter:blur(2px);">
-    <div style="background:#ffffff; padding:22px; border-radius:12px; width:340px; box-shadow:0 12px 36px rgba(0,0,0,0.25); border:2px solid var(--sirius-teal);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
-            <h3 id="editModalTitle" style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">✏️ Коррекция замера</h3>
-            <button type="button" onclick="closeEditModal()" style="background:none; border:none; font-size:16px; cursor:pointer; color:#94a3b8;">✕</button>
-        </div>
-        <form action="/api/update_measurement" method="post" enctype="multipart/form-data">
-            <input type="hidden" name="meas_id" id="edit_meas_id">
-            <input type="hidden" name="cohort" id="edit_cohort">
-            <input type="hidden" name="timestamp" id="edit_timestamp">
-            
-            <div style="margin-bottom:12px;">
-                <label style="font-size:11px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">🌡️ T листа (°C):</label>
-                <input type="number" step="0.1" name="t_leaf" id="edit_t_leaf" required style="width:100%; padding:8px; font-size:14px; font-weight:bold; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box;">
-                <div style="display:flex; gap:3px; margin-top:4px;">
-                    <button type="button" onclick="adjTemp('edit_t_leaf', -1.0)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">-1°</button>
-                    <button type="button" onclick="adjTemp('edit_t_leaf', -0.5)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">-0.5°</button>
-                    <button type="button" onclick="adjTemp('edit_t_leaf', -0.1)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">-0.1°</button>
-                    <button type="button" onclick="adjTemp('edit_t_leaf', 0.1)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">+0.1°</button>
-                    <button type="button" onclick="adjTemp('edit_t_leaf', 0.5)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">+0.5°</button>
-                    <button type="button" onclick="adjTemp('edit_t_leaf', 1.0)" style="flex:1; font-size:10px; padding:2px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;">+1°</button>
-                </div>
-            </div>
-
-            <div style="margin-bottom:12px;">
-                <label style="font-size:11px; font-weight:bold; color:#0f766e; display:block; margin-bottom:4px;">⚖️ Масса кассеты с весов (г):</label>
-                <input type="text" name="weight_g" id="edit_weight" style="width:100%; padding:8px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
-            </div>
-
-            <div style="margin-bottom:12px;">
-                <label style="font-size:11px; font-weight:bold; color:#0284c7; display:block; margin-bottom:4px;">💧 Влажность субстрата (%):</label>
-                <input type="number" step="0.1" min="0" max="100" name="pct_soil" id="edit_soil" style="width:100%; padding:8px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
-            </div>
-
-            <div style="margin-bottom:16px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:8px;">
-                <label style="font-size:11px; font-weight:bold; color:#d97706; display:block; margin-bottom:4px;">📷 Прикрепить снимок UTi120S (.jpg):</label>
-                <input type="file" name="thermal_file" accept=".jpg,.jpeg,.png" style="font-size:11px; width:100%; color:#475569;">
-                <span style="font-size:10px; color:#94a3b8; display:block; margin-top:2px;">(необязательно, можно загрузить фото позже)</span>
-            </div>
-
-            <div style="display:flex; gap:8px;">
-                <button type="submit" style="flex:1; padding:10px; background:linear-gradient(135deg, #059669, #00a499); color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 Сохранить и пересчитать ΔT</button>
-                <button type="button" onclick="closeEditModal()" style="padding:10px 14px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer;">Отмена</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-function adjTemp(id, delta) {{
-    let inp = document.getElementById(id);
-    if (!inp) return;
-    let cur = parseFloat(inp.value.replace(',', '.')) || 23.5;
-    inp.value = (cur + delta).toFixed(1);
-}}
-function openEditModal(id, grp, ts, tLeaf, weight, soil) {{
-    document.getElementById('edit_meas_id').value = id;
-    document.getElementById('edit_cohort').value = grp || '';
-    document.getElementById('edit_timestamp').value = ts || '';
-    document.getElementById('editModalTitle').innerText = '✏️ Коррекция замера #' + id + (grp ? ' (' + grp + ')' : '');
-    let cleanT = (tLeaf || '').replace(' °C', '').replace('°C', '').trim();
-    if (cleanT === '--' || cleanT.toLowerCase().indexOf('none') !== -1) {{
-        cleanT = (id === '73' && grp === 'Соль') ? '30.2' : '23.5';
-    }}
-    document.getElementById('edit_t_leaf').value = cleanT;
-    let cleanW = (weight || '').replace(' г', '').replace('г', '').trim();
-    if (cleanW === '--') cleanW = '';
-    document.getElementById('edit_weight').value = cleanW;
-    let cleanS = (soil || '').replace('%', '').trim();
-    if (cleanS === '--') cleanS = '64.0';
-    document.getElementById('edit_soil').value = cleanS;
-    let modal = document.getElementById('editModal');
-    modal.style.display = 'flex';
-}}
-function closeEditModal() {{
-    document.getElementById('editModal').style.display = 'none';
-}}
-function dismissBanner() {{
-    let el = document.getElementById('statusAlert');
-    if (el) {{
-        el.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(-8px)';
-        setTimeout(() => el.remove(), 400);
-    }}
-    if (window.history && window.history.replaceState) {{
-        window.history.replaceState({{}}, document.title, window.location.pathname);
-    }}
-}}
-
-document.addEventListener('DOMContentLoaded', function() {{
-    if (document.getElementById('statusAlert')) {{
-        if (window.history && window.history.replaceState) {{
-            window.history.replaceState({{}}, document.title, window.location.pathname);
-        }}
-        setTimeout(function() {{
-            dismissBanner();
-        }}, 4500);
-    }}
-}});
-</script>
-</body>
-</html>'''
+          from fastapi.templating import Jinja2Templates
+    # Jinja setup (ideally global, but scoped here for quick patch)
+    templates = Jinja2Templates(directory="templates")
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "slots_html": slots_html,
+        "progress_html": progress_html,
+        "main_content": main_content,
+        "status_banner": status_banner,
+        "bg_color": bg_color,
+        "stage": stage,
+        "phase": phase
+    })ml>'''
     return html
 
 @app.get('/download/csv')
