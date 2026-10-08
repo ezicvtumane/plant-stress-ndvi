@@ -14,7 +14,7 @@
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from hardware.hal import get_climate_sensor, get_soil_sensor
+from hardware.hal import get_climate_sensor, get_soil_sensor, get_relay_controller
 
 import numexpr as ne
 
@@ -238,44 +238,14 @@ def init_csv():
 
 init_csv()
 
-RELAY_REQ = None
 
 def init_relay():
-    global RELAY_REQ
-    if not HAS_GPIOD:
-        return
-    if RELAY_REQ is None:
-        try:
-            settings = gpiod.LineSettings(
-                direction=Direction.OUTPUT,
-                active_low=True,
-                output_value=Value.INACTIVE
-            )
-            RELAY_REQ = gpiod.request_lines(
-                '/dev/gpiochip1',
-                consumer='smart_station_daemon',
-                config={(4,): settings, (7,): settings}
-            )
-            RELAY_REQ.set_value(4, Value.INACTIVE)
-            RELAY_REQ.set_value(7, Value.INACTIVE)
-            print('[GPIO] Relay hold initialized with active_low=True (OFF in standby): Pin 7 (PL4) & Pin 10 (PL7)', flush=True)
-        except Exception as e:
-            print('[GPIO] Relay init error:', e, flush=True)
+    """Инициализация реле через абстракцию HAL."""
+    get_relay_controller()
 
-init_relay()
-
-@app.on_event("shutdown")
 def cleanup_gpio():
-    global RELAY_REQ
-    if RELAY_REQ:
-        try:
-            RELAY_REQ.set_value(4, Value.INACTIVE)
-            RELAY_REQ.set_value(7, Value.INACTIVE)
-            RELAY_REQ.release()
-            RELAY_REQ = None
-            print('[GPIO] Relay lines released cleanly on shutdown', flush=True)
-        except Exception:
-            pass
+    """Безопасное отключение реле при выходе через абстракцию HAL."""
+    get_relay_controller().cleanup()
 
 def get_next_id() -> int:
     """O(1) ID via sidecar counter file instead of O(N) full CSV scan."""
@@ -1969,7 +1939,7 @@ async def index(
                 <a href="/api/start_batch?stage=batch5" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488 0%, #059669 45%, #2563eb 100%); color:white; padding:12px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.3); transition:all 0.2s;">
                     <span style="font-size:18px; display:block; margin-bottom:2px;">🌿🔬</span>
                     <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР 5 КАССЕТ (5-В-1)</b>
-                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Соль • 🟡 К3 Прибор • 🔵 К4 Глаза • 🔴 К5 Гибель</span>
+                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Осмос • 🔴 К3 Засуха • 🟡 К4 Превенция • 🔵 К5 Реакция</span>
                 </a>
 
                 <!-- Памятка по изолятору соли -->
