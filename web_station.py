@@ -2051,27 +2051,35 @@ async def index(
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
-                        <div>
-                            {f'''<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;"><label style="font-size:11px; font-weight:bold; color:#b45309;">⚖️ Масса с весов, г:</label><span style="background:#fee2e2; color:#dc2626; border:1px solid #fecdd3; padding:1px 5px; border-radius:3px; font-size:9.5px; font-weight:800;">НЕ ВВЕДЕН ⚠️</span></div><input type="text" name="weight_g_{i}" value="" placeholder="⚠️ Введите массу с весов (г)" style="width:100%; padding:7px; font-size:13px; font-weight:bold; border:2px dashed #f59e0b; background:#fffbeb; border-radius:6px; box-sizing:border-box;">''' if not str(s.get('user_weight', '')).strip() else f'''<label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0f766e;">⚖️ Масса с весов, г:</label><input type="text" name="weight_g_{i}" value="{s.get('user_weight', '')}" placeholder="напр. 415.0" style="width:100%; padding:7px; font-size:13px; border:2px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box;">'''}
-                        </div>
-                        <div>
-                            <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0284c7;">💧 Влажность почвы, %:</label>
-                            <input type="number" step="0.1" min="0" max="100" name="pct_soil_{i}" value="{s.get('pct_soil', 64.0)}" required style="width:100%; padding:7px; font-size:13px; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                                <label style="font-size:11px; font-weight:bold; color:#334155;">🌡️ T листа (°C):</label>
-                                <span style="font-size:10px; color:#64748b;">OCR: <b>{item['t_ocr']}°C</b></span>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; align-items:start;">
+                        <div style="display:flex; flex-direction:column;">
+                            <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                                <label style="font-size:11px; font-weight:700; color:#0f766e; white-space:nowrap; margin:0;">⚖️ Масса (г):</label>
+                                {'' if str(s.get('user_weight', '')).strip() else '<span style="background:#fee2e2; color:#dc2626; border:1px solid #fecdd3; padding:1px 4px; border-radius:3px; font-size:8.5px; font-weight:800;">НЕТ ВЕСА</span>'}
                             </div>
-                            <input type="number" step="0.1" name="t_leaf_{i}" id="t_leaf_{i}" value="{item['t_ocr']}" required style="width:100%; padding:7px; font-size:13px; font-weight:bold; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box;">
-                            <div style="display:flex; gap:2px; margin-top:4px;">
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', -1.0)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 1.0°C">-1°</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.5)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.5°C">-0.5°</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.1)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.1°C">-0.1°</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.1)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.1°C">+0.1°</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.5)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.5°C">+0.5°</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', 1.0)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 1.0°C">+1°</button>
+                            <input type="text" name="weight_g_{i}" value="{s.get('user_weight', '')}" placeholder="с весов (г)" style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; white-space:nowrap;">Весы (нетто)</div>
+                        </div>
+                        <div style="display:flex; flex-direction:column;">
+                            <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                                <label style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; margin:0;">💧 Влажность (%):</label>
+                            </div>
+                            <input type="number" step="0.1" min="0" max="100" name="pct_soil_{i}" value="{s.get('pct_soil', 64.0)}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">{s.get('pct_soil', 64.0)}% ПВ</div>
+                        </div>
+                        <div style="display:flex; flex-direction:column;">
+                            <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                                <label style="font-size:11px; font-weight:700; color:#334155; white-space:nowrap; margin:0;">🌡️ T листа (°C):</label>
+                                <span style="font-size:9.5px; color:#0284c7; background:#e0f2fe; padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap;">OCR {item['t_ocr']}°</span>
+                            </div>
+                            <input type="number" step="0.1" name="t_leaf_{i}" id="t_leaf_{i}" value="{item['t_ocr']}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            <div style="height:22px; margin-top:4px; display:flex; gap:2px;">
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 1.0°C">-1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.5°C">-.5°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.1°C">-.1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.1°C">+.1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.5°C">+.5°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 1.0°C">+1°</button>
                             </div>
                         </div>
                     </div>
@@ -2132,26 +2140,45 @@ async def index(
                 </div>
             '''
 
-        aruco_badge = f'<span style="background:#059669; color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold; box-shadow:0 2px 6px rgba(5,150,105,0.3);">🎯 ArUco #{s["aruco_id"]}: {s["group"]}</span>' if s.get('aruco_id') else f'<span style="background:var(--sirius-teal); color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">{s["group"]}</span>'
-        
+        aruco_badge = f'<span style="background:#059669; color:white; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; box-shadow:0 1px 4px rgba(5,150,105,0.3); white-space:nowrap;">🎯 ArUco #{s["aruco_id"]}: {s["group"]}</span>' if s.get('aruco_id') else f'<span style="background:var(--sirius-teal); color:white; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; white-space:nowrap;">{s["group"]}</span>'
+
         step1_note = f'''
-            <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#065f46;">
-                🎯 <b>ArUco-маркер #{s.get('aruco_id', '--')} обнаружен:</b> когорта <b>«{s['group']}»</b> определена автоматически.<br>
-                <span style="display:inline-block; margin-top:5px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🎯 Радиометрическая калибровка: White Ref k={s.get('k_bal', 1.025)} (диффузный эталон)</span>
-                <div style="margin-top:6px;">Переставьте кассету на весы и подключите тепловизор.</div>
+            <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; padding:10px 14px; border-radius:8px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                    <div style="font-size:12px; color:#166534; font-weight:700; display:flex; align-items:center; gap:5px;">
+                        <span>🎯</span> ArUco-маркер #{s.get('aruco_id', '--')} распознан: когорта «{s['group']}»
+                    </div>
+                    <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:5px; font-weight:700; font-size:10.5px;">
+                        White Ref k={s.get('k_bal', 1.025)} (PTFE)
+                    </span>
+                </div>
+                <div style="margin-top:5px; font-size:11.5px; color:#15803d;">
+                    ⚖️ Переставьте кассету на весы и подключите тепловизор для подтверждения параметров.
+                </div>
             </div>
         ''' if s.get('aruco_id') else f'''
-            <div style="background:#f0fdfa; border:1px solid #ccfbf1; padding:10px; border-radius:8px; margin-bottom:12px; font-size:12px; color:#0f766e;">
-                ✓ <b>Спектральный замер выполнен (ручной выбор когорты).</b><br>
-                <span style="display:inline-block; margin-top:5px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🎯 Радиометрическая калибровка: White Ref k={s.get('k_bal', 1.025)} (диффузный эталон)</span>
-                <div style="margin-top:6px;">Переставьте кассету на весы и подключите тепловизор кабелем к Orange Pi.</div>
+            <div style="background:#f0fdfa; border:1.5px solid #ccfbf1; padding:10px 14px; border-radius:8px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                    <div style="font-size:12px; color:#0f766e; font-weight:700;">
+                        ✓ Спектральный замер выполнен (когорта: «{s['group']}»)
+                    </div>
+                    <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:5px; font-weight:700; font-size:10.5px;">
+                        White Ref k={s.get('k_bal', 1.025)} (PTFE)
+                    </span>
+                </div>
+                <div style="margin-top:5px; font-size:11.5px; color:#0f766e;">
+                    ⚖️ Переставьте кассету на весы и подключите тепловизор для подтверждения параметров.
+                </div>
             </div>
         '''
 
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); background: #ffffff;">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
-                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:16px;">Шаг 2: Подтверждение замера #{s['id']}</h2>
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="background:var(--sirius-teal); color:#ffffff; font-size:10px; font-weight:800; text-transform:uppercase; padding:3px 7px; border-radius:4px; letter-spacing:0.5px;">Шаг 2</span>
+                        <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:16px; font-weight:800; white-space:nowrap;">Подтверждение замера #{s['id']}</h2>
+                    </div>
                     {aruco_badge}
                 </div>
 
@@ -2170,45 +2197,62 @@ async def index(
                     <input type="hidden" name="thermal_filename" value="{fn_show}">
                     <input type="hidden" name="thermal_thumb" value="{thumb_name}">
 
-                    <!-- ПОЛЯ ВВОДА -->
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:10px;">
-                        <div>
-                            <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0f766e;">⚖️ Масса кассеты, г:</label>
-                            <input type="text" name="weight_g" autofocus placeholder="с весов, напр. 415.0" required style="width:100%; padding:8px; font-size:13px; border:2px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0284c7;">💧 Влажность почвы, %:</label>
-                            <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="{s['pct_soil']}" required style="width:100%; padding:8px; font-size:13px; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                                <label style="font-size:11px; font-weight:bold; color:#334155;">🌡️ T листа (°C):</label>
-                                <span style="font-size:10px; color:#64748b;">OCR: <b>{t_leaf_init}°C</b></span>
+                    <!-- ПОЛЯ ВВОДА (ВЫРАВНЕНЫ ПО ГОРИЗОНТАЛИ И ВЕРТИКАЛИ) -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:12px; align-items:start;">
+                        <!-- Колонка 1: Масса -->
+                        <div style="display:flex; flex-direction:column;">
+                            <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                                <label style="font-size:11px; font-weight:700; color:#0f766e; white-space:nowrap; margin:0;">⚖️ Масса (г):</label>
                             </div>
-                            <input type="number" step="0.1" name="t_leaf" id="single_t_leaf" value="{t_leaf_init}" required style="width:100%; padding:8px; font-size:13px; font-weight:bold; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box;">
-                            <div style="display:flex; gap:2px; margin-top:4px;">
-                                <button type="button" onclick="adjTemp('single_t_leaf', -1.0)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 1.0°C">-1°</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', -0.5)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.5°C">-0.5°</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', -0.1)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.1°C">-0.1°</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', 0.1)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.1°C">+0.1°</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', 0.5)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.5°C">+0.5°</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', 1.0)" style="flex:1; font-size:10px; padding:2px 0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 1.0°C">+1°</button>
+                            <input type="text" name="weight_g" autofocus placeholder="с весов, напр. 415.0" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; white-space:nowrap;">
+                                Весы (нетто)
+                            </div>
+                        </div>
+
+                        <!-- Колонка 2: Влажность почвы -->
+                        <div style="display:flex; flex-direction:column;">
+                            <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                                <label style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; margin:0;">💧 Влажность (%):</label>
+                            </div>
+                            <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="{s['pct_soil']}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">
+                                {s.get('pct_soil', 0.0)}% ПВ
+                            </div>
+                        </div>
+
+                        <!-- Колонка 3: Температура листа -->
+                        <div style="display:flex; flex-direction:column;">
+                            <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                                <label style="font-size:11px; font-weight:700; color:#334155; white-space:nowrap; margin:0;">🌡️ T листа (°C):</label>
+                                <span style="font-size:9.5px; color:#0284c7; background:#e0f2fe; padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap;">OCR {t_leaf_init}°</span>
+                            </div>
+                            <input type="number" step="0.1" name="t_leaf" id="single_t_leaf" value="{t_leaf_init}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            <div style="height:22px; margin-top:4px; display:flex; gap:2px;">
+                                <button type="button" onclick="adjTemp('single_t_leaf', -1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 1.0°C">-1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', -0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.5°C">-.5°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', -0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.1°C">-.1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.1°C">+.1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.5°C">+.5°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 1.0°C">+1°</button>
                             </div>
                         </div>
                     </div>
 
-                    <div style="margin-top:10px; padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; color:#334155;">
+                    <div style="margin-top:12px; padding:9px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center; color:#334155;">
                         <span>T возд: <b style="color:#0284c7;">{s['t_air']} °C</b> (SHT30)</span>
                         <span>NDVI: <b style="color:#059669;">{s['mean_ndvi']}</b></span>
                         <span>VPD: <b style="color:#d97706;">{s['vpd']} кПа</b></span>
                     </div>
 
-                    <button type="submit" class="btn-confirm" style="width:100%; padding:14px; background:linear-gradient(135deg, #059669, #00a499); color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:12px; box-shadow:0 4px 12px rgba(0,164,153,0.3);">
-                        ✅ ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ В ЖУРНАЛ
+                    <button type="submit" class="btn-confirm" style="width:100%; height:46px; background:linear-gradient(135deg, #059669, #00a499); color:white; border:none; border-radius:8px; font-size:15px; font-weight:800; cursor:pointer; margin-top:12px; box-shadow:0 4px 12px rgba(0,164,153,0.3); display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <span>✅</span> ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ В ЖУРНАЛ
                     </button>
 
                     <div style="margin-top:10px; text-align:center;">
-                        <a href="/api/cancel_session" style="color:#64748b; font-size:12px; text-decoration:none;">❌ Отменить этот замер</a>
+                        <a href="/api/cancel_session" style="color:#64748b; font-size:12px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:4px; transition:all 0.2s;" onmouseover="this.style.color='#ef4444';" onmouseout="this.style.color='#64748b';">
+                            <span>✕</span> Отменить этот замер
+                        </a>
                     </div>
                 </form>
             </div>
