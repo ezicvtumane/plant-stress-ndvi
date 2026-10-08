@@ -54,6 +54,7 @@ import shutil
 import zipfile
 from PIL import Image
 import pytesseract
+from core.experiments import get_experiment_manager
 
 RELAY_REQ = None
 app = FastAPI(title='Plant Stress Lab Gallery Station')
@@ -918,16 +919,23 @@ def handle_save_final(
         shutil.copyfile(src_thumb, dst_path)
         shutil.copyfile(dst_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
 
+    row_to_add = [
+        meas_id, ts_display, group_name, weight_val,
+        s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+        t_leaf_val, delta_t_val, s['vpd'],
+        s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
+        s['opt_file'], jpg_stored_name,
+        *s['cell_ndvis']
+    ]
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow([
-            meas_id, ts_display, group_name, weight_val,
-            s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
-            t_leaf_val, delta_t_val, s['vpd'],
-            s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
-            s['opt_file'], jpg_stored_name,
-            *s['cell_ndvis']
-        ])
+        writer.writerow(row_to_add)
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    exp_mgr.save_measurement_row(row_to_add)
+    if s.get('opt_file'):
+        exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, s['opt_file']))
+    if jpg_stored_name:
+        exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, jpg_stored_name))
 
     PENDING_SESSION = None
     return RedirectResponse(url=f'/?msg=saved&last_grp={group_name}', status_code=303)
@@ -1180,10 +1188,16 @@ async def handle_batch_save_manual(request: Request):
     # Сортируем записи по ID кассеты перед записью в журнал
     records_to_save.sort(key=lambda x: x['cid'])
 
+    exp_mgr = get_experiment_manager(DATA_DIR)
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         for r in records_to_save:
             writer.writerow(r['row'])
+            exp_mgr.save_measurement_row(r['row'])
+            if len(r['row']) > 14 and r['row'][14]:
+                exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, r['row'][14]))
+            if len(r['row']) > 15 and r['row'][15]:
+                exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, r['row'][15]))
 
     stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', 'Серия 5 кассет (5-в-1)')
     BATCH_STATE = {
@@ -1265,10 +1279,16 @@ async def handle_batch_save_final(request: Request):
 
     records_to_save.sort(key=lambda r: r['cid'])
 
+    exp_mgr = get_experiment_manager(DATA_DIR)
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         for rec in records_to_save:
             writer.writerow(rec['row'])
+            exp_mgr.save_measurement_row(rec['row'])
+            if len(rec['row']) > 14 and rec['row'][14]:
+                exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, rec['row'][14]))
+            if len(rec['row']) > 15 and rec['row'][15]:
+                exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, rec['row'][15]))
 
     stage_name = BATCH_CONFIG.get(BATCH_STATE.get('stage_key', 'batch5'), {}).get('title', 'Пакетная серия')
     BATCH_STATE = {
@@ -1462,6 +1482,16 @@ async def index(
     cur_t, cur_rh, cur_v = await get_climate_sensor().read_climate()
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
+
+    # Инициализация и выбор активной серии опытов
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    set_exp_req = request.query_params.get('set_exp')
+    if set_exp_req:
+        exp_mgr.set_active_experiment(set_exp_req)
+    active_exp = exp_mgr.get_active_experiment()
+    experiments = exp_mgr.get_experiments()
+    active_csv = exp_mgr.get_active_csv_path()
+
 
     # Определение следующей группы по умолчанию для одиночного замера
     next_group_default = 'Контроль'
@@ -2027,6 +2057,9 @@ async def index(
                     <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР 5 КАССЕТ (5-В-1)</b>
                     <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Осмос • 🔴 К3 Засуха • 🟡 К4 Превенция • 🔵 К5 Реакция</span>
                 </a>
+                <div style="margin-top:7px; font-size:11px; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:5px 8px; text-align:center;">
+                    🌿 Запись в серию: <b>{active_exp.get('name')}</b> <span style="color:#64748b;">({active_exp.get('plant')})</span>
+                </div>
 
                 <!-- Памятка по изолятору соли -->
                 <div style="margin-top:8px; padding:6px 10px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; font-size:10px; color:#5b21b6; line-height:1.3;">
@@ -2055,10 +2088,10 @@ async def index(
             </div>
         '''
 
-    # ТАБЛИЦА ЖУРНАЛА
+    # ТАБЛИЦА ЖУРНАЛА АКТИВНОЙ СЕРИИ ОПЫТОВ
     rows = []
-    if os.path.exists(CSV_LOG):
-        with open(CSV_LOG, 'r', encoding='utf-8') as f:
+    if os.path.exists(active_csv):
+        with open(active_csv, 'r', encoding='utf-8') as f:
             all_r = list(csv.reader(f))
             if len(all_r) > 1:
                 rows = all_r[1:]
@@ -2384,7 +2417,10 @@ async def index(
         "cur_t": cur_t,
         "cur_rh": cur_rh,
         "cur_vpd": cur_vpd,
-        "cur_v": cur_v
+        "cur_v": cur_v,
+        "active_exp": active_exp,
+        "experiments": experiments,
+        "rows_count": len(rows)
     })
 @app.get('/download/pdf')
 def download_pdf():
@@ -2447,6 +2483,55 @@ def download_aruco_pdf():
     if os.path.exists(html_path):
         return FileResponse(html_path, filename='aruco_markers_cassettes.html', media_type='text/html')
     return HTMLResponse('Лист маркеров не найден')
+
+
+# ----------------- ЭНДПОИНТЫ УПРАВЛЕНИЯ СЕРИЯМИ ОПЫТОВ -----------------
+@app.post('/api/experiment/switch')
+def handle_experiment_switch(exp_id: str = Form(...)):
+    """Переключение активной серии опытов (культуры/растения)."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    exp_mgr.set_active_experiment(exp_id)
+    return RedirectResponse(url=f'/?msg=exp_switched&set_exp={exp_id}', status_code=303)
+
+@app.post('/api/experiment/create')
+def handle_experiment_create(
+    name: str = Form(...),
+    plant: str = Form(''),
+    description: str = Form('')
+):
+    """Создание новой серии опытов с выделенной папкой."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    new_e = exp_mgr.create_experiment(name=name, plant=plant, description=description)
+    return RedirectResponse(url=f'/?msg=exp_created&set_exp={new_e["id"]}', status_code=303)
+
+@app.get('/download/experiment_zip')
+def handle_download_experiment_zip(exp_id: str = ''):
+    """Выгрузка ZIP-архива конкретной серии (CSV + все снимки серии)."""
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    target_id = exp_id if exp_id else exp_mgr.get_active_experiment().get('id', 'exp_1')
+    target_exp = None
+    for e in exp_mgr.get_experiments():
+        if e['id'] == target_id:
+            target_exp = e
+            break
+    if not target_exp:
+        target_exp = exp_mgr.get_active_experiment()
+
+    safe_name = "".join(c for c in target_exp.get('name', 'experiment') if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    zip_fname = f"{safe_name}.zip"
+    zip_path = os.path.join(DATA_DIR, f"temp_{target_id}.zip")
+    exp_mgr.generate_zip(target_id, zip_path)
+    return FileResponse(zip_path, filename=zip_fname, media_type='application/zip')
+
+@app.get('/download/csv')
+def download_active_csv():
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    csv_p = exp_mgr.get_active_csv_path()
+    active_exp = exp_mgr.get_active_experiment()
+    safe_name = "".join(c for c in active_exp.get('name', 'experiment') if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    if os.path.exists(csv_p):
+        return FileResponse(csv_p, filename=f'{safe_name}_measurements.csv', media_type='text/csv')
+    return HTMLResponse('Файл журнала пуст')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
