@@ -680,12 +680,31 @@ def do_hardware_spectral_capture(group_name: str):
     ndvi_map = np.clip(ndvi_map, -1.0, 1.0)
 
     # Сегментация проективной листовой поверхности (Projected Leaf Area, PLA)
-    # Растения: выраженное ИК-отражение мезофилла над темновым шумом (> 20.0 DN) + положительный NDVI (> 0.05)
-    leaf_mask = ((ndvi_map > 0.05) & (nir_channel > 20.0)).astype(np.uint8)
+    # Живой хлорофилл/мезофилл: уверенный порог NDVI > 0.28 (отсекает почву 0.0-0.2, пластик и тени)
+    # + выраженный сигнал отражения NIR над темновым шумом (> 22.0 DN)
+    leaf_mask = ((ndvi_map > 0.28) & (nir_channel > 22.0)).astype(np.uint8)
     if is_valid_white:
         leaf_mask[roi_y1:roi_y2, roi_x1:roi_x2] = 0
+
+    # 1. Полное геометрическое исключение маркера ArUco вместе с белой бумажной подложкой (расширение на 45%)
     if aruco_corners is not None:
-        cv2.fillPoly(leaf_mask, [aruco_corners.reshape((-1, 1, 2)).astype(np.int32)], 0)
+        pts_poly = aruco_corners.reshape((-1, 2)).astype(np.float32)
+        center_ar = np.mean(pts_poly, axis=0)
+        expanded_poly = ((pts_poly - center_ar) * 1.45 + center_ar).astype(np.int32)
+        cv2.fillPoly(leaf_mask, [expanded_poly.reshape((-1, 1, 2))], 0)
+
+    # 2. Исключение паразитных краевых зон (стыки стенок, петли крышки бокса: верх 5%, низ 3%, бока 3%)
+    margin_top = int(h_f * 0.05)
+    margin_bot = int(h_f * 0.03)
+    margin_side = int(w_f * 0.03)
+    leaf_mask[:margin_top, :] = 0
+    leaf_mask[h_f - margin_bot:, :] = 0
+    leaf_mask[:, :margin_side] = 0
+    leaf_mask[:, w_f - margin_side:] = 0
+
+    # 3. Морфологическая фильтрация: удаление мелкого точечного шума матрицы (ядро 3x3)
+    kernel_noise = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    leaf_mask = cv2.morphologyEx(leaf_mask, cv2.MORPH_OPEN, kernel_noise)
 
     print(f'[DEBUG Capture] NIR: mean={nir_raw.mean():.1f}, p90={np.percentile(nir_raw, 90):.1f}, amb={amb_nir.mean():.1f}', flush=True)
     print(f'[DEBUG Capture] RED: mean={red_raw.mean():.1f}, p90={np.percentile(red_raw, 90):.1f}, amb={amb_red.mean():.1f}', flush=True)
@@ -716,8 +735,8 @@ def do_hardware_spectral_capture(group_name: str):
     else:
         vis_nir = frame_nir.copy()
 
-    # Высококонтрастная палитра Turbo для отображения вегетации (диапазон 0.05 .. 0.65):
-    ndvi_disp = np.clip((ndvi_map - 0.05) / 0.60 * 255.0, 0, 255).astype(np.uint8)
+    # Высококонтрастная палитра Turbo для отображения вегетации (диапазон 0.20 .. 0.85):
+    ndvi_disp = np.clip((ndvi_map - 0.20) / 0.65 * 255.0, 0, 255).astype(np.uint8)
     vis_ndvi_color = cv2.applyColorMap(ndvi_disp, cv2.COLORMAP_TURBO)
     vis_ndvi_color[leaf_mask == 0] = [35, 15, 30] # Темный нейтральный фон для почвы и артефактов
 
