@@ -24,6 +24,7 @@ from datetime import datetime
 import subprocess
 import numpy as np
 from src.sensors_ads1115 import _global_reader
+from src.profiler import profile_performance  # OPT: performance tracking
 import cv2
 try:
     import gpiod
@@ -293,22 +294,22 @@ def cleanup_gpio():
         except Exception:
             pass
 
-def get_next_id():
-    if not os.path.exists(CSV_LOG): return 1
-    with open(CSV_LOG, 'r', encoding='utf-8') as f:
-        rows = list(csv.reader(f))
-        if len(rows) <= 1:
-            return 1
-        max_id = 0
-        for r in rows[1:]:
-            if r and r[0]:
-                try:
-                    val = int(r[0])
-                    if val > max_id:
-                        max_id = val
-                except ValueError:
-                    pass
-        return max_id + 1
+def get_next_id() -> int:
+    """O(1) ID via sidecar counter file instead of O(N) full CSV scan."""
+    counter_path = os.path.join(DATA_DIR, '.id_counter')
+    try:
+        with open(counter_path, 'r') as _f:
+            current = int(_f.read().strip())
+    except (FileNotFoundError, ValueError):
+        if not os.path.exists(CSV_LOG):
+            current = 0
+        else:
+            with open(CSV_LOG, 'r', encoding='utf-8') as _f:
+                current = max(0, sum(1 for _ in _f) - 1)  # lines minus header
+    next_id = current + 1
+    with open(counter_path, 'w') as _f:
+        _f.write(str(next_id))
+    return next_id
 
 def read_moisture_mock(group_name: str = ''):
     """
@@ -461,7 +462,7 @@ def auto_mount_uti():
         if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
             return True
     except Exception:
-        os.system('sudo umount -l /media/uti120s 2>/dev/null')
+        subprocess.run(['sudo','umount','-l','/media/uti120s'], capture_output=True)  # OPT
 
     uti_devs = glob.glob('/dev/disk/by-id/usb-STM_UTi120S_*-part1')
     candidate_devs = uti_devs + ['/dev/sdb1', '/dev/sda1', '/dev/sdc1', '/dev/sdd1']
@@ -469,8 +470,8 @@ def auto_mount_uti():
     for dev in candidate_devs:
         if os.path.exists(dev):
             os.makedirs('/media/uti120s', exist_ok=True)
-            os.system('sudo umount -l /media/uti120s 2>/dev/null')
-            os.system(f'sudo mount -o ro {dev} /media/uti120s 2>/dev/null')
+            subprocess.run(['sudo','umount','-l','/media/uti120s'], capture_output=True)  # OPT
+            subprocess.run(['sudo','mount','-o','ro',dev,'/media/uti120s'], capture_output=True, timeout=5)  # OPT: no shell injection
             try:
                 if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
                     print(f'[UTi120S] Successfully mounted {dev}, images: {len(os.listdir(UTI_DIR))}')
@@ -535,6 +536,7 @@ def get_file_info_at_index(index: int = 0):
         't_ocr': t_ocr
     }
 
+@profile_performance
 def do_hardware_spectral_capture(group_name: str):
     """
     Шаг 1: Оптический спектральный замер NoIR камеры со стробированием.
@@ -625,15 +627,11 @@ def do_hardware_spectral_capture(group_name: str):
     # Канал 660 нм: чистый красный подуровень матрицы под узкополосным светом 660 нм
     red_raw = frame_red[:, :, 2].astype(np.float32)
     # Канал 850 нм: интегральный отклик матрицы NoIR под узкополосным ИК-светом 850 нм
-    nir_raw = (frame_nir[:, :, 0].astype(np.float32) + 
-               frame_nir[:, :, 1].astype(np.float32) + 
-               frame_nir[:, :, 2].astype(np.float32)) / 3.0
+    nir_raw = frame_nir.astype(np.float32).mean(axis=2)  # OPT: 7 passes -> 1
 
     # Вычитание фоновой фотометрической засветки с учетом индивидуальных темновых кадров
     amb_red = frame_amb_red[:, :, 2].astype(np.float32)
-    amb_nir = (frame_amb_nir[:, :, 0].astype(np.float32) + 
-               frame_amb_nir[:, :, 1].astype(np.float32) + 
-               frame_amb_nir[:, :, 2].astype(np.float32)) / 3.0
+    amb_nir = frame_amb_nir.astype(np.float32).mean(axis=2)  # OPT: vectorized
 
     red_channel = np.maximum(0.0, red_raw - amb_red)
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
@@ -737,25 +735,26 @@ def do_hardware_spectral_capture(group_name: str):
     cv2.putText(annotated_ndvi, f'PLA: {leaf_area_total} cm2', (w - 260, max(26, roi_y1 + 12)),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 128), 2)
 
-    cell_areas = []
-    cell_ndvis = []
+    # OPT: vectorized 3x3 grid — NumPy reshape, no Python loop overhead
+    _G = 3
+    _nd_g = ndvi_map[:cell_h*_G, :cell_w*_G].reshape(_G, cell_h, _G, cell_w).transpose(0, 2, 1, 3)
+    _mk_g = leaf_mask[:cell_h*_G, :cell_w*_G].reshape(_G, cell_h, _G, cell_w).transpose(0, 2, 1, 3)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        _masked = np.where(_mk_g > 0, _nd_g, np.nan).reshape(_G, _G, -1)
+        _ndvi_grid = np.nan_to_num(np.nanmean(_masked, axis=2), nan=0.0)
+    _area_grid = _mk_g.reshape(_G, _G, -1).sum(axis=2) * px_to_cm2
+    cell_areas = [round(float(v), 1) for v in _area_grid.ravel()]
+    cell_ndvis = [round(float(v), 3) for v in _ndvi_grid.ravel()]
+
     for r in range(3):
         for c in range(3):
             y1, y2 = r * cell_h, (r + 1) * cell_h
             x1, x2 = c * cell_w, (c + 1) * cell_w
-            
-            c_mask = leaf_mask[y1:y2, x1:x2]
-            c_px_count = int(np.count_nonzero(c_mask))
-            c_area = round(float(c_px_count * px_to_cm2), 1)
-            cell_areas.append(c_area)
-
-            c_ndvi_roi = ndvi_map[y1:y2, x1:x2]
-            valid_leaf_ndvi = c_ndvi_roi[c_mask > 0]
-            if len(valid_leaf_ndvi) >= 20:
-                cell_val = round(float(np.mean(valid_leaf_ndvi)), 3)
-            else:
-                cell_val = 0.000
-            cell_ndvis.append(cell_val)
+            idx = r * 3 + c
+            c_area = cell_areas[idx]
+            cell_val = cell_ndvis[idx]
 
             cv2.rectangle(annotated_ndvi, (x1, y1), (x2, y2), (255, 255, 255), 2)
             cv2.putText(annotated_ndvi, f'#{r*3+c+1}: {cell_val}', (x1 + 12, y1 + 32),
@@ -2592,6 +2591,7 @@ def index(
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
+            align-content: start;
         }}
         .ch-box {{
             background: #f8fafc;
