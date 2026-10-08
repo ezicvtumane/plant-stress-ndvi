@@ -412,7 +412,7 @@
     {{ status_banner | safe }}
 
     <div class="grid-top">
-        {{ grid_top_content }}
+        {{ grid_top_content | safe }}
     </div>
 
     <!-- НИЖНИЙ БЛОК: ЖУРНАЛ ИЗМЕРЕНИЙ НА ВСЮ ШИРИНУ -->
@@ -452,7 +452,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {{ table_html }}
+                    {{ table_html | safe }}
                 </tbody>
             </table>
         </div>
