@@ -45,7 +45,8 @@ from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 from api.routes.downloads import router as downloads_router, init_downloads
 from fastapi.templating import Jinja2Templates
-from api.routes.downloads import router as downloads_router, init_downloads, Request, Form, UploadFile, File, BackgroundTasks
+from api.routes.downloads import router as downloads_router, init_downloads
+from fastapi import Request, Form, UploadFile, File, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
