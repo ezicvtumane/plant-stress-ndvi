@@ -54,6 +54,7 @@ import shutil
 import zipfile
 from PIL import Image
 import pytesseract
+from core.experiments import get_experiment_manager
 
 RELAY_REQ = None
 app = FastAPI(title='Plant Stress Lab Gallery Station')
@@ -1475,6 +1476,16 @@ async def index(
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
 
+    # Инициализация и выбор активной серии опытов
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    set_exp_req = request.query_params.get('set_exp')
+    if set_exp_req:
+        exp_mgr.set_active_experiment(set_exp_req)
+
+    active_exp = exp_mgr.get_active_experiment()
+    experiments = exp_mgr.get_experiments()
+    active_csv = exp_mgr.get_active_csv_path()
+
     # Определение следующей группы по умолчанию для одиночного замера
     next_group_default = 'Контроль'
     if last_grp == 'Контроль':
@@ -2178,10 +2189,10 @@ async def index(
             </div>
         '''
 
-    # ТАБЛИЦА ЖУРНАЛА
+    # ТАБЛИЦА ЖУРНАЛА АКТИВНОЙ СЕРИИ ОПЫТОВ
     rows = []
-    if os.path.exists(CSV_LOG):
-        with open(CSV_LOG, 'r', encoding='utf-8') as f:
+    if os.path.exists(active_csv):
+        with open(active_csv, 'r', encoding='utf-8') as f:
             all_r = list(csv.reader(f))
             if len(all_r) > 1:
                 rows = all_r[1:]
@@ -2507,7 +2518,10 @@ async def index(
         "cur_t": cur_t,
         "cur_rh": cur_rh,
         "cur_vpd": cur_vpd,
-        "cur_v": cur_v
+        "cur_v": cur_v,
+        "active_exp": active_exp,
+        "experiments": experiments,
+        "rows_count": len(rows)
     })
 @app.get('/download/pdf')
 def download_pdf():
