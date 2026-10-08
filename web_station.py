@@ -523,7 +523,7 @@ def do_hardware_spectral_capture(group_name: str):
     if RELAY_REQ:
         # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
         # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
-        set_v4l2_exposure(4000, 200)
+        set_v4l2_exposure(2500, 200)
         time.sleep(0.20)
         RELAY_REQ.set_value(7, Value.ACTIVE)
         time.sleep(0.40)
@@ -537,7 +537,7 @@ def do_hardware_spectral_capture(group_name: str):
         _, frame_amb_nir = cap.read()
 
         # 2. Спектральная съемка RED 660 нм (калиброванная экспозиция 120/40 без клиппинга)
-        set_v4l2_exposure(500, 100)
+        set_v4l2_exposure(120, 40)
         time.sleep(0.20)
         for _ in range(8): cap.read()
         RELAY_REQ.set_value(4, Value.ACTIVE)
@@ -555,7 +555,7 @@ def do_hardware_spectral_capture(group_name: str):
         if not ret_n: frame_nir = frame_amb_nir
         frame_amb = frame_amb_red
     else:
-        set_v4l2_exposure(4000, 200)
+        set_v4l2_exposure(2500, 200)
         for _ in range(5): cap.read()
         ret, frame_amb_nir = cap.read()
         frame_red = frame_amb_nir
@@ -1464,6 +1464,14 @@ async def index(
             </div>
         '''
 
+    slots_html = ''
+    progress_html = ''
+    wizard_card = ''
+    summary_card = ''
+    main_content = ''
+    bg_color = ''
+    phase = ''
+    status_banner = status_banner if 'status_banner' in locals() else ''
     # ------------------ ЛОГИКА ЭТАПОВ (WIZARD) ------------------
     if stage == 'batch_shoot' and BATCH_STATE.get('active'):
         # ПАКЕТНЫЙ ШАГ 1: Съемка кассет NoIR + курок тепловизора
@@ -2246,7 +2254,7 @@ async def index(
     if not table_html:
         table_html = '<tr><td colspan="12" style="text-align:center; padding:35px 20px; color:#64748b; font-size:14px;">🌱 <b>Журнал физиологических замеров пуст.</b><br><span style="font-size:12px; color:#94a3b8;">Запустите пакетный замер кассет 1–5, чтобы начать фиксацию данных нового эксперимента.</span></td></tr>'
 
-        grid_top_content = f'''
+    grid_top_content = f'''
         <div style="display:flex; flex-direction:column; gap:12px;">
             {wizard_card}
             {summary_card}
@@ -2289,15 +2297,21 @@ async def index(
     '''
 
     templates = Jinja2Templates(directory="templates")
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "request": request,
         "slots_html": slots_html,
         "progress_html": progress_html,
         "main_content": main_content,
+        "grid_top_content": grid_top_content,
+        "table_html": table_html,
         "status_banner": status_banner,
         "bg_color": bg_color,
         "stage": stage,
-        "phase": phase
+        "phase": phase,
+        "cur_t": cur_t,
+        "cur_rh": cur_rh,
+        "cur_vpd": cur_vpd,
+        "cur_v": cur_v
     })
 @app.get('/download/pdf')
 def download_pdf():
