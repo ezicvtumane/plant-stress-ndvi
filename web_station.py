@@ -12,6 +12,13 @@
 5. Подтверждение и сохранение в базу.
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import numexpr as ne
+
+# Очередь для I2C запросов (защита от коллизий на шине)
+i2c_executor = ThreadPoolExecutor(max_workers=1)
+
 import os
 import time
 import json
@@ -32,7 +39,7 @@ try:
     HAS_GPIOD = True
 except ImportError:
     HAS_GPIOD = False
-from fastapi import FastAPI, Request, Form, UploadFile, File
+from fastapi import FastAPI, Request, Form, UploadFile, File, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -124,7 +131,7 @@ def _read_climate_sync():
 
 async def read_climate_async():
     import asyncio
-    return await asyncio.to_thread(_read_climate_sync)
+    return await asyncio.get_running_loop().run_in_executor(i2c_executor, _read_climate_sync)
 
 def calc_vpd(t_c: float, rh_pct: float) -> float:
     """Расчет дефицита упругости водяного пара (Vapor Pressure Deficit, кПа)."""
@@ -285,18 +292,17 @@ def get_next_id() -> int:
         _f.write(str(next_id))
     return next_id
 
+def _read_moisture_i2c_sync():
+    import smbus2
+    with smbus2.SMBus(0) as bus:
+        bus.write_i2c_block_data(0x48, 0x01, [0xC3, 0x83])
+        time.sleep(0.04)
+        return bus.read_i2c_block_data(0x48, 0x00, 2)
+
 def read_moisture_mock(group_name: str = ''):
-    """
-    Чтение аналогового емкостного датчика влажности почвы через 16-битный АЦП ADS1115 (I2C-0, адрес 0x48, канал A0).
-    Калибровка: Сухой датчик на воздухе V_dry = 2.03 В (0%), Погружение в воду V_wet = 0.57 В (100%).
-    """
+    """Чтение АЦП ADS1115 через выделенный I2C-пул."""
     try:
-        import smbus2
-        with smbus2.SMBus(0) as bus:
-            # Регистр конфигурации 0x01: одиночное преобразование, AIN0 относительно GND, диапазон +/-4.096 В, 128 SPS
-            bus.write_i2c_block_data(0x48, 0x01, [0xC3, 0x83])
-            time.sleep(0.04)
-            c = bus.read_i2c_block_data(0x48, 0x00, 2)
+        c = i2c_executor.submit(_read_moisture_i2c_sync).result()
         raw = (c[0] << 8) | c[1]
         if raw > 32767:
             raw -= 65536
@@ -624,9 +630,10 @@ def do_hardware_spectral_capture(group_name: str):
         k_bal = 1.35
 
     # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
-    denom = (k_bal * nir_channel) + red_channel
-    denom[denom == 0] = 1e-5
-    ndvi_map = (k_bal * nir_channel - red_channel) / denom
+    if red_channel.dtype != np.float32: red_channel = red_channel.astype(np.float32)
+    if nir_channel.dtype != np.float32: nir_channel = nir_channel.astype(np.float32)
+    # Использование NumExpr для Zero-copy вычислений и экономии RAM
+    ndvi_map = ne.evaluate('(k_bal * nir_channel - red_channel) / (k_bal * nir_channel + red_channel + 1e-8)')
     ndvi_map = np.clip(ndvi_map, -1.0, 1.0)
 
     # Сегментация проективной листовой поверхности (Projected Leaf Area, PLA)
@@ -2308,10 +2315,8 @@ def download_csv():
         return FileResponse(CSV_LOG, filename='plant_stress_measurements.csv')
     return HTMLResponse('Файл пока пуст')
 
-@app.get('/download/images_zip')
-def download_images_zip():
-    """Скачать архив всех сохраненных снимков NDVI и термограмм."""
-    zip_path = os.path.join(DATA_DIR, 'plant_stress_gallery.zip')
+def _generate_zip(zip_path: str):
+    import zipfile
     with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
         if os.path.exists(CSV_LOG):
             zf.write(CSV_LOG, arcname='measurements.csv')
@@ -2319,9 +2324,24 @@ def download_images_zip():
             if (fname.startswith(('opt_', 'therm_', 'ndvi_')) or fname in ('last_ndvi.jpg', 'last_thermal.jpg')) and fname.endswith(('.jpg', '.png')):
                 full_p = os.path.join(STATIC_DIR, fname)
                 zf.write(full_p, arcname=f'photos/{fname}')
+
+@app.get('/download/images_zip')
+def download_images_zip(background_tasks: BackgroundTasks):
+    """Скачать архив снимков с фоновой генерацией (BackgroundTasks)."""
+    zip_path = os.path.join(DATA_DIR, 'plant_stress_gallery.zip')
+    
+    needs_regen = True
     if os.path.exists(zip_path):
-        return FileResponse(zip_path, filename='plant_stress_gallery.zip', media_type='application/zip')
-    return HTMLResponse('Снимков пока нет')
+        if time.time() - os.path.getmtime(zip_path) < 3600:
+            needs_regen = False
+            
+    if needs_regen:
+        background_tasks.add_task(_generate_zip, zip_path)
+        if not os.path.exists(zip_path):
+            from fastapi.responses import JSONResponse
+            return JSONResponse({'status': 'processing', 'message': 'Архив формируется в фоне. Обновите страницу через 30 секунд.'}, status_code=202)
+            
+    return FileResponse(zip_path, filename='plant_stress_gallery.zip', media_type='application/zip')
 
 @app.get('/download/pdf')
 def download_pdf():
