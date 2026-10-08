@@ -83,6 +83,34 @@ def save_calibrated_k_bal(val: float):
             f.write(f"{val:.3f}\n")
     except Exception as e:
         print(f"[Calib Save Error]: {e}")
+
+SOIL_CALIBRATION_FILE = os.path.join(DATA_DIR, "calibrated_soil.json")
+SOIL_V_DRY_DEFAULT = 2.45
+SOIL_V_WET_DEFAULT = 0.95
+
+def get_soil_calibration() -> tuple[float, float]:
+    try:
+        if os.path.exists(SOIL_CALIBRATION_FILE):
+            with open(SOIL_CALIBRATION_FILE, 'r', encoding='utf-8') as f:
+                d = json.load(f)
+                vd = float(d.get('v_dry', SOIL_V_DRY_DEFAULT))
+                vw = float(d.get('v_wet', SOIL_V_WET_DEFAULT))
+                if vd > vw:
+                    return vd, vw
+    except Exception:
+        pass
+    return SOIL_V_DRY_DEFAULT, SOIL_V_WET_DEFAULT
+
+def soil_voltage_to_pct(v: float) -> float:
+    vd, vw = get_soil_calibration()
+    if vd <= vw: return 0.0
+    pct = ((vd - v) / (vd - vw)) * 100.0
+    return round(max(0.0, min(100.0, pct)), 1)
+
+def soil_pct_to_voltage(pct: float) -> float:
+    vd, vw = get_soil_calibration()
+    v = vd - (pct / 100.0) * (vd - vw)
+    return round(max(0.0, v), 2)
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 TH_CACHE_DIR = os.path.join(STATIC_DIR, 'uti_cache')
 UTI_DIR = '/media/uti120s/Images'
@@ -329,7 +357,7 @@ def read_moisture_mock(group_name: str = ''):
             v_base, pct_base = 1.85, 63.9
         jitter = round(float(np.random.uniform(-0.6, 0.6)), 1)
         pct_final = round(max(0.0, min(100.0, pct_base + jitter)), 1)
-        v_final = round(3.0 - (pct_final / 100.0) * 1.8, 2)
+        v_final = soil_pct_to_voltage(pct_final)
         return v_final, pct_final
 
 def extract_temperature_from_thermal(img_path: str):
@@ -947,7 +975,7 @@ def handle_save_final(
         try:
             ps_val = float(ps_clean.replace(',', '.'))
             s['pct_soil'] = round(max(0.0, min(100.0, ps_val)), 1)
-            s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+            s['v_soil'] = soil_pct_to_voltage(s['pct_soil'])
         except Exception:
             s['pct_soil'] = ''
             s['v_soil'] = ''
@@ -1098,7 +1126,7 @@ def handle_batch_capture_next(
                 ps_num = round(float(ps_clean.replace(',', '.')), 1)
                 session['user_pct_soil'] = str(ps_num)
                 session['pct_soil'] = ps_num
-                session['v_soil'] = round(3.0 - (ps_num / 100.0) * 1.8, 2)
+                session['v_soil'] = soil_pct_to_voltage(ps_num)
             except Exception:
                 session['user_pct_soil'] = ''
                 session['pct_soil'] = ''
@@ -1236,7 +1264,7 @@ async def handle_batch_save_manual(request: Request):
             try:
                 ps = float(ps_clean.replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-                s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+                s['v_soil'] = soil_pct_to_voltage(s['pct_soil'])
             except Exception:
                 s['pct_soil'] = ''
                 s['v_soil'] = ''
@@ -1253,7 +1281,7 @@ async def handle_batch_save_manual(request: Request):
                     try:
                         ps = float(user_p.replace(',', '.'))
                         s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-                        s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+                        s['v_soil'] = soil_pct_to_voltage(s['pct_soil'])
                     except Exception:
                         s['pct_soil'] = ''
                         s['v_soil'] = ''
@@ -1339,7 +1367,7 @@ async def handle_batch_save_final(request: Request):
             try:
                 ps = float(ps_clean.replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-                s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+                s['v_soil'] = soil_pct_to_voltage(s['pct_soil'])
             except Exception:
                 s['pct_soil'] = ''
                 s['v_soil'] = ''
@@ -1562,7 +1590,7 @@ def handle_update_measurement(
                             ps = round(max(0.0, min(100.0, ps)), 1)
                             if len(r) >= 24:
                                 r[7] = str(ps)
-                                r[6] = str(round(3.0 - (ps / 100.0) * 1.8, 2))
+                                r[6] = str(soil_pct_to_voltage(ps))
                             elif len(r) >= 20:
                                 r[5] = str(ps)
                         except Exception:
