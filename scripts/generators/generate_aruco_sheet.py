@@ -73,7 +73,7 @@ for m_id, name, strat, reg, status in ARUCO_CASSETTES:
 # ==============================================================================
 import base64
 import json
-with open("/tmp/icons_b64.json", "r") as f_ic:
+with open("/tmp/icons_clean_b64.json", "r") as f_ic:
     ICONS_B64 = json.load(f_ic)
 cards_html = ""
 for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
@@ -94,14 +94,10 @@ for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
                 <div class="aruco-caption">ARUCO #{m_id}</div>
             </div>
 
-            <!-- Пиктограмма оператора -->
-            <div class="pictogram-box">
-                <img src="{icon_src}" alt="Icon">
-            </div>
-            <!-- Центральный блок: Контурный номер для человека (Алисы) -->
-            <div class="num-badge">
-                <div class="num-sub">КАССЕТА</div>
-                <div class="num-val">{m_id}</div>
+            <!-- Центральный блок: Пиктограмма с номером (встроенная) -->
+            <div class="num-badge" style="position:relative; background:#e8e8e8; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                <img src="{icon_src}" alt="Icon" style="width:50px; height:auto;">
+                <div style="position:absolute; bottom:0px; right:4px; font-size:26px; font-family:Arial, sans-serif; color:#000000; font-weight:500;">{m_id}</div>
             </div>
 
             <!-- Правый блок: Научный регламент и статус -->
