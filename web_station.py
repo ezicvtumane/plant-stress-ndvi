@@ -2155,6 +2155,46 @@ async def index(
                 sel = 'selected' if cid == assigned_id else ''
                 options_html += f'<option value="{cid}" {sel}>Кассета #{cid}: {cdata["name"]}</option>'
 
+            k4_verify_alert = ''
+            if assigned_id == 4:
+                try:
+                    ocr_t = float(item['t_ocr'])
+                    base_air = float(s.get('t_air_win') or s.get('t_air', 24.5))
+                    dt_k4 = round(ocr_t - base_air, 1)
+                    if dt_k4 >= 0.0:
+                        k4_verify_alert = f'''
+                            <div style="background:#fef2f2; border:2px solid #ef4444; border-radius:8px; padding:8px 12px; margin:8px 0; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:22px; line-height:1;">🚨</span>
+                                    <div>
+                                        <b style="color:#991b1b; font-size:12px; display:block; text-transform:uppercase;">АЛЕРТ СТАНЦИИ: НАСТУПИЛО «ОКНО СПАСЕНИЯ» (ΔT = +{dt_k4}°C)!</b>
+                                        <span style="font-size:11px; color:#7f1d1d;">Устьица закрыты, транспирация упала. СРОЧНО ПОЛЕЙТЕ КАССЕТУ #4 («Превенция») ПОСЛЕ ЗАМЕРА!</span>
+                                    </div>
+                                </div>
+                                <span style="background:#dc2626; color:#fff; font-size:11px; font-weight:800; padding:4px 8px; border-radius:4px; text-transform:uppercase; white-space:nowrap;">ПОЛИТЬ К4 💧</span>
+                            </div>
+                        '''
+                    elif dt_k4 >= -0.3:
+                        k4_verify_alert = f'''
+                            <div style="background:#fffbeb; border:1.5px solid #f59e0b; border-radius:8px; padding:6px 10px; margin:8px 0; display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:18px; line-height:1;">⚠️</span>
+                                <span style="font-size:11px; color:#92400e; font-weight:700;">
+                                    ПРЕДУПРЕЖДЕНИЕ: Кассета #4 на границе стресса (ΔT = {dt_k4}°C). Растение начинает закрывать устьица!
+                                </span>
+                            </div>
+                        '''
+                    else:
+                        k4_verify_alert = f'''
+                            <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:5px 10px; margin:8px 0; display:flex; align-items:center; gap:6px;">
+                                <span style="font-size:14px;">✓</span>
+                                <span style="font-size:11px; color:#166534; font-weight:600;">
+                                    Кассета #4: Полив не требуется (ΔT = {dt_k4}°C, устьица открыты, охлаждение активно).
+                                </span>
+                            </div>
+                        '''
+                except Exception:
+                    pass
+
             items_html += f'''
                 <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:8px;">
@@ -2170,6 +2210,7 @@ async def index(
                             <span style="background:#f0fdf4; color:#15803d; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #bbf7d0;">🌿 PLA: {s.get('leaf_area_cm2', '--')} см²</span>
                         </div>
                     </div>
+                    {k4_verify_alert}
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
                         <div style="text-align:center;">
@@ -2509,6 +2550,87 @@ async def index(
 
     filtered_rows = rows
 
+    # ------------------ АНАЛИЗАТОР СТАТУСА ПОЛИВА КАССЕТЫ #4 («ПРЕВЕНЦИЯ») ------------------
+    k4_latest_row = None
+    for r in reversed(rows):
+        if len(r) > 9 and ('превенци' in r[2].lower() or 'прибор' in r[2].lower() or 'к4' in r[2].lower()):
+            k4_latest_row = r
+            break
+
+    k4_dt = None
+    k4_t_leaf = '--'
+    k4_id = '--'
+    k4_ts = '--'
+    if k4_latest_row:
+        k4_id = k4_latest_row[0]
+        k4_ts = k4_latest_row[1]
+        k4_t_leaf = k4_latest_row[8] if len(k4_latest_row) > 8 else '--'
+        dt_str = k4_latest_row[9] if len(k4_latest_row) > 9 else ''
+        try:
+            k4_dt = float(dt_str)
+        except (ValueError, TypeError):
+            k4_dt = None
+
+    k4_banner_html = ''
+    k4_summary_badge = ''
+    if k4_dt is not None:
+        if k4_dt >= 0.0:
+            k4_banner_html = f'''
+                <div style="background:#fef2f2; border:2px solid #ef4444; border-radius:10px; padding:12px 18px; margin-bottom:12px; box-shadow:0 4px 14px rgba(239,68,68,0.2); display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:14px;">
+                        <span style="font-size:32px; line-height:1;">🚨</span>
+                        <div>
+                            <div style="font-size:13.5px; font-weight:800; color:#991b1b; text-transform:uppercase; letter-spacing:0.3px;">
+                                АЛЕРТ СТАНЦИИ: СРОЧНО ТРЕБУЕТСЯ ПРЕВЕНТИВНЫЙ ПОЛИВ КАССЕТЫ #4 («ПРЕВЕНЦИЯ»)!
+                            </div>
+                            <div style="font-size:11.5px; color:#7f1d1d; margin-top:2px; line-height:1.4;">
+                                Замер #{k4_id}: <b>ΔT = +{k4_dt}°C</b> (T листа = {k4_t_leaf}°C). Растение закрыло устьица — наступило <b>«ОКНО СПАСЕНИЯ»</b>!
+                                Полейте кассету #4 сейчас для фиксации эффекта опережающей регидратации до видимого увядания.
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align:right; flex-shrink:0;">
+                        <span style="background:#dc2626; color:#ffffff; padding:6px 12px; border-radius:6px; font-weight:800; font-size:11.5px; text-transform:uppercase; display:inline-block; box-shadow:0 2px 6px rgba(220,38,38,0.3);">ПОЛИТЬ К4 💧</span>
+                    </div>
+                </div>
+            '''
+            k4_summary_badge = f'<div style="background:#dc2626; color:#fff; font-size:9px; font-weight:800; padding:3px 4px; border-radius:4px; margin-top:auto; text-transform:uppercase;">🚨 ПОЛИТЬ! (ΔT=+{k4_dt}°)</div>'
+        elif k4_dt >= -0.3:
+            k4_banner_html = f'''
+                <div style="background:#fffbeb; border:2px solid #f59e0b; border-radius:10px; padding:10px 16px; margin-bottom:12px; box-shadow:0 3px 10px rgba(245,158,11,0.15); display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <span style="font-size:26px; line-height:1;">⚠️</span>
+                        <div>
+                            <div style="font-size:13px; font-weight:800; color:#92400e; text-transform:uppercase;">
+                                ВНИМАНИЕ: Кассета #4 («Превенция») на границе стресса (ΔT = {k4_dt}°C)
+                            </div>
+                            <div style="font-size:11.5px; color:#78350f; margin-top:2px;">
+                                Транспирация снижается (замер #{k4_id}). При следующем замере контролируйте динамику нагрева листа!
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align:right; flex-shrink:0;">
+                        <span style="background:#d97706; color:#ffffff; padding:4px 10px; border-radius:5px; font-weight:700; font-size:11px;">КОНТРОЛЬ ⏱️</span>
+                    </div>
+                </div>
+            '''
+            k4_summary_badge = f'<div style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:8.5px; font-weight:700; padding:2px 4px; border-radius:4px; margin-top:auto;">⚠️ Предстресс (ΔT={k4_dt}°)</div>'
+        else:
+            k4_banner_html = f'''
+                <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:8px 14px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:18px;">🌱</span>
+                        <span style="font-size:11.5px; color:#14532d; font-weight:600;">
+                            <b>Кассета #4 («Превенция»):</b> Полив не требуется. Замер #{k4_id}: <b>ΔT = {k4_dt}°C</b> (норма, устьица открыты, транспирация активна).
+                        </span>
+                    </div>
+                    <span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:2px 8px; border-radius:4px; font-size:10.5px; font-weight:700;">✓ НОРМА</span>
+                </div>
+            '''
+            k4_summary_badge = f'<div style="font-size:8.5px; color:#854d0e; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fef08a;">Полив: не требуется (ΔT={k4_dt}°)</div>'
+    else:
+        k4_summary_badge = '{k4_summary_badge}'
+
     summary_card = f'''
         <div class="card" style="margin-top: 0; padding:14px;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
@@ -2725,6 +2847,7 @@ async def index(
 
     grid_top_content = f'''
         <div style="display:flex; flex-direction:column; gap:12px;">
+            {k4_banner_html}
             {wizard_card}
             {summary_card}
         </div>
