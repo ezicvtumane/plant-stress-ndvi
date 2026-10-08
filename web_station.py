@@ -41,7 +41,11 @@ try:
     HAS_GPIOD = True
 except ImportError:
     HAS_GPIOD = False
-from fastapi import FastAPI, Request, Form, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI
+from fastapi.templating import Jinja2Templates
+from api.routes.downloads import router as downloads_router, init_downloads
+from fastapi.templating import Jinja2Templates
+from api.routes.downloads import router as downloads_router, init_downloads, Request, Form, UploadFile, File, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -518,7 +522,7 @@ def do_hardware_spectral_capture(group_name: str):
     if RELAY_REQ:
         # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
         # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
-        set_v4l2_exposure(2500, 200)
+        set_v4l2_exposure(4000, 200)
         time.sleep(0.20)
         RELAY_REQ.set_value(7, Value.ACTIVE)
         time.sleep(0.40)
@@ -532,7 +536,7 @@ def do_hardware_spectral_capture(group_name: str):
         _, frame_amb_nir = cap.read()
 
         # 2. Спектральная съемка RED 660 нм (калиброванная экспозиция 120/40 без клиппинга)
-        set_v4l2_exposure(120, 40)
+        set_v4l2_exposure(500, 100)
         time.sleep(0.20)
         for _ in range(8): cap.read()
         RELAY_REQ.set_value(4, Value.ACTIVE)
@@ -550,7 +554,7 @@ def do_hardware_spectral_capture(group_name: str):
         if not ret_n: frame_nir = frame_amb_nir
         frame_amb = frame_amb_red
     else:
-        set_v4l2_exposure(2500, 200)
+        set_v4l2_exposure(4000, 200)
         for _ in range(5): cap.read()
         ret, frame_amb_nir = cap.read()
         frame_red = frame_amb_nir
@@ -1939,7 +1943,7 @@ async def index(
                 <a href="/api/start_batch?stage=batch5" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488 0%, #059669 45%, #2563eb 100%); color:white; padding:12px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.3); transition:all 0.2s;">
                     <span style="font-size:18px; display:block; margin-bottom:2px;">🌿🔬</span>
                     <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР 5 КАССЕТ (5-В-1)</b>
-                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Осмос • 🔴 К3 Засуха • 🟡 К4 Превенция • 🔵 К5 Реакция</span>
+                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Соль • 🟡 К3 Прибор • 🔵 К4 Глаза • 🔴 К5 Гибель</span>
                 </a>
 
                 <!-- Памятка по изолятору соли -->
@@ -2241,7 +2245,7 @@ async def index(
     if not table_html:
         table_html = '<tr><td colspan="12" style="text-align:center; padding:35px 20px; color:#64748b; font-size:14px;">🌱 <b>Журнал физиологических замеров пуст.</b><br><span style="font-size:12px; color:#94a3b8;">Запустите пакетный замер кассет 1–5, чтобы начать фиксацию данных нового эксперимента.</span></td></tr>'
 
-    grid_top_content = f'''
+        grid_top_content = f'''
         <div style="display:flex; flex-direction:column; gap:12px;">
             {wizard_card}
             {summary_card}
@@ -2266,10 +2270,23 @@ async def index(
                     <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img" style="height:175px;">
                 </div>
             </div>
-          from fastapi.templating import Jinja2Templates
-from api.routes.downloads import router as downloads_router, init_downloads
+        </div>
+    '''
+    
+    main_content = grid_top_content + f'''
+    <div class="card" style="margin-top:20px;">
+        <h2>📊 Журнал физиологических исследований</h2>
+        <div style="overflow-x:auto;">
+            <table>
+                <tr>
+                    <th>ID</th><th>Дата и Время</th><th>Выборка</th><th>Вес(г)</th><th>T возд.</th><th>T листа</th><th>Статус</th><th>NDVI_avg</th><th>Площадь</th><th>Почва</th><th>Термограмма</th><th>Действия</th>
+                </tr>
+                {table_html}
+            </table>
+        </div>
+    </div>
+    '''
 
-    # Jinja setup (ideally global, but scoped here for quick patch)
     templates = Jinja2Templates(directory="templates")
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
@@ -2280,9 +2297,7 @@ from api.routes.downloads import router as downloads_router, init_downloads
         "bg_color": bg_color,
         "stage": stage,
         "phase": phase
-    })ml>'''
-    return html
-
+    })
 @app.get('/download/pdf')
 def download_pdf():
     pdf_path = os.path.join(STATIC_DIR, 'Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf')
