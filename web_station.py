@@ -79,9 +79,9 @@ PENDING_SESSION = None
 CASSETTE_CATALOG = {
     1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив (100% ПВ)', 'color': '#059669', 'stage': 'batch5'},
     2: {'id': 2, 'name': 'Осмос', 'desc': 'Осмотический стресс', 'color': '#7c3aed', 'stage': 'batch5'},
-    3: {'id': 3, 'name': 'Засуха', 'desc': 'Водный дефицит', 'color': '#eab308', 'stage': 'batch5'},
-    4: {'id': 4, 'name': 'Превенция', 'desc': 'Ранний полив по алерту станции', 'color': '#2563eb', 'stage': 'batch5'},
-    5: {'id': 5, 'name': 'Реакция', 'desc': 'Полив по визуальным признакам увядания', 'color': '#dc2626', 'stage': 'batch5'},
+    3: {'id': 3, 'name': 'Засуха', 'desc': 'Водный дефицит', 'color': '#dc2626', 'stage': 'batch5'},
+    4: {'id': 4, 'name': 'Превенция', 'desc': 'Ранний полив по алерту станции', 'color': '#eab308', 'stage': 'batch5'},
+    5: {'id': 5, 'name': 'Реакция', 'desc': 'Полив по визуальным признакам увядания', 'color': '#2563eb', 'stage': 'batch5'},
     6: {'id': 6, 'name': 'Калибровка (Стенд №0)', 'desc': 'Калибровочный стенд (посев 22.09)', 'color': '#64748b', 'stage': 'batch5'}
 }
 ARUCO_CASSETTE_MAP = {cid: data['name'] for cid, data in CASSETTE_CATALOG.items()}
@@ -520,17 +520,16 @@ def do_hardware_spectral_capture(group_name: str):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
     init_relay()
-    relay = get_relay_controller()
-    if True:
+    if RELAY_REQ:
         # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
         # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
         set_v4l2_exposure(2500, 200)
         time.sleep(0.20)
-        relay.set_nir(True)
+        RELAY_REQ.set_value(7, Value.ACTIVE)
         time.sleep(0.40)
         for _ in range(8): cap.read()
         ret_n, frame_nir = cap.read()
-        relay.set_nir(False) # Инфракрасный выключен
+        RELAY_REQ.set_value(7, Value.INACTIVE) # Инфракрасный выключен
 
         # Темновой фон NIR
         time.sleep(0.15)
@@ -541,11 +540,11 @@ def do_hardware_spectral_capture(group_name: str):
         set_v4l2_exposure(120, 40)
         time.sleep(0.20)
         for _ in range(8): cap.read()
-        relay.set_red(True)
+        RELAY_REQ.set_value(4, Value.ACTIVE)
         time.sleep(0.40)
         for _ in range(8): cap.read()
         ret_r, frame_red = cap.read()
-        relay.set_red(False) # Красный выключен
+        RELAY_REQ.set_value(4, Value.INACTIVE) # Красный выключен
 
         # Темновой фон RED
         time.sleep(0.15)
@@ -781,17 +780,16 @@ def handle_start_spectral(group_name: str = Form('Контроль')):
 def handle_test_relay(channel: str = 'nir', sec: float = 3.0):
     """Аппаратная диагностика: включение выбранного реле (nir или red) на sec секунд."""
     init_relay()
-    relay = get_relay_controller()
-    if False:
+    if not RELAY_REQ:
         return JSONResponse({'status': 'error', 'message': 'Relay not initialized'})
     line = 7 if channel.lower() == 'nir' else 4
     pin_name = 'Pin 10 (NIR 850nm)' if line == 7 else 'Pin 7 (Red 660nm)'
     try:
         duration = max(0.5, min(10.0, float(sec)))
         print(f'[Test Relay] Включение {pin_name} на {duration} сек...')
-        relay.set_red(True) if line==4 else relay.set_nir(True)
+        RELAY_REQ.set_value(line, Value.ACTIVE)
         time.sleep(duration)
-        relay.set_red(False) if line==4 else relay.set_nir(False)
+        RELAY_REQ.set_value(line, Value.INACTIVE)
         print(f'[Test Relay] Выключение {pin_name}. Готово.')
         return JSONResponse({'status': 'ok', 'channel': channel, 'pin': pin_name, 'duration': duration})
     except Exception as e:
@@ -1954,7 +1952,7 @@ async def index(
                 <a href="/api/start_batch?stage=batch5" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488 0%, #059669 45%, #2563eb 100%); color:white; padding:12px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.3); transition:all 0.2s;">
                     <span style="font-size:18px; display:block; margin-bottom:2px;">🌿🔬</span>
                     <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР 5 КАССЕТ (5-В-1)</b>
-                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Осмос • 🟡 К3 Засуха • 🔵 К4 Превенция • 🔴 К5 Реакция</span>
+                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Осмос • 🔴 К3 Засуха • 🟡 К4 Превенция • 🔵 К5 Реакция</span>
                 </a>
 
                 <!-- Памятка по изолятору соли -->
