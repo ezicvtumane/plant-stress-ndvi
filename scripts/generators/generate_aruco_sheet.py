@@ -72,12 +72,17 @@ for m_id, name, strat, reg, status in ARUCO_CASSETTES:
 # 1. HTML-ВЕРСИЯ ЛИСТА МАРКЕРОВ (КОНТУРНЫЙ Ч/Б ДИЗАЙН ДЛЯ МОНОХРОМНОЙ ПЕЧАТИ)
 # ==============================================================================
 import base64
+import json
+with open("/tmp/icons_b64.json", "r") as f_ic:
+    ICONS_B64 = json.load(f_ic)
 cards_html = ""
 for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
     png_path = os.path.join(ARUCO_DIR, f'aruco_{m_id}.png')
     with open(png_path, "rb") as img_file:
         b64_string = base64.b64encode(img_file.read()).decode('utf-8')
     img_src = f"data:image/png;base64,{b64_string}"
+    b64_icon = ICONS_B64[m_id - 1]
+    icon_src = f"data:image/png;base64,{b64_icon}"
     
     cards_html += f"""
         <div class="marker-card">
@@ -89,6 +94,10 @@ for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
                 <div class="aruco-caption">ARUCO #{m_id}</div>
             </div>
 
+            <!-- Пиктограмма оператора -->
+            <div class="pictogram-box">
+                <img src="{icon_src}" alt="Icon">
+            </div>
             <!-- Центральный блок: Контурный номер для человека (Алисы) -->
             <div class="num-badge">
                 <div class="num-sub">КАССЕТА</div>
@@ -208,6 +217,17 @@ html_content = f"""<!DOCTYPE html>
             font-family: monospace;
             margin-top: 2px;
             color: #222222;
+        }}
+        /* Pictogram */
+        .pictogram-box {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 10px;
+        }}
+        .pictogram-box img {{
+            height: 60px;
+            width: auto;
         }}
         /* Number badge */
         .num-badge {{
