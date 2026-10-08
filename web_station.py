@@ -14,6 +14,8 @@
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from hardware.hal import get_climate_sensor, get_soil_sensor
+
 import numexpr as ne
 
 # Очередь для I2C запросов (защита от коллизий на шине)
@@ -765,7 +767,7 @@ def do_hardware_spectral_capture(group_name: str):
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_amb.jpg'), frame_amb)
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_flash_raw.jpg'), frame_flash)
 
-    v_soil, pct_soil = read_moisture_mock(group_name)
+    v_soil, pct_soil = asyncio.run(get_soil_sensor().read_moisture(group_name)) if not asyncio.get_event_loop().is_running() else get_soil_sensor().read_moisture(group_name)
     live_t, live_rh, _ = read_xiaomi_climate()
     cur_vpd = calc_vpd(live_t, live_rh)
 
@@ -1409,7 +1411,7 @@ async def index(
 ):
     global PENDING_SESSION, BATCH_STATE
 
-    cur_t, cur_rh, cur_v = await read_climate_async()
+    cur_t, cur_rh, cur_v = await get_climate_sensor().read_climate()
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
 
@@ -2295,6 +2297,8 @@ async def index(
                 </div>
             </div>
           from fastapi.templating import Jinja2Templates
+from api.routes.downloads import router as downloads_router, init_downloads
+
     # Jinja setup (ideally global, but scoped here for quick patch)
     templates = Jinja2Templates(directory="templates")
     return templates.TemplateResponse("dashboard.html", {
@@ -2308,40 +2312,6 @@ async def index(
         "phase": phase
     })ml>'''
     return html
-
-@app.get('/download/csv')
-def download_csv():
-    if os.path.exists(CSV_LOG):
-        return FileResponse(CSV_LOG, filename='plant_stress_measurements.csv')
-    return HTMLResponse('Файл пока пуст')
-
-def _generate_zip(zip_path: str):
-    import zipfile
-    with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
-        if os.path.exists(CSV_LOG):
-            zf.write(CSV_LOG, arcname='measurements.csv')
-        for fname in sorted(os.listdir(STATIC_DIR)):
-            if (fname.startswith(('opt_', 'therm_', 'ndvi_')) or fname in ('last_ndvi.jpg', 'last_thermal.jpg')) and fname.endswith(('.jpg', '.png')):
-                full_p = os.path.join(STATIC_DIR, fname)
-                zf.write(full_p, arcname=f'photos/{fname}')
-
-@app.get('/download/images_zip')
-def download_images_zip(background_tasks: BackgroundTasks):
-    """Скачать архив снимков с фоновой генерацией (BackgroundTasks)."""
-    zip_path = os.path.join(DATA_DIR, 'plant_stress_gallery.zip')
-    
-    needs_regen = True
-    if os.path.exists(zip_path):
-        if time.time() - os.path.getmtime(zip_path) < 3600:
-            needs_regen = False
-            
-    if needs_regen:
-        background_tasks.add_task(_generate_zip, zip_path)
-        if not os.path.exists(zip_path):
-            from fastapi.responses import JSONResponse
-            return JSONResponse({'status': 'processing', 'message': 'Архив формируется в фоне. Обновите страницу через 30 секунд.'}, status_code=202)
-            
-    return FileResponse(zip_path, filename='plant_stress_gallery.zip', media_type='application/zip')
 
 @app.get('/download/pdf')
 def download_pdf():
