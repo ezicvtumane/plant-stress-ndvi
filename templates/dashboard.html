@@ -533,8 +533,11 @@
             </div>
 
             <div style="margin-bottom:12px;">
-                <label style="font-size:11px; font-weight:bold; color:#0284c7; display:block; margin-bottom:4px;">💧 Влажность субстрата (%):</label>
-                <input type="number" step="0.1" min="0" max="100" name="pct_soil" id="edit_soil" style="width:100%; padding:8px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label style="font-size:11px; font-weight:bold; color:#0284c7;">💧 Влажность субстрата (%):</label>
+                    <button type="button" onclick="document.getElementById('edit_soil').value='--'" style="font-size:9.5px; color:#64748b; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; padding:1px 5px; cursor:pointer;" title="Установить прочерк (нет датчика)">нет датчика</button>
+                </div>
+                <input type="text" name="pct_soil" id="edit_soil" placeholder="-- (N/A) или %" style="width:100%; padding:8px; font-size:13px; border:1.5px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
             </div>
 
             <div style="margin-bottom:16px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:8px;">
@@ -572,7 +575,7 @@ function openEditModal(id, grp, ts, tLeaf, weight, soil) {
     if (cleanW === '--') cleanW = '';
     document.getElementById('edit_weight').value = cleanW;
     let cleanS = (soil || '').replace('%', '').trim();
-    if (cleanS === '--') cleanS = '64.0';
+    if (cleanS === '--' || cleanS.toLowerCase().indexOf('none') !== -1 || cleanS === '') cleanS = '--';
     document.getElementById('edit_soil').value = cleanS;
     let modal = document.getElementById('editModal');
     modal.style.display = 'flex';
