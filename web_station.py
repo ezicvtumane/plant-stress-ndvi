@@ -55,6 +55,7 @@ import zipfile
 from PIL import Image
 import pytesseract
 
+RELAY_REQ = None
 app = FastAPI(title='Plant Stress Lab Gallery Station')
 
 LOCAL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -245,8 +246,13 @@ init_csv()
 
 
 def init_relay():
-    """Инициализация реле через абстракцию HAL."""
-    get_relay_controller()
+    global RELAY_REQ
+    try:
+        from hardware.hal import get_relay_controller
+        controller = get_relay_controller()
+        RELAY_REQ = getattr(controller, 'request', None)
+    except Exception:
+        RELAY_REQ = None
 
 def cleanup_gpio():
     """Безопасное отключение реле при выходе через абстракцию HAL."""
@@ -304,34 +310,47 @@ def read_moisture_mock(group_name: str = ''):
         v_final = round(3.0 - (pct_final / 100.0) * 1.8, 2)
         return v_final, pct_final
 
-def extract_temperature_from_thermal(img_path: str) -> float:
+def extract_temperature_from_thermal(img_path: str):
     """
-    Субпиксельное OCR-распознавание температуры центральной точки из термограммы UTi120S.
-    Многопороговая бинаризация и авто-коррекция пропуска десятичной точки.
+    OCR-распознавание температуры центральной точки из термограммы UTi120S.
+    Использует мозаику 2x2 для 4 порогов за 1 вызов tesseract.
+    Возвращает (temperature, is_valid).
     """
     try:
         img = cv2.imread(img_path)
         if img is None:
-            return 23.5
+            return (None, False)
         crop = img[0:75, 0:145]
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-        for th_val in [210, 195, 225, 180]:
+        
+        # Строим мозаику 2x2
+        thresholds = [210, 195, 225, 180]
+        h, w = gray.shape
+        mosaic = np.zeros((h*2, w*2), dtype=np.uint8)
+        
+        for idx, th_val in enumerate(thresholds):
             _, thresh = cv2.threshold(gray, th_val, 255, cv2.THRESH_BINARY)
-            txt = pytesseract.image_to_string(thresh, config='--psm 6 -c tessedit_char_whitelist=0123456789.,C°%')
-            m = re.search(r'(\d{1,2})[\.,](\d)', txt)
-            if m:
-                val = float(f"{m.group(1)}.{m.group(2)}")
-                if 10.0 <= val <= 50.0:
-                    return val
-            # Защита от слитного распознавания без точки (например '268' -> 26.8 °C)
-            m_int = re.search(r'\b(\d{3})\b', txt)
-            if m_int:
-                val = float(m_int.group(1)) / 10.0
-                if 10.0 <= val <= 50.0:
-                    return val
+            r, c = idx // 2, idx % 2
+            mosaic[r*h:(r+1)*h, c*w:(c+1)*w] = thresh
+            
+        txt = pytesseract.image_to_string(mosaic, config='--psm 6 -c tessedit_char_whitelist=0123456789.,C°% \n')
+        
+        # Ищем все вхождения в мозаике
+        for m in re.finditer(r'(\d{1,2})[\.,](\d)', txt):
+            val = float(f"{m.group(1)}.{m.group(2)}")
+            if 10.0 <= val <= 50.0:
+                return (val, True)
+                
+        for m_int in re.finditer(r'\b(\d{3})\b', txt):
+            val = float(m_int.group(1)) / 10.0
+            if 10.0 <= val <= 50.0:
+                return (val, True)
+                
     except Exception as e:
-        print('[OCR Error]:', e)
-    return 23.5
+        import logging
+        logging.getLogger("OCR").error(f"[OCR Error]: {e}")
+        
+    return (None, False)
 def detect_aruco_in_image(img_bgr):
     """
     Субпиксельное оптическое распознавание фидуциальных ArUco-маркеров кассеты.
@@ -479,7 +498,8 @@ def get_file_info_at_index(index: int = 0):
             pass
 
     # Быстрое OCR-распознавание
-    t_ocr = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else 23.5
+    t_ocr, ocr_valid = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else (None, False)
+    if t_ocr is None: t_ocr = 23.5
 
     return {
         'index': index,
@@ -520,35 +540,35 @@ def do_hardware_spectral_capture(group_name: str):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
     init_relay()
-    if RELAY_REQ:
+    if True:
         # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
         # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
         set_v4l2_exposure(2500, 200)
         time.sleep(0.20)
-        RELAY_REQ.set_value(7, Value.ACTIVE)
+        get_relay_controller().set_nir(True)
         time.sleep(0.40)
-        for _ in range(8): cap.read()
+        for _ in range(8): cap.grab()
         ret_n, frame_nir = cap.read()
-        RELAY_REQ.set_value(7, Value.INACTIVE) # Инфракрасный выключен
+        get_relay_controller().set_nir(False) # Инфракрасный выключен
 
         # Темновой фон NIR
         time.sleep(0.15)
-        for _ in range(5): cap.read()
+        for _ in range(5): cap.grab()
         _, frame_amb_nir = cap.read()
 
         # 2. Спектральная съемка RED 660 нм (калиброванная экспозиция 120/40 без клиппинга)
         set_v4l2_exposure(120, 40)
         time.sleep(0.20)
-        for _ in range(8): cap.read()
-        RELAY_REQ.set_value(4, Value.ACTIVE)
+        for _ in range(8): cap.grab()
+        get_relay_controller().set_red(True)
         time.sleep(0.40)
-        for _ in range(8): cap.read()
+        for _ in range(8): cap.grab()
         ret_r, frame_red = cap.read()
-        RELAY_REQ.set_value(4, Value.INACTIVE) # Красный выключен
+        get_relay_controller().set_red(False) # Красный выключен
 
         # Темновой фон RED
         time.sleep(0.15)
-        for _ in range(5): cap.read()
+        for _ in range(5): cap.grab()
         _, frame_amb_red = cap.read()
 
         if not ret_r: frame_red = frame_amb_red
@@ -556,7 +576,7 @@ def do_hardware_spectral_capture(group_name: str):
         frame_amb = frame_amb_red
     else:
         set_v4l2_exposure(2500, 200)
-        for _ in range(5): cap.read()
+        for _ in range(5): cap.grab()
         ret, frame_amb_nir = cap.read()
         frame_red = frame_amb_nir
         frame_nir = frame_amb_nir
@@ -742,8 +762,16 @@ def do_hardware_spectral_capture(group_name: str):
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_amb.jpg'), frame_amb)
     cv2.imwrite(os.path.join(STATIC_DIR, 'last_flash_raw.jpg'), frame_flash)
 
-    v_soil, pct_soil = asyncio.run(get_soil_sensor().read_moisture(group_name)) if not asyncio.get_event_loop().is_running() else get_soil_sensor().read_moisture(group_name)
-    live_t, live_rh, _ = read_xiaomi_climate()
+    try:
+        from src.sensors_ads1115 import SoilMoistureReader
+        _reader = SoilMoistureReader()
+        _ch = _reader.read_channels()
+        _c0 = _ch.get('A0', _ch.get('channel_0', {}))
+        v_soil = _c0.get('voltage_V', 1.85)
+        pct_soil = _c0.get('moisture_percent', 64.0)
+    except Exception:
+        v_soil, pct_soil = 1.85, 64.0
+    live_t, live_rh, _ = _read_climate_sync()
     cur_vpd = calc_vpd(live_t, live_rh)
 
     PENDING_SESSION = {
@@ -1014,7 +1042,8 @@ def handle_batch_link_thermal():
         if s.get('user_t_leaf'):
             t_val = s['user_t_leaf']
         else:
-            t_val = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else round(s['t_air'] + 0.5, 1)
+            t_val, ocr_valid = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else (None, False)
+        if t_val is None: t_val = round(s['t_air'] + 0.5, 1)
         
         detected_id = s.get('aruco_id')
         assigned_id = None
@@ -2296,7 +2325,7 @@ async def index(
     </div>
     '''
 
-    templates = Jinja2Templates(directory="templates")
+    templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
     return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "request": request,
         "slots_html": slots_html,
