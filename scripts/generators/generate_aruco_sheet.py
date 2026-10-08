@@ -172,23 +172,23 @@ html_content = f"""<!DOCTYPE html>
         .cards-list {{
             display: flex;
             flex-direction: column;
-            gap: 7px;
+            gap: 6px;
         }}
         .marker-card {{
             border: 1.5px solid #000000;
             border-radius: 8px;
-            padding: 6px 8px;
+            padding: 5px 8px;
             display: flex;
             align-items: center;
             background: #ffffff;
             page-break-inside: avoid;
-            gap: 8px;
+            gap: 10px;
         }}
         
         /* 1. Блок ArUco (СТРОГО ОДИНАКОВЫЙ РАЗМЕР С ПИКТОГРАММОЙ: 70x70 px) */
         .aruco-box {{
-            width: 70px;
-            height: 70px;
+            width: 98px;
+            height: 98px;
             border: 2px solid #000000;
             border-radius: 8px;
             display: flex;
@@ -201,31 +201,31 @@ html_content = f"""<!DOCTYPE html>
             padding: 2px;
         }}
         .aruco-img-wrap {{
-            width: 52px;
-            height: 52px;
+            width: 78px;
+            height: 78px;
             display: flex;
             align-items: center;
             justify-content: center;
         }}
         .aruco-img-wrap img {{
-            width: 50px;
-            height: 50px;
+            width: 75px;
+            height: 75px;
             image-rendering: pixelated;
         }}
         .aruco-caption {{
-            font-size: 7px;
+            font-size: 8px;
             font-weight: 800;
             font-family: monospace;
             color: #000000;
             line-height: 1;
-            margin-top: 1px;
+            margin-top: 2px;
             letter-spacing: 0.2px;
         }}
 
         /* 2. Блок пиктограммы (СТРОГО ОДИНАКОВЫЙ РАЗМЕР С ARUCO: 70x70 px) */
         .num-badge {{
-            width: 70px;
-            height: 70px;
+            width: 98px;
+            height: 98px;
             border: 2px solid #000000;
             border-radius: 8px;
             display: flex;
@@ -238,17 +238,17 @@ html_content = f"""<!DOCTYPE html>
         }}
         .num-icon {{
             position: absolute;
-            top: 5px;
-            left: 5px;
-            width: 44px;
-            height: 44px;
+            top: 6px;
+            left: 6px;
+            width: 62px;
+            height: 62px;
             object-fit: contain;
         }}
         .num-digit {{
             position: absolute;
-            bottom: 2px;
-            right: 6px;
-            font-size: 28px;
+            bottom: 3px;
+            right: 8px;
+            font-size: 38px;
             font-family: Arial, sans-serif;
             color: #000000;
             font-weight: 900;
@@ -268,34 +268,34 @@ html_content = f"""<!DOCTYPE html>
             margin-bottom: 2px;
         }}
         .card-title {{
-            font-size: 11.5px;
+            font-size: 13px;
             font-weight: 800;
             color: #000000;
         }}
         .status-tag {{
-            font-size: 10px;
+            font-size: 10.5px;
             font-weight: 900;
             border: 1px solid #000000;
-            padding: 1px 5px;
+            padding: 1px 6px;
             border-radius: 3px;
         }}
         .card-strategy {{
-            font-size: 9.5px;
+            font-size: 10.5px;
             font-weight: 700;
             color: #222222;
             margin-bottom: 2px;
         }}
         .card-protocol {{
-            font-size: 8.5px;
+            font-size: 9.5px;
             color: #111111;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
         }}
         .tech-pill {{
             display: inline-block;
-            font-size: 7.5px;
+            font-size: 8.5px;
             font-family: monospace;
             border: 1px solid #666666;
-            padding: 1px 5px;
+            padding: 1px 6px;
             border-radius: 3px;
             color: #222222;
         }}
@@ -306,25 +306,25 @@ html_content = f"""<!DOCTYPE html>
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 58px;
+            width: 82px;
             flex-shrink: 0;
             border-left: 1px dashed #888888;
-            padding-left: 6px;
+            padding-left: 8px;
         }}
         .reserve-img-wrap {{
-            width: 48px;
-            height: 48px;
+            width: 72px;
+            height: 72px;
             display: flex;
             align-items: center;
             justify-content: center;
         }}
         .reserve-img-wrap img {{
-            width: 44px;
-            height: 44px;
+            width: 66px;
+            height: 66px;
             image-rendering: pixelated;
         }}
         .reserve-caption {{
-            font-size: 7px;
+            font-size: 7.5px;
             font-family: monospace;
             font-weight: bold;
             margin-top: 2px;
