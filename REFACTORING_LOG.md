@@ -24,3 +24,11 @@ umexpr и ThreadPoolExecutor).
 3. Откатите изменения к сохраненному тегу:
    git reset --hard backup-pre-arch-refactor
 4. Перезапустите службу веб-сервера.
+
+**Этап 2: Relay HAL + Pydantic Config и Pandas Chunking**
+
+1. Создан core/config.py с Pydantic BaseSettings.
+2. В hardware/hal.py добавлены абстракции RelayController, RealGPIODRelay и MockRelay.
+3. Модуль src/relay_controller.py теперь является тонкой оберткой над HAL.
+4. Хардкод пинов удален из бизнес-логики.
+5. В src/statistical_analysis.py внедрена загрузка через chunksize для экономии памяти.
