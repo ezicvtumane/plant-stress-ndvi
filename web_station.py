@@ -61,6 +61,26 @@ app = FastAPI(title='Plant Stress Lab Gallery Station')
 LOCAL_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = LOCAL_DIR if os.path.exists(os.path.join(LOCAL_DIR, 'static')) else '/home/pi/plant-stress-ndvi'
 DATA_DIR = os.path.join(BASE_DIR, 'data')
+CALIBRATION_FILE = os.path.join(DATA_DIR, "calibrated_k_bal.txt")
+
+def get_calibrated_k_bal() -> float:
+    try:
+        if os.path.exists(CALIBRATION_FILE):
+            with open(CALIBRATION_FILE, 'r', encoding='utf-8') as f:
+                val = float(f.read().strip())
+                if 0.5 <= val <= 10.0:
+                    return round(val, 3)
+    except Exception:
+        pass
+    return 4.070
+
+def save_calibrated_k_bal(val: float):
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(CALIBRATION_FILE, 'w', encoding='utf-8') as f:
+            f.write(f"{val:.3f}\n")
+    except Exception as e:
+        print(f"[Calib Save Error]: {e}")
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 TH_CACHE_DIR = os.path.join(STATIC_DIR, 'uti_cache')
 UTI_DIR = '/media/uti120s/Images'
@@ -615,16 +635,35 @@ def do_hardware_spectral_capture(group_name: str):
 
     # Радиометрическая калибровка по белому диффузному эталону (White Reference Target)
     h_f, w_f, _ = frame_flash.shape
-    roi_y1, roi_y2 = int(h_f * 0.04), int(h_f * 0.16)
-    roi_x1, roi_x2 = int(w_f * 0.04), int(w_f * 0.16)
+    is_calib_stand = (group_name in ['Калибровка (Стенд №0)', 'Калибровка'] or (aruco_id is not None and aruco_id == 6))
+
+    if is_calib_stand:
+        # Режим Стенда №0: ищем центральную диффузную мишень (ФУМ-эталон)
+        blur_sig = cv2.GaussianBlur(red_channel + nir_channel, (15, 15), 0)
+        _, _, _, max_loc = cv2.minMaxLoc(blur_sig)
+        px, py = max_loc
+        hb = 45
+        roi_x1, roi_x2 = max(0, px - hb), min(w_f, px + hb)
+        roi_y1, roi_y2 = max(0, py - hb), min(h_f, py + hb)
+    else:
+        # Штатный замер кассет: проверяем контрольную угловую зону
+        roi_y1, roi_y2 = int(h_f * 0.04), int(h_f * 0.16)
+        roi_x1, roi_x2 = int(w_f * 0.04), int(w_f * 0.16)
+
     white_red = float(np.mean(red_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
     white_nir = float(np.mean(nir_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
-    is_valid_white = (white_nir > 10.0 and white_red > 10.0 and 0.50 <= (white_red / white_nir) <= 2.50)
+    
+    # Допустимый диапазон отношения Red/NIR для NoIR-камеры [0.5 ... 8.0]
+    is_valid_white = (white_nir > 15.0 and white_red > 25.0 and 0.50 <= (white_red / white_nir) <= 8.00)
+
     if is_valid_white:
-        k_bal = round(float(np.clip(white_red / white_nir, 0.50, 2.50)), 3)
+        k_bal = round(float(np.clip(white_red / white_nir, 0.50, 8.00)), 3)
+        if is_calib_stand:
+            save_calibrated_k_bal(k_bal)
+            print(f'[Calibration Stand #0] Откалиброван и сохранен k_bal = {k_bal}', flush=True)
     else:
-        # Аппаратный баланс эмиттеров для C270 (NIR exp=8000/gain=255 vs RED exp=200/gain=48)
-        k_bal = 1.35
+        # Автоматическая загрузка сохраненного физического баланса (4.07)
+        k_bal = get_calibrated_k_bal()
 
     # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
     if red_channel.dtype != np.float32: red_channel = red_channel.astype(np.float32)

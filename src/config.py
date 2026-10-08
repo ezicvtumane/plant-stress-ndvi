@@ -28,7 +28,7 @@ CAMERA_AUTO_WB = 0  # 0 = Manual White Balance (AWB disabled)
 
 # Photometric Calibration Parameters (18% Gray Card)
 # k = I_660_ref / I_850_ref (sensor sensitivity ratio)
-DEFAULT_K_COEFFICIENT = 0.0518
+DEFAULT_K_COEFFICIENT = 4.07
 
 # Plant Segmentation & Masking
 NIR_BACKGROUND_THRESHOLD = 15  # Minimum pixel intensity under 850nm to classify as plant
