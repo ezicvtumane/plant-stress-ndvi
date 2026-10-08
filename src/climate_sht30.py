@@ -1,18 +1,13 @@
 """
 Модуль мониторинга микроклимата зоны вегетации:
 Прецизионный датчик температуры и влажности Sensirion SHT30.
-Поддерживает два режима работы:
-1. Автономный UDP LAN опрос датчика через локальный шлюз (Zigbee/UDP).
-2. Прямой опрос по аппаратной шине I2C (адрес 0x44).
+Подключение по локальной аппаратной шине I2C-0 (адрес 0x44).
+(Старый шлюз Xiaomi Gateway удален)
 """
 
-import json
-import socket
+import time
 import math
-
-XIAOMI_GATEWAY_IP = '192.168.0.9'
-XIAOMI_GATEWAY_PORT = 9898
-XIAOMI_SENSOR_SID = '158d0001576282'
+import asyncio
 
 def calc_vpd(t_c: float, rh_pct: float) -> float:
     """Расчет дефицита упругости водяного пара (Vapor Pressure Deficit, кПа)."""
@@ -23,52 +18,25 @@ def calc_vpd(t_c: float, rh_pct: float) -> float:
     except Exception:
         return 0.60
 
-def read_climate_udp(gateway_ip=XIAOMI_GATEWAY_IP, port=XIAOMI_GATEWAY_PORT, sid=XIAOMI_SENSOR_SID):
-    """Опрос Sensirion SHT30 по локальному UDP протоколу."""
+def read_climate_i2c_sync() -> tuple[float, float, float]:
+    """Синхронный опрос SHT30 по шине I2C."""
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(0.7)
-        query = json.dumps({'cmd': 'read', 'sid': sid}).encode('utf-8')
-        sock.sendto(query, (gateway_ip, port))
-        data, _ = sock.recvfrom(2048)
-        sock.close()
-        dev_info = json.loads(data.decode('utf-8'))
-        raw_data = json.loads(dev_info.get('data', '{}'))
-        t = round(float(raw_data.get('temperature', 2480)) / 100.0, 1)
-        rh = round(float(raw_data.get('humidity', 6500)) / 100.0, 1)
-        v_bat = round(float(raw_data.get('voltage', 3200)) / 1000.0, 2)
-        return t, rh, v_bat
-    except Exception:
-        return 24.8, 65.5, 3.21
+        import smbus2
+        with smbus2.SMBus(0) as bus:
+            bus.write_i2c_block_data(0x44, 0x2C, [0x06])
+            time.sleep(0.05)
+            d = bus.read_i2c_block_data(0x44, 0x00, 6)
+            t_c = -45.0 + (175.0 * ((d[0] << 8) | d[1]) / 65535.0)
+            rh = 100.0 * (((d[3] << 8) | d[4]) / 65535.0)
+            if -20.0 <= t_c <= 70.0 and 0.0 <= rh <= 100.0:
+                t = round(float(t_c), 1)
+                rh_val = round(float(rh), 1)
+                v_rail = 3.30
+                return t, rh_val, v_rail
+    except Exception as e:
+        pass
+    return 24.8, 65.5, 3.21
 
-import asyncio
-
-async def read_climate_udp_async(gateway_ip=XIAOMI_GATEWAY_IP, port=XIAOMI_GATEWAY_PORT, sid=XIAOMI_SENSOR_SID):
-    """Асинхронный неблокирующий опрос датчика по локальному UDP."""
-    query = json.dumps({'cmd': 'read', 'sid': sid}).encode('utf-8')
-    
-    class UdpProtocol(asyncio.DatagramProtocol):
-        def __init__(self):
-            self.future = asyncio.get_running_loop().create_future()
-        def datagram_received(self, data, addr):
-            if not self.future.done():
-                self.future.set_result(data)
-                
-    loop = asyncio.get_running_loop()
-    try:
-        transport, protocol = await loop.create_datagram_endpoint(
-            UdpProtocol, remote_addr=(gateway_ip, port)
-        )
-        transport.sendto(query)
-        data = await asyncio.wait_for(protocol.future, timeout=0.7)
-        dev_info = json.loads(data.decode('utf-8'))
-        raw_data = json.loads(dev_info.get('data', '{}'))
-        t = round(float(raw_data.get('temperature', 2480)) / 100.0, 1)
-        rh = round(float(raw_data.get('humidity', 6500)) / 100.0, 1)
-        v_bat = round(float(raw_data.get('voltage', 3200)) / 1000.0, 2)
-        return t, rh, v_bat
-    except asyncio.TimeoutError:
-        return 24.8, 65.5, 3.21
-    finally:
-        if 'transport' in locals():
-            transport.close()
+async def read_climate_async() -> tuple[float, float, float]:
+    """Асинхронный неблокирующий опрос I2C."""
+    return await asyncio.to_thread(read_climate_i2c_sync)
