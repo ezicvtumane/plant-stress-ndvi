@@ -54,7 +54,6 @@ import shutil
 import zipfile
 from PIL import Image
 import pytesseract
-from core.experiments import get_experiment_manager
 
 RELAY_REQ = None
 app = FastAPI(title='Plant Stress Lab Gallery Station')
@@ -690,8 +689,20 @@ def do_hardware_spectral_capture(group_name: str):
     print(f'[DEBUG Capture] RED: mean={red_raw.mean():.1f}, p90={np.percentile(red_raw, 90):.1f}, amb={amb_red.mean():.1f}', flush=True)
     print(f'[DEBUG Capture] k_bal={k_bal}, ndvi: mean={ndvi_map.mean():.3f}, max={ndvi_map.max():.3f}, leaf_mask={np.sum(leaf_mask)}', flush=True)
 
-    # Физические визуализации:
-    vis_red = frame_red.copy()
+    # Визуализаторы:
+    # Адаптивная контрастная нормализация Красного канала (660 нм) для оператора (CLAHE):
+    p_high_r = float(np.percentile(red_channel, 99.5))
+    if p_high_r > 5.0:
+        vis_red_mono = np.clip((red_channel / p_high_r) * 255.0, 0, 255).astype(np.uint8)
+        clahe_red = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+        vis_red_mono = clahe_red.apply(vis_red_mono)
+        vis_red = np.zeros_like(frame_red)
+        vis_red[:, :, 2] = vis_red_mono
+        vis_red[:, :, 0] = (vis_red_mono * 0.15).astype(np.uint8)
+        vis_red[:, :, 1] = (vis_red_mono * 0.05).astype(np.uint8)
+    else:
+        vis_red = frame_red.copy()
+
 
     # Адаптивное автоконтрастирование ИК-канала для наглядного отображения на экране:
     p_high = float(np.percentile(nir_channel, 99.5))
@@ -919,23 +930,16 @@ def handle_save_final(
         shutil.copyfile(src_thumb, dst_path)
         shutil.copyfile(dst_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
 
-    row_to_add = [
-        meas_id, ts_display, group_name, weight_val,
-        s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
-        t_leaf_val, delta_t_val, s['vpd'],
-        s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
-        s['opt_file'], jpg_stored_name,
-        *s['cell_ndvis']
-    ]
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(row_to_add)
-    exp_mgr = get_experiment_manager(DATA_DIR)
-    exp_mgr.save_measurement_row(row_to_add)
-    if s.get('opt_file'):
-        exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, s['opt_file']))
-    if jpg_stored_name:
-        exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, jpg_stored_name))
+        writer.writerow([
+            meas_id, ts_display, group_name, weight_val,
+            s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+            t_leaf_val, delta_t_val, s['vpd'],
+            s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
+            s['opt_file'], jpg_stored_name,
+            *s['cell_ndvis']
+        ])
 
     PENDING_SESSION = None
     return RedirectResponse(url=f'/?msg=saved&last_grp={group_name}', status_code=303)
@@ -1188,16 +1192,10 @@ async def handle_batch_save_manual(request: Request):
     # Сортируем записи по ID кассеты перед записью в журнал
     records_to_save.sort(key=lambda x: x['cid'])
 
-    exp_mgr = get_experiment_manager(DATA_DIR)
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         for r in records_to_save:
             writer.writerow(r['row'])
-            exp_mgr.save_measurement_row(r['row'])
-            if len(r['row']) > 14 and r['row'][14]:
-                exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, r['row'][14]))
-            if len(r['row']) > 15 and r['row'][15]:
-                exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, r['row'][15]))
 
     stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', 'Серия 5 кассет (5-в-1)')
     BATCH_STATE = {
@@ -1279,16 +1277,10 @@ async def handle_batch_save_final(request: Request):
 
     records_to_save.sort(key=lambda r: r['cid'])
 
-    exp_mgr = get_experiment_manager(DATA_DIR)
     with open(CSV_LOG, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         for rec in records_to_save:
             writer.writerow(rec['row'])
-            exp_mgr.save_measurement_row(rec['row'])
-            if len(rec['row']) > 14 and rec['row'][14]:
-                exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, rec['row'][14]))
-            if len(rec['row']) > 15 and rec['row'][15]:
-                exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, rec['row'][15]))
 
     stage_name = BATCH_CONFIG.get(BATCH_STATE.get('stage_key', 'batch5'), {}).get('title', 'Пакетная серия')
     BATCH_STATE = {
@@ -1482,16 +1474,6 @@ async def index(
     cur_t, cur_rh, cur_v = await get_climate_sensor().read_climate()
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
-
-    # Инициализация и выбор активной серии опытов
-    exp_mgr = get_experiment_manager(DATA_DIR)
-    set_exp_req = request.query_params.get('set_exp')
-    if set_exp_req:
-        exp_mgr.set_active_experiment(set_exp_req)
-    active_exp = exp_mgr.get_active_experiment()
-    experiments = exp_mgr.get_experiments()
-    active_csv = exp_mgr.get_active_csv_path()
-
 
     # Определение следующей группы по умолчанию для одиночного замера
     next_group_default = 'Контроль'
@@ -1734,15 +1716,65 @@ async def index(
         '''
 
     elif stage == 'batch_await_thermal' and BATCH_STATE.get('active'):
-        # ПАКЕТНЫЙ ШАГ 2: Все 3 кассеты сняты NoIR, выбор сохранения
+        # ПАКЕТНЫЙ ШАГ 2: Все кассеты сняты NoIR, выбор сохранения
         stage_key = BATCH_STATE.get('stage_key', 'stage1')
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
+        all_sessions = BATCH_STATE.get('sessions', [])
+
+        # Комплексный аудит серии: проверка дубликатов и пропуска массы
+        det_ids = [s.get('aruco_id') for s in all_sessions if s.get('aruco_id') is not None]
+        id_counts = {cid: det_ids.count(cid) for cid in set(det_ids)}
+        dup_cids = [cid for cid, cnt in id_counts.items() if cnt > 1]
+        has_dups = (len(all_sessions) >= 2 and (len(set(det_ids)) <= 1 or len(dup_cids) > 0))
+        missing_w_shots = [i + 1 for i, s in enumerate(all_sessions) if not str(s.get('user_weight', '')).strip()]
+
+        warnings_box = ''
+        if has_dups:
+            dup_info = ', '.join([f"#{cid} ({CASSETTE_CATALOG.get(cid, {}).get('name', 'Кассета')})" for cid in dup_cids]) if dup_cids else f"#{det_ids[0]}" if det_ids else "не определен"
+            warnings_box += f'''
+                <div style="background:#fffbeb; border:2px solid #f59e0b; border-radius:10px; padding:12px 16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(245,158,11,0.12);">
+                    <div style="display:flex; align-items:flex-start; gap:12px;">
+                        <span style="font-size:26px; line-height:1;">⚠️</span>
+                        <div style="flex:1;">
+                            <b style="color:#b45309; font-size:14px; display:block; text-transform:uppercase; letter-spacing:0.3px;">
+                                ВНИМАНИЕ: ОБНАРУЖЕНЫ ПОВТОРЯЮЩИЕСЯ СНИМКИ ОДНОЙ КАССЕТЫ!
+                            </b>
+                            <span style="font-size:12px; color:#92400e; display:block; margin-top:4px; line-height:1.45;">
+                                В боксе не менялась кассета между кадрами (зафиксированы повторы маркера <b>{dup_info}</b>).
+                                Станция автоматически распределила эти замеры по очередным когортам серии, но физически кадры сняты с одного объекта! 
+                                При необходимости скорректируйте когорты в выпадающих списках карточек ниже перед фиксацией.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            '''
+
+        if missing_w_shots:
+            shots_str = ', '.join([f'#{sh}' for sh in missing_w_shots])
+            warnings_box += f'''
+                <div style="background:#eff6ff; border:2px solid #3b82f6; border-radius:10px; padding:12px 16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(59,130,246,0.12);">
+                    <div style="display:flex; align-items:flex-start; gap:12px;">
+                        <span style="font-size:24px; line-height:1;">⚖️</span>
+                        <div style="flex:1;">
+                            <b style="color:#1d4ed8; font-size:14px; display:block; text-transform:uppercase; letter-spacing:0.3px;">
+                                ВЕС КАССЕТЫ НЕ ВВЕДЕН ДЛЯ КАДРОВ: {shots_str}!
+                            </b>
+                            <span style="font-size:12px; color:#1e40af; display:block; margin-top:4px; line-height:1.45;">
+                                Для указанных кассет не была зафиксирована масса с лабораторных весов.
+                                Рекомендуется ввести массу в граммах в подсвеченных полях <b>«⚖️ Масса с весов»</b> ниже для корректного расчета влагоотдачи и стресс-динамики.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            '''
 
         cards_summary = ''
-        for i, s in enumerate(BATCH_STATE.get('sessions', [])):
+        for i, s in enumerate(all_sessions):
             m_id = s.get('aruco_id')
             grp = s.get('group', f'Кадр #{i+1}')
             m_badge = f'<span style="background:#ecfdf5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">🏷️ ArUco #{m_id}</span>' if m_id else '<span style="background:#fffbeb; color:#b45309; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">⚠️ Ручная</span>'
+            if m_id and m_id in dup_cids:
+                m_badge += ' <span style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d; padding:2px 5px; border-radius:4px; font-size:9.5px; font-weight:bold;">Повтор</span>'
             
             # Генерация options для выпадающего списка выбора когорты
             options_html = ''
@@ -1750,9 +1782,24 @@ async def index(
                 sel = 'selected' if cid == m_id else ''
                 options_html += f'<option value="{cid}" {sel}>#{cid}: {cdata["name"]}</option>'
                 
-            w_val = s.get('user_weight', '')
+            w_val = str(s.get('user_weight', '')).strip()
             t_val = s.get('user_t_leaf', '')
             p_val = s.get('user_pct_soil', '64.0')
+            
+            w_is_missing = (not w_val)
+            if w_is_missing:
+                weight_input_html = f'''
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                        <label style="font-size:10px; font-weight:bold; color:#b45309;">⚖️ Масса, г:</label>
+                        <span style="background:#fee2e2; color:#dc2626; border:1px solid #fecdd3; padding:1px 4px; border-radius:3px; font-size:8.5px; font-weight:800;">НЕ ВВЕДЕН ⚠️</span>
+                    </div>
+                    <input type="text" name="weight_g_{i}" value="" placeholder="⚠️ Введите вес (г)" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:2px dashed #f59e0b; background:#fffbeb; border-radius:4px; box-sizing:border-box;">
+                '''
+            else:
+                weight_input_html = f'''
+                    <label style="font-size:10px; font-weight:bold; color:#0f766e; display:block; margin-bottom:2px;">⚖️ Масса с весов, г:</label>
+                    <input type="text" name="weight_g_{i}" value="{w_val}" placeholder="напр. 410.0" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #0d9488; border-radius:4px; box-sizing:border-box;">
+                '''
             
             cards_summary += f'''
                 <div style="flex:1; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
@@ -1776,8 +1823,7 @@ async def index(
 
                     <div style="display:flex; flex-direction:column; gap:5px;">
                         <div>
-                            <label style="font-size:10px; font-weight:bold; color:#0f766e; display:block;">⚖️ Масса с весов, г:</label>
-                            <input type="text" name="weight_g_{i}" value="{w_val}" placeholder="напр. 410.0" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #0d9488; border-radius:4px; box-sizing:border-box;">
+                            {weight_input_html}
                         </div>
                         <div>
                             <label style="font-size:10px; font-weight:bold; color:#d97706; display:block;">🌡️ T листа с UTi120S (°C):</label>
@@ -1799,6 +1845,7 @@ async def index(
                     <span style="font-size:12px; color:#047857;">{conf["title"]}</span>
                 </div>
 
+                {warnings_box}
                 <form action="/api/batch_save_manual" method="post">
                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:14px;">
                         {cards_summary}
@@ -1825,10 +1872,56 @@ async def index(
         '''
 
     elif stage == 'batch_verify' and BATCH_STATE.get('active') and BATCH_STATE.get('verified_data'):
-        # ПАКЕТНЫЙ ШАГ 3: Финальная верификация всей тройки кассет, отсортированной по ArUco
+        # ПАКЕТНЫЙ ШАГ 3: Финальная верификация серии кассет
         stage_key = BATCH_STATE.get('stage_key', 'stage1')
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
         verified = BATCH_STATE.get('verified_data', [])
+
+        # Комплексный аудит верифицированной серии
+        v_det_ids = [item.get('detected_id') for item in verified if item.get('detected_id') is not None]
+        v_id_counts = {cid: v_det_ids.count(cid) for cid in set(v_det_ids)}
+        v_dup_cids = [cid for cid, cnt in v_id_counts.items() if cnt > 1]
+        v_has_dups = (len(verified) >= 2 and (len(set(v_det_ids)) <= 1 or len(v_dup_cids) > 0))
+        v_missing_w = [i + 1 for i, item in enumerate(verified) if not str(item['session'].get('user_weight', '')).strip()]
+
+        verify_warnings_box = ''
+        if v_has_dups:
+            v_dup_info = ', '.join([f"#{cid} ({CASSETTE_CATALOG.get(cid, {}).get('name', 'Кассета')})" for cid in v_dup_cids]) if v_dup_cids else f"#{v_det_ids[0]}" if v_det_ids else "не определен"
+            verify_warnings_box += f'''
+                <div style="background:#fffbeb; border:2px solid #f59e0b; border-radius:10px; padding:12px 16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(245,158,11,0.12);">
+                    <div style="display:flex; align-items:flex-start; gap:12px;">
+                        <span style="font-size:26px; line-height:1;">⚠️</span>
+                        <div style="flex:1;">
+                            <b style="color:#b45309; font-size:14px; display:block; text-transform:uppercase; letter-spacing:0.3px;">
+                                ВНИМАНИЕ: ОБНАРУЖЕНЫ ПОВТОРЯЮЩИЕСЯ СНИМКИ ОДНОЙ КАССЕТЫ!
+                            </b>
+                            <span style="font-size:12px; color:#92400e; display:block; margin-top:4px; line-height:1.45;">
+                                В боксе не менялась кассета между кадрами (зафиксированы повторы маркера <b>{v_dup_info}</b>).
+                                Станция автоматически распределила эти кадры по когортам, но оптические снимки относятся к одному растению.
+                                Убедитесь в правильности назначения когорт в выпадающих списках перед итоговым сохранением!
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            '''
+
+        if v_missing_w:
+            v_shots_str = ', '.join([f'#{sh}' for sh in v_missing_w])
+            verify_warnings_box += f'''
+                <div style="background:#eff6ff; border:2px solid #3b82f6; border-radius:10px; padding:12px 16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(59,130,246,0.12);">
+                    <div style="display:flex; align-items:flex-start; gap:12px;">
+                        <span style="font-size:24px; line-height:1;">⚖️</span>
+                        <div style="flex:1;">
+                            <b style="color:#1d4ed8; font-size:14px; display:block; text-transform:uppercase; letter-spacing:0.3px;">
+                                ВЕС КАССЕТЫ НЕ ВВЕДЕН: ЗАМЕРЫ {v_shots_str}!
+                            </b>
+                            <span style="font-size:12px; color:#1e40af; display:block; margin-top:4px; line-height:1.45;">
+                                Рекомендуется указать фактическую массу в граммах в подсвеченных полях <b>«⚖️ Масса с весов»</b> ниже перед сохранением в базу данных.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            '''
 
         items_html = ''
         for i, item in enumerate(verified):
@@ -1878,8 +1971,7 @@ async def index(
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
                         <div>
-                            <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0f766e;">⚖️ Масса с весов, г:</label>
-                            <input type="text" name="weight_g_{i}" value="{s.get('user_weight', '')}" placeholder="напр. 415.0" style="width:100%; padding:7px; font-size:13px; border:2px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box;" {'autofocus' if i==0 else ''}>
+                            {f'''<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;"><label style="font-size:11px; font-weight:bold; color:#b45309;">⚖️ Масса с весов, г:</label><span style="background:#fee2e2; color:#dc2626; border:1px solid #fecdd3; padding:1px 5px; border-radius:3px; font-size:9.5px; font-weight:800;">НЕ ВВЕДЕН ⚠️</span></div><input type="text" name="weight_g_{i}" value="" placeholder="⚠️ Введите массу с весов (г)" style="width:100%; padding:7px; font-size:13px; font-weight:bold; border:2px dashed #f59e0b; background:#fffbeb; border-radius:6px; box-sizing:border-box;">''' if not str(s.get('user_weight', '')).strip() else f'''<label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0f766e;">⚖️ Масса с весов, г:</label><input type="text" name="weight_g_{i}" value="{s.get('user_weight', '')}" placeholder="напр. 415.0" style="width:100%; padding:7px; font-size:13px; border:2px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box;">'''}
                         </div>
                         <div>
                             <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:2px; color:#0284c7;">💧 Влажность почвы, %:</label>
@@ -1911,6 +2003,7 @@ async def index(
                     <h2 style="margin:2px 0 0 0; color:var(--sirius-teal-dark); font-size:16px;">{conf["title"]}</h2>
                 </div>
 
+                {verify_warnings_box}
                 <form action="/api/batch_save_final" method="post">
                     {items_html}
 
@@ -2057,9 +2150,6 @@ async def index(
                     <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР 5 КАССЕТ (5-В-1)</b>
                     <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Осмос • 🔴 К3 Засуха • 🟡 К4 Превенция • 🔵 К5 Реакция</span>
                 </a>
-                <div style="margin-top:7px; font-size:11px; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:5px 8px; text-align:center;">
-                    🌿 Запись в серию: <b>{active_exp.get('name')}</b> <span style="color:#64748b;">({active_exp.get('plant')})</span>
-                </div>
 
                 <!-- Памятка по изолятору соли -->
                 <div style="margin-top:8px; padding:6px 10px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; font-size:10px; color:#5b21b6; line-height:1.3;">
@@ -2088,10 +2178,10 @@ async def index(
             </div>
         '''
 
-    # ТАБЛИЦА ЖУРНАЛА АКТИВНОЙ СЕРИИ ОПЫТОВ
+    # ТАБЛИЦА ЖУРНАЛА
     rows = []
-    if os.path.exists(active_csv):
-        with open(active_csv, 'r', encoding='utf-8') as f:
+    if os.path.exists(CSV_LOG):
+        with open(CSV_LOG, 'r', encoding='utf-8') as f:
             all_r = list(csv.reader(f))
             if len(all_r) > 1:
                 rows = all_r[1:]
@@ -2417,10 +2507,7 @@ async def index(
         "cur_t": cur_t,
         "cur_rh": cur_rh,
         "cur_vpd": cur_vpd,
-        "cur_v": cur_v,
-        "active_exp": active_exp,
-        "experiments": experiments,
-        "rows_count": len(rows)
+        "cur_v": cur_v
     })
 @app.get('/download/pdf')
 def download_pdf():
@@ -2483,55 +2570,6 @@ def download_aruco_pdf():
     if os.path.exists(html_path):
         return FileResponse(html_path, filename='aruco_markers_cassettes.html', media_type='text/html')
     return HTMLResponse('Лист маркеров не найден')
-
-
-# ----------------- ЭНДПОИНТЫ УПРАВЛЕНИЯ СЕРИЯМИ ОПЫТОВ -----------------
-@app.post('/api/experiment/switch')
-def handle_experiment_switch(exp_id: str = Form(...)):
-    """Переключение активной серии опытов (культуры/растения)."""
-    exp_mgr = get_experiment_manager(DATA_DIR)
-    exp_mgr.set_active_experiment(exp_id)
-    return RedirectResponse(url=f'/?msg=exp_switched&set_exp={exp_id}', status_code=303)
-
-@app.post('/api/experiment/create')
-def handle_experiment_create(
-    name: str = Form(...),
-    plant: str = Form(''),
-    description: str = Form('')
-):
-    """Создание новой серии опытов с выделенной папкой."""
-    exp_mgr = get_experiment_manager(DATA_DIR)
-    new_e = exp_mgr.create_experiment(name=name, plant=plant, description=description)
-    return RedirectResponse(url=f'/?msg=exp_created&set_exp={new_e["id"]}', status_code=303)
-
-@app.get('/download/experiment_zip')
-def handle_download_experiment_zip(exp_id: str = ''):
-    """Выгрузка ZIP-архива конкретной серии (CSV + все снимки серии)."""
-    exp_mgr = get_experiment_manager(DATA_DIR)
-    target_id = exp_id if exp_id else exp_mgr.get_active_experiment().get('id', 'exp_1')
-    target_exp = None
-    for e in exp_mgr.get_experiments():
-        if e['id'] == target_id:
-            target_exp = e
-            break
-    if not target_exp:
-        target_exp = exp_mgr.get_active_experiment()
-
-    safe_name = "".join(c for c in target_exp.get('name', 'experiment') if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
-    zip_fname = f"{safe_name}.zip"
-    zip_path = os.path.join(DATA_DIR, f"temp_{target_id}.zip")
-    exp_mgr.generate_zip(target_id, zip_path)
-    return FileResponse(zip_path, filename=zip_fname, media_type='application/zip')
-
-@app.get('/download/csv')
-def download_active_csv():
-    exp_mgr = get_experiment_manager(DATA_DIR)
-    csv_p = exp_mgr.get_active_csv_path()
-    active_exp = exp_mgr.get_active_experiment()
-    safe_name = "".join(c for c in active_exp.get('name', 'experiment') if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
-    if os.path.exists(csv_p):
-        return FileResponse(csv_p, filename=f'{safe_name}_measurements.csv', media_type='text/csv')
-    return HTMLResponse('Файл журнала пуст')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
