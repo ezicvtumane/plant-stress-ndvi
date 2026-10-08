@@ -11,11 +11,27 @@ from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Calibration defaults for Capacitive Soil Moisture Sensor v1.2
-# Air / dry substrate: ~2.03 V (0.0% ПВ)
-# Submerged in water / soaked substrate: ~0.57 V (100.0% ПВ)
-V_DRY_DEFAULT = 2.03
-V_WET_DEFAULT = 0.57
+# Calibration defaults for Capacitive Soil Moisture Sensor v1.2 (3.3V power, peat substrate)
+# Air / dry substrate: ~2.45 V (0.0% ПВ)
+# Saturated substrate at field capacity: ~0.95 V (100.0% ПВ)
+V_DRY_DEFAULT = 2.45
+V_WET_DEFAULT = 0.95
+
+CALIB_FILE = "/home/pi/plant-stress-ndvi/data/calibrated_soil.json"
+
+def get_calib_limits() -> Tuple[float, float]:
+    try:
+        import json, os
+        if os.path.exists(CALIB_FILE):
+            with open(CALIB_FILE, 'r', encoding='utf-8') as f:
+                d = json.load(f)
+                vd = float(d.get('v_dry', V_DRY_DEFAULT))
+                vw = float(d.get('v_wet', V_WET_DEFAULT))
+                if vd > vw:
+                    return vd, vw
+    except Exception:
+        pass
+    return V_DRY_DEFAULT, V_WET_DEFAULT
 
 _LAST_VALID_SOIL = (None, None)
 
@@ -67,13 +83,12 @@ class SoilMoistureReader:
     def voltage_to_percentage(self, voltage: float) -> float:
         """
         Converts sensor voltage to moisture percentage (0-100%).
-        Capacitive sensor voltage drops as moisture rises:
-          V >= v_dry -> 0%
-          V <= v_wet -> 100%
+        Uses active calibration limits (v_dry, v_wet) for peat substrate.
         """
-        if self.v_dry == self.v_wet:
+        v_d, v_w = get_calib_limits()
+        if v_d <= v_w:
             return 0.0
-        percentage = ((self.v_dry - voltage) / (self.v_dry - self.v_wet)) * 100.0
+        percentage = ((v_d - voltage) / (v_d - v_w)) * 100.0
         return round(max(0.0, min(100.0, float(percentage))), 1)
 
     def read_channels(self) -> Dict[str, Dict[str, float]]:
