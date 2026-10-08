@@ -10,6 +10,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
+from src import config
 import cv2
 import pandas as pd
 
@@ -48,8 +49,8 @@ def run_measurement(sample_id: str, group_name: str, k_factor: float = config.DE
         # 2. Read soil moisture ground-truth
         soil_data = soil_reader.read_channels()
         logger.info("Soil Moisture -> A0: %.1f%% (%.3f V), A1: %.1f%% (%.3f V)",
-                    soil_data["channel_0"]["moisture_percent"], soil_data["channel_0"]["voltage_V"],
-                    soil_data["channel_1"]["moisture_percent"], soil_data["channel_1"]["voltage_V"])
+                    soil_data["A0"]["moisture_percent"], soil_data["A0"]["voltage_V"],
+                    soil_data["A1"]["moisture_percent"], soil_data["A1"]["voltage_V"])
 
         # 3. Capture Ambient Frame (all LEDs OFF)
         relays.all_off()
@@ -88,10 +89,10 @@ def run_measurement(sample_id: str, group_name: str, k_factor: float = config.DE
             "sample_id": sample_id,
             "group": group_name,
             "weight_g": weight_g,
-            "soil_moisture_a0_pct": soil_data["channel_0"]["moisture_percent"],
-            "soil_voltage_a0_v": soil_data["channel_0"]["voltage_V"],
-            "soil_moisture_a1_pct": soil_data["channel_1"]["moisture_percent"],
-            "soil_voltage_a1_v": soil_data["channel_1"]["voltage_V"],
+            "soil_moisture_a0_pct": soil_data["A0"]["moisture_percent"],
+            "soil_voltage_a0_v": soil_data["A0"]["voltage_V"],
+            "soil_moisture_a1_pct": soil_data["A1"]["moisture_percent"],
+            "soil_voltage_a1_v": soil_data["A1"]["voltage_V"],
             **metrics,
             "heatmap_file": heatmap_path.name
         }

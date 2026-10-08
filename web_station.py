@@ -54,6 +54,7 @@ import shutil
 import zipfile
 from PIL import Image
 import pytesseract
+from core.experiments import get_experiment_manager
 
 RELAY_REQ = None
 app = FastAPI(title='Plant Stress Lab Gallery Station')
@@ -1457,6 +1458,16 @@ async def index(
     cur_t, cur_rh, cur_v = await get_climate_sensor().read_climate()
     cur_vpd = calc_vpd(cur_t, cur_rh)
     t_now = int(time.time())
+
+    # Инициализация и выбор активной серии опытов
+    exp_mgr = get_experiment_manager(DATA_DIR)
+    set_exp_req = request.query_params.get('set_exp')
+    if set_exp_req:
+        exp_mgr.set_active_experiment(set_exp_req)
+
+    active_exp = exp_mgr.get_active_experiment()
+    experiments = exp_mgr.get_experiments()
+    active_csv = exp_mgr.get_active_csv_path()
 
     # Определение следующей группы по умолчанию для одиночного замера
     next_group_default = 'Контроль'
