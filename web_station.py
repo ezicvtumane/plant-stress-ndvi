@@ -78,10 +78,10 @@ PENDING_SESSION = None
 # Цвета строго синхронизированы с цветной рамкой ArUco-маркеров на кассетах:
 CASSETTE_CATALOG = {
     1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив (100% ПВ)', 'color': '#059669', 'stage': 'batch5'},
-    2: {'id': 2, 'name': 'Засоление (NaCl)', 'desc': 'NaCl 150 мМ, отдельный лоток', 'color': '#7c3aed', 'stage': 'batch5'},
-    3: {'id': 3, 'name': 'Превентивная регидратация', 'desc': 'Полив по алерту станции (ΔT > +0.8°C)', 'color': '#eab308', 'stage': 'batch5'},
-    4: {'id': 4, 'name': 'Традиционный визуальный контроль', 'desc': 'Полив при явном увядании листьев', 'color': '#2563eb', 'stage': 'batch5'},
-    5: {'id': 5, 'name': 'Терминальная засуха', 'desc': 'Без полива до гибели (некроз)', 'color': '#dc2626', 'stage': 'batch5'},
+    2: {'id': 2, 'name': 'Осмос', 'desc': 'Осмотический стресс', 'color': '#7c3aed', 'stage': 'batch5'},
+    3: {'id': 3, 'name': 'Засуха', 'desc': 'Водный дефицит', 'color': '#eab308', 'stage': 'batch5'},
+    4: {'id': 4, 'name': 'Превенция', 'desc': 'Ранний полив по алерту станции', 'color': '#2563eb', 'stage': 'batch5'},
+    5: {'id': 5, 'name': 'Реакция', 'desc': 'Полив по визуальным признакам увядания', 'color': '#dc2626', 'stage': 'batch5'},
     6: {'id': 6, 'name': 'Калибровка (Стенд №0)', 'desc': 'Калибровочный стенд (посев 22.09)', 'color': '#64748b', 'stage': 'batch5'}
 }
 ARUCO_CASSETTE_MAP = {cid: data['name'] for cid, data in CASSETTE_CATALOG.items()}
@@ -520,12 +520,13 @@ def do_hardware_spectral_capture(group_name: str):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
     init_relay()
-    if RELAY_REQ:
+    relay = get_relay_controller()
+    if True:
         # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
         # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
         set_v4l2_exposure(2500, 200)
         time.sleep(0.20)
-        RELAY_REQ.set_value(7, Value.ACTIVE)
+        relay.set_nir(True)
         time.sleep(0.40)
         for _ in range(8): cap.read()
         ret_n, frame_nir = cap.read()
@@ -1395,8 +1396,8 @@ async def index(
     if last_grp == 'Контроль':
         next_group_default = 'Засуха'
     elif last_grp == 'Засуха':
-        next_group_default = 'Соль'
-    elif last_grp == 'Соль':
+        next_group_default = 'Осмос'
+    elif last_grp == 'Осмос':
         next_group_default = 'Контроль'
     elif 'эталон' in last_grp.lower() or ('контр' in last_grp.lower() and ('2' in last_grp or 'этап 2' in last_grp.lower())):
         next_group_default = 'Репарация (~40ч)'
@@ -1485,9 +1486,9 @@ async def index(
         short_names = {
             1: "Контроль",
             2: "Осмос",
-            3: "Прибор",
-            4: "Глаза",
-            5: "Гибель",
+            3: "Засуха",
+            4: "Превенция",
+            5: "Реакция",
             6: "Стенд №0"
         }
         for i, c in enumerate(cassettes):
@@ -1952,12 +1953,12 @@ async def index(
                 <a href="/api/start_batch?stage=batch5" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488 0%, #059669 45%, #2563eb 100%); color:white; padding:12px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.3); transition:all 0.2s;">
                     <span style="font-size:18px; display:block; margin-bottom:2px;">🌿🔬</span>
                     <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР 5 КАССЕТ (5-В-1)</b>
-                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Соль • 🟡 К3 Прибор • 🔵 К4 Глаза • 🔴 К5 Гибель</span>
+                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Осмос • 🟡 К3 Засуха • 🔵 К4 Превенция • 🔴 К5 Реакция</span>
                 </a>
 
                 <!-- Памятка по изолятору соли -->
                 <div style="margin-top:8px; padding:6px 10px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; font-size:10px; color:#5b21b6; line-height:1.3;">
-                    💡 <b>Биобезопасность:</b> Кассеты 1, 3, 4, 5 стоят в общем лотке. Кассета №2 (Соль) установлена в <b>отдельном лотке-изоляторе</b> для защиты дренажа от перекрестного засоления.
+                    💡 <b>Биобезопасность:</b> Кассеты 1, 3, 4, 5 стоят в общем лотке. Кассета №2 (Осмос) установлена в <b>отдельном лотке-изоляторе</b> для защиты дренажа от перекрестного осмотического влияния.
                 </div>
 
                 <!-- Выпадающий одиночный замер -->
@@ -2008,16 +2009,16 @@ async def index(
             except (ValueError, TypeError):
                 pass
 
-            if 'прибор' in grp_l or 'станци' in grp_l or 'репар' in grp_l:
+            if 'превенци' in grp_l or 'прибор' in grp_l or 'станци' in grp_l:
                 cnt_inst += 1
                 if ndvi_val is not None: ndvis_inst.append(ndvi_val)
-            elif 'глаз' in grp_l or 'визуал' in grp_l or 'поздн' in grp_l:
+            elif 'реакци' in grp_l or 'глаз' in grp_l or 'визуал' in grp_l:
                 cnt_eye += 1
                 if ndvi_val is not None: ndvis_eye.append(ndvi_val)
-            elif 'терминал' in grp_l or 'гибель' in grp_l or 'некроз' in grp_l or ('засух' in grp_l and 'спасени' not in grp_l):
+            elif 'засух' in grp_l or 'терминал' in grp_l or 'гибель' in grp_l or 'некроз' in grp_l:
                 cnt_term += 1
                 if ndvi_val is not None: ndvis_term.append(ndvi_val)
-            elif 'сол' in grp_l or 'salin' in grp_l:
+            elif 'осмос' in grp_l or 'сол' in grp_l or 'salin' in grp_l:
                 cnt_salt += 1
                 if ndvi_val is not None: ndvis_salt.append(ndvi_val)
             elif 'контр' in grp_l or 'control' in grp_l or 'эталон' in grp_l or 'оптимум' in grp_l:
@@ -2099,12 +2100,12 @@ async def index(
                 </div>
             </div>
 
-            <!-- ИНФОРМАЦИОННАЯ ПЛАШКА СРАВНИТЕЛЬНОГО АНАЛИЗА К3 VS К4 -->
+            <!-- ИНФОРМАЦИОННАЯ ПЛАШКА СРАВНИТЕЛЬНОГО АНАЛИЗА К4 VS К5 -->
             <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:7px 12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="background:#e0f2fe; color:#0369a1; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:3px; text-transform:uppercase; letter-spacing:0.5px;">Сравнение</span>
                     <span style="font-size:11px; color:#1e293b; font-weight:600;">
-                        <b>Предиктивная эффективность:</b> К3 (полив по раннему алерту станции) vs К4 (полив по визуальным признакам)
+                        <b>Предиктивная эффективность:</b> К4 (полив по раннему алерту станции) vs К5 (полив по визуальным признакам)
                     </span>
                 </div>
                 <span style="background:#ecfdf5; color:#047857; font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:4px; border:1px solid #a7f3d0; white-space:nowrap;">Сохранность: {eff_badge}</span>

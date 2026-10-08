@@ -522,7 +522,7 @@ function openEditModal(id, grp, ts, tLeaf, weight, soil) {
     document.getElementById('editModalTitle').innerText = '✏️ Коррекция замера #' + id + (grp ? ' (' + grp + ')' : '');
     let cleanT = (tLeaf || '').replace(' °C', '').replace('°C', '').trim();
     if (cleanT === '--' || cleanT.toLowerCase().indexOf('none') !== -1) {
-        cleanT = (id === '73' && grp === 'Соль') ? '30.2' : '23.5';
+        cleanT = (id === '73' && grp === 'Осмос') ? '30.2' : '23.5';
     }
     document.getElementById('edit_t_leaf').value = cleanT;
     let cleanW = (weight || '').replace(' г', '').replace('г', '').trim();
