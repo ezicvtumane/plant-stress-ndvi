@@ -31,8 +31,10 @@ class ExperimentStatistics:
     def load_or_generate_dataset(self) -> pd.DataFrame:
         """Loads experimental data or generates synthetic 7-day biological data."""
         if self.data_file.exists():
-            self.df = pd.read_csv(self.data_file)
-            logger.info("Loaded %d records from %s", len(self.df), self.data_file)
+            # Оптимизация памяти (MemoryError Prevention): чтение массивных датасетов батчами (chunksize)
+            chunk_iter = pd.read_csv(self.data_file, chunksize=10000)
+            self.df = pd.concat((chunk for chunk in chunk_iter), ignore_index=True)
+            logger.info("Loaded %d records from %s using chunking", len(self.df), self.data_file)
         else:
             logger.info("No existing dataset found at %s. Generating synthetic 7-day validation dataset...", self.data_file)
             self.df = self._generate_synthetic_7day_dataset()
