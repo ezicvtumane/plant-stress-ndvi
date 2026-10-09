@@ -1707,6 +1707,11 @@ async def index(
                         <div style="background:#f1f5f9; color:#94a3b8; font-size:9px; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px dashed #cbd5e1; white-space:nowrap;">—</div>
                     </div>
                 '''
+        cohort_options_html = '<option value="auto" selected>Автоматически (распознать по ArUco-маркеру)</option>'
+        for cid in [1, 2, 3, 4, 5]:
+            if cid in CASSETTE_CATALOG:
+                cdata = CASSETTE_CATALOG[cid]
+                cohort_options_html += f'<option value="{cid}">Кассета #{cid}: {cdata["name"]} ({cdata["desc"]})</option>'
 
         wizard_card = f'''
             <div class="card" style="border: 2px solid #3b82f6; background: #ffffff; box-sizing:border-box; margin:0; width:100%; overflow:hidden;">
@@ -1747,13 +1752,7 @@ async def index(
                                     Кассета (когорта):
                                 </label>
                                 <select name="cohort_choice" style="width:100%; padding:6px 8px; font-size:12px; font-weight:bold; border:1.5px solid #3b82f6; border-radius:6px; background:#eff6ff; color:#1e40af;">
-                                    <option value="auto" selected>Автоматически (распознать по ArUco-маркеру)</option>
-                                    <option value="1">Кассета #1: Контроль (Оптимум 100% ПВ)</option>
-                                    <option value="2">Кассета #2: Осмос (Осмотический стресс)</option>
-                                    <option value="3">Кассета #3: Засуха (Водный дефицит)</option>
-                                    <option value="4">Кассета #4: Превенция (Ранний полив по ΔT)</option>
-                                    <option value="5">Кассета #5: Реакция (Визуальный контроль увядания)</option>
-                                    <option value="6">Кассета #6: Калибровочный стенд (Стенд №0, посев 22.09)</option>
+                                    {cohort_options_html}
                                 </select>
                             </div>
 
@@ -2451,8 +2450,54 @@ async def index(
         </div>
     '''
 
+    def get_cohort_order(r):
+        grp = str(r[2] if len(r) > 2 else '').lower()
+        if 'контр' in grp or 'control' in grp: return 1
+        if 'осмос' in grp or 'сол' in grp or 'osmo' in grp: return 2
+        if 'засух' in grp or 'drought' in grp: return 3
+        if 'превенци' in grp or 'prevent' in grp: return 4
+        if 'реакци' in grp or 'react' in grp: return 5
+        if 'калибр' in grp: return 6
+        return 99
+
+    def parse_row_dt(r):
+        ts_str = str(r[1] if len(r) > 1 else '')
+        ru_m = {'января': 1, 'февраля': 2, 'марта': 3, 'апреля': 4, 'мая': 5, 'июня': 6,
+                'июля': 7, 'августа': 8, 'сентября': 9, 'октября': 10, 'ноября': 11, 'декабря': 12}
+        try:
+            p = ts_str.replace(',', '').split()
+            day = int(p[0])
+            mon = ru_m.get(p[1].lower(), 10)
+            yr = int(p[2])
+            t_p = p[3].split(':')
+            return datetime(yr, mon, day, int(t_p[0]), int(t_p[1]), int(t_p[2]))
+        except Exception:
+            return datetime.min
+
+    sorted_by_time = sorted(filtered_rows, key=parse_row_dt, reverse=True)
+    sessions = []
+    cur_sess = []
+    for r in sorted_by_time:
+        r_dt = parse_row_dt(r)
+        if not cur_sess:
+            cur_sess.append((r, r_dt))
+        else:
+            diff = abs((cur_sess[-1][1] - r_dt).total_seconds())
+            if diff <= 3600 and len(cur_sess) < 6:
+                cur_sess.append((r, r_dt))
+            else:
+                sessions.append(cur_sess)
+                cur_sess = [(r, r_dt)]
+    if cur_sess:
+        sessions.append(cur_sess)
+
+    ordered_table_rows = []
+    for sess in sessions:
+        sess_sorted = sorted([item[0] for item in sess], key=get_cohort_order)
+        ordered_table_rows.extend(sess_sorted)
+
     table_html = ''
-    for r in reversed(filtered_rows):
+    for r in ordered_table_rows:
         leaf_area_val = "--"
         if len(r) >= 25:
             m_id, ts, grp = r[0], r[1], r[2]
