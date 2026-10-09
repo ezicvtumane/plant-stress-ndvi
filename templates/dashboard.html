@@ -320,17 +320,25 @@
         }
         td {
             padding: 9px 8px;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
             vertical-align: middle;
             text-align: center;
             color: #1e293b;
             background: #ffffff;
+            transition: background 0.15s ease;
         }
-        tr:nth-child(even) td {
-            background: #f8fafc;
+        /* Разделение разных дат исследования фоновыми блоками (как в Excel) */
+        tr.date-group-even td {
+            background: #ffffff !important;
         }
-        tr:hover td {
-            background: #e6fffa;
+        tr.date-group-odd td {
+            background: #eaf2fb !important; /* Мягкий пастельно-голубой фон для соседних дат */
+        }
+        tr.date-group-divider td {
+            border-top: 2.5px solid #94a3b8 !important; /* Четкая разделительная черта между датами */
+        }
+        tr.date-group-even:hover td, tr.date-group-odd:hover td {
+            background: #dbeafe !important;
         }
         th.col-actions, td.col-actions {
             position: sticky;
@@ -343,13 +351,15 @@
         }
         td.col-actions {
             z-index: 5;
-            background: #ffffff;
         }
-        tr:nth-child(even) td.col-actions {
-            background: #f8fafc;
+        tr.date-group-even td.col-actions {
+            background: #ffffff !important;
         }
-        tr:hover td.col-actions {
-            background: #e6fffa;
+        tr.date-group-odd td.col-actions {
+            background: #eaf2fb !important;
+        }
+        tr.date-group-even:hover td.col-actions, tr.date-group-odd:hover td.col-actions {
+            background: #dbeafe !important;
         }
     </style>
 </head>
