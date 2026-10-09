@@ -17,10 +17,10 @@ from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 
-BASE_DIR = r"c:\Users\Администратор\Documents\Coglet\plant-stress-ndvi"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DOCS_DIR = os.path.join(BASE_DIR, "docs")
-USER_DOCS = r"C:\Users\Администратор\Documents"
-CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+USER_DOCS = r"C:\Users\Администратор\Documents" if os.name == 'nt' else os.path.expanduser("~/Documents")
+CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe" if os.name == 'nt' else "/usr/bin/chromium"
 
 # ==============================================================================
 # 1. ТЕКСТ ЛАБОРАТОРНОГО ЖУРНАЛА (MARKDOWN)
@@ -93,7 +93,7 @@ JOURNAL_MD = """# 📋 ЛАБОРАТОРНЫЙ ЖУРНАЛ НАУЧНОГО И
 1. **$M$ (г)** — масса кассеты с лабораторных электронных весов (дискретность 0.1 г) — независимый Ground-Truth водного баланса.
 2. **$W_{\\text{soil}}$ (%)** — влажность субстрата по емкостному датчику v1.2 (и напряжение АЦП ADS1115 в вольтах).
 3. **$T_{\\text{leaf}}$ (°C)** — радиационная температура листовой пластины с экрана тепловизора UNI-T UTi120S (в перекрестии кроны).
-4. **$T_{\\text{air}}$ (°C) и $RH_{\\text{air}}$ (%)** — температура и влажность воздуха в боксе по датчику Sensirion SHT30.
+4. **$T_{\\text{air}}$ (°C) и $RH_{\\text{air}}$ (%)** — температура и влажность воздуха по беспроводному датчику Xiaomi на подоконнике (зона растений).
 5. **$\\Delta T = T_{\\text{leaf}} - T_{\\text{air}}$ (°C)** — температурный градиент транспирационного охлаждения.
 6. **$NDVI$** — калиброванный вегетационный индекс (среднее по кассете и разброс $\\pm \\sigma$).
 7. **$PLA$ ($S_{\\text{leaf}}$, см²)** — проективная площадь листьев по контуру ArUco ($k_{\\text{scale}}$).
