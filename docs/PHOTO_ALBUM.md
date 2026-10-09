@@ -68,5 +68,34 @@
 | ![Посев семян в кассеты](images/alisa_planting_seeds.jpg) | ![Серия из 5 кассет](images/alisa_5_cassettes_layout.jpg) |
 | **Рис. 3.3.** Посев семян на фиксированную глубину 1.5 см в 9 ячеек стандартизованной кассеты. | **Рис. 3.4.** Размещение 5 синхронных кассет ($n=45$) в камере доращивания под фитопанелью полного спектра. Кассета №2 установлена в изолированный поддон. |
 
--
-> 📌 **Примечание**: Все оригиналы фотоснимков хранятся в высоком разрешении в каталоге [`docs/images/`](images/) и доступны для рецензирования экспертной комиссией конкурса «Большие вызовы».
+---
+
+## Раздел 4. Оптический тракт, калибровка и стробирование
+
+| Проверка стробирования в темновой комнате | Коллаж стробированной вспышки |
+| :---: | :---: |
+| ![Проверка вспышки в темноте](images/dark_room_strobe_verification.jpg) | ![Коллаж стробирования](images/strobe_verification_collage.jpg) |
+| **Рис. 4.1.** Тестирование активного стробирования светодиодов 660 нм и 850 нм в темновой камере без паразитной засветки. | **Рис. 4.2.** Сравнение кадров: фоновый кадр (Dark), чистый отклик хлорофилла 660 нм и отражение мезофилла 850 нм. |
+
+---
+
+## Раздел 5. Натурные измерения 2-дневной экспериментальной серии (8–9 октября 2026 г.)
+
+Синхронная фиксация оптических карт NDVI (активный строб 660/850 нм) и термограмм листового полога (UNI-T UTi120S) для 5 когорт (*Pisum sativum*, сорт «Альфа», $n = 45$):
+* **День 1 (8 октября 2026 г.)**: Исходный физиологический статус всех 5 кассет (100% ПВ, полив накануне).
+* **День 2 (9 октября 2026 г.)**: Фиксация через **36 часов** после полива; расход влаги на эвапотранспирацию составил 16–22 г на кассету.
+
+Полная галерея снимков высокого разрешения структурирована в каталоге [`media/pilot_experiment_pea_2days/`](../media/pilot_experiment_pea_2days/README.md).
+
+| Когорта | День 1: Карта NDVI (8 окт) | День 2: Карта NDVI (9 окт) | День 1: Термограмма листа (8 окт) | День 2: Термограмма листа (9 окт) |
+| :--- | :---: | :---: | :---: | :---: |
+| **К1: Контроль**<br/>(Оптимум 100% ПВ) | [Карта NDVI #171](../media/pilot_experiment_pea_2days/day1_20261008/opt_k1_control_#171.jpg)<br/>`0.789` · 272 г · 10.0 см² | [Карта NDVI #179](../media/pilot_experiment_pea_2days/day2_20261009/opt_k1_control_#179.jpg)<br/>`0.752` · 252 г · 14.8 см² | [Тепловизор #171](../media/pilot_experiment_pea_2days/day1_20261008/therm_k1_control_#171.jpg)<br/>$T_{\text{leaf}} = 23.7^\circ\text{C}$ ($\Delta T = -1.2^\circ\text{C}$) | [Тепловизор #179](../media/pilot_experiment_pea_2days/day2_20261009/therm_k1_control_#179.jpg)<br/>$T_{\text{leaf}} = 23.0^\circ\text{C}$ ($\Delta T = -0.9^\circ\text{C}$) |
+| **К2: Осмос**<br/>(150 мМ NaCl, изолят) | [Карта NDVI #167](../media/pilot_experiment_pea_2days/day1_20261008/opt_k2_osmo_#167.jpg)<br/>`0.830` · 295 г · 5.6 см² | [Карта NDVI #175](../media/pilot_experiment_pea_2days/day2_20261009/opt_k2_osmo_#175.jpg)<br/>`0.800` · 283 г · 9.0 см² | [Тепловизор #167](../media/pilot_experiment_pea_2days/day1_20261008/therm_k2_osmo_#167.jpg)<br/>$T_{\text{leaf}} = 23.2^\circ\text{C}$ ($\Delta T = -1.7^\circ\text{C}$) | [Тепловизор #175](../media/pilot_experiment_pea_2days/day2_20261009/therm_k2_osmo_#175.jpg)<br/>$T_{\text{leaf}} = 23.2^\circ\text{C}$ ($\Delta T = -0.7^\circ\text{C}$) |
+| **К3: Засуха**<br/>(Водный дефицит) | [Карта NDVI #168](../media/pilot_experiment_pea_2days/day1_20261008/opt_k3_drought_#168.jpg)<br/>`0.810` · 298 г · 9.3 см² | [Карта NDVI #176](../media/pilot_experiment_pea_2days/day2_20261009/opt_k3_drought_#176.jpg)<br/>`0.790` · 270 г · 12.3 см² | [Тепловизор #168](../media/pilot_experiment_pea_2days/day1_20261008/therm_k3_drought_#168.jpg)<br/>$T_{\text{leaf}} = 23.6^\circ\text{C}$ ($\Delta T = -1.3^\circ\text{C}$) | [Тепловизор #176](../media/pilot_experiment_pea_2days/day2_20261009/therm_k3_drought_#176.jpg)<br/>$T_{\text{leaf}} = 23.0^\circ\text{C}$ ($\Delta T = -0.9^\circ\text{C}$) |
+| **К4: Превенция**<br/>(Ранний алерт станции) | [Карта NDVI #169](../media/pilot_experiment_pea_2days/day1_20261008/opt_k4_prevention_#169.jpg)<br/>`0.796` · 297 г · 5.2 см² | [Карта NDVI #177](../media/pilot_experiment_pea_2days/day2_20261009/opt_k4_prevention_#177.jpg)<br/>`0.747` · 274 г · 5.6 см² | [Тепловизор #169](../media/pilot_experiment_pea_2days/day1_20261008/therm_k4_prevention_#169.jpg)<br/>$T_{\text{leaf}} = 23.8^\circ\text{C}$ ($\Delta T = -1.1^\circ\text{C}$) | [Тепловизор #177](../media/pilot_experiment_pea_2days/day2_20261009/therm_k4_prevention_#177.jpg)<br/>$T_{\text{leaf}} = 23.0^\circ\text{C}$ ($\Delta T = -0.9^\circ\text{C}$) |
+| **К5: Реакция**<br/>(Визуальный контроль) | [Карта NDVI #170](../media/pilot_experiment_pea_2days/day1_20261008/opt_k5_reaction_#170.jpg)<br/>`0.801` · 290 г · 9.6 см² | [Карта NDVI #178](../media/pilot_experiment_pea_2days/day2_20261009/opt_k5_reaction_#178.jpg)<br/>`0.795` · 264 г · 9.8 см² | [Тепловизор #170](../media/pilot_experiment_pea_2days/day1_20261008/therm_k5_reaction_#170.jpg)<br/>$T_{\text{leaf}} = 23.3^\circ\text{C}$ ($\Delta T = -1.2^\circ\text{C}$) | [Тепловизор #178](../media/pilot_experiment_pea_2days/day2_20261009/therm_k5_reaction_#178.jpg)<br/>$T_{\text{leaf}} = 23.1^\circ\text{C}$ ($\Delta T = -0.8^\circ\text{C}$) |
+
+---
+
+> 📌 **Примечание**: Все оригиналы фотоснимков аппаратной сборки хранятся в каталоге [`docs/images/`](images/), а оригиналы мультиспектральных и тепловизионных измерений — в [`media/`](../media/) и доступны для рецензирования экспертной комиссией конкурса «Большие вызовы».
+
