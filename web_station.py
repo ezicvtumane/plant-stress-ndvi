@@ -2531,7 +2531,18 @@ async def index(
         sess_sorted = sorted([item[0] for item in sess], key=get_cohort_order)
         ordered_table_rows.extend(sess_sorted)
 
+    # Карта дат для мягкого визуального чередования фона блоков дней (как в Excel)
+    unique_dates = []
+    for r in ordered_table_rows:
+        ts = r[1] if len(r) > 1 else ''
+        d_str, _ = format_ru_date_and_time(ts)
+        if d_str and d_str not in unique_dates:
+            unique_dates.append(d_str)
+
+    date_idx_map = {d: i for i, d in enumerate(unique_dates)}
+
     table_html = ''
+    prev_d_str = None
     for r in ordered_table_rows:
         leaf_area_val = "--"
         if len(r) >= 25:
@@ -2638,6 +2649,13 @@ async def index(
             th_stat = '<span style="color:#d97706;font-size:11px;white-space:nowrap;font-weight:600;">⏳ Ожидает</span>'
 
         d_str, t_str = format_ru_date_and_time(ts)
+        d_idx = date_idx_map.get(d_str, 0)
+        is_odd_date = (d_idx % 2 == 1)
+        date_cls = "date-group-odd" if is_odd_date else "date-group-even"
+        divider_cls = " date-group-divider" if (prev_d_str is not None and d_str != prev_d_str) else ""
+        prev_d_str = d_str
+        row_cls = f"{date_cls}{divider_cls}"
+
         time_cell = f'<div style="white-space:nowrap;font-size:11px;font-weight:600;color:#0f172a;">{d_str}</div><div style="font-size:10px;color:#64748b;white-space:nowrap;">{t_str}</div>'
         grp_badge = format_group_badge(grp)
         if t_show != '--' and 'none' not in t_show.lower():
@@ -2648,7 +2666,7 @@ async def index(
         del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id} ({grp})?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">✕</button></form>'''
         edit_btn = f'''<button type="button" onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; border-radius:4px; padding:2px 5px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1; margin-right:3px;" title="Скорректировать замер #{m_id} ({grp})" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#e0f2fe';this.style.color='#0369a1';">✏️</button>'''
 
-        table_html += f'<tr><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td class="col-actions" style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
+        table_html += f'<tr class="{row_cls}"><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td class="col-actions" style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
 
     if not table_html:
         table_html = '<tr><td colspan="12" style="text-align:center; padding:35px 20px; color:#64748b; font-size:14px;">🌱 <b>Журнал физиологических замеров пуст.</b><br><span style="font-size:12px; color:#94a3b8;">Запустите пакетный замер кассет 1–5, чтобы начать фиксацию данных нового эксперимента.</span></td></tr>'
