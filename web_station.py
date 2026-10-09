@@ -227,28 +227,35 @@ def format_ru_date_and_time(val):
     return (val_str, '')
 
 def format_group_badge(grp_name: str) -> str:
-    """Форматирует название группы в яркий отличительный бейдж."""
+    """Форматирует название группы в яркий отличительный бейдж в строгом соответствии с цветами когорт."""
     if not grp_name:
         return '--'
     grp_lower = grp_name.strip().lower()
-    if 'прибор' in grp_lower or 'станци' in grp_lower:
-        return '<span style="background:#ecfdf5; color:#047857; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">Предиктивный полив</span>'
-    elif 'глаз' in grp_lower or 'визуал' in grp_lower:
-        return '<span style="background:#fffbeb; color:#b45309; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">Органолептический полив</span>'
-    elif 'терминал' in grp_lower or 'гибель' in grp_lower or 'некроз' in grp_lower:
-        return '<span style="background:#fee2e2; color:#b91c1c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fca5a5; font-size:11px; white-space:nowrap;">Терминальная засуха</span>'
-    elif 'сол' in grp_lower or 'salin' in grp_lower:
-        return '<span style="background:#f5f3ff; color:#6d28d9; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #ddd6fe; font-size:11px; white-space:nowrap;">Засоление (NaCl)</span>'
-    elif 'калибро' in grp_lower or 'стенд' in grp_lower:
-        return '<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #cbd5e1; font-size:11px; white-space:nowrap;">Калибровочный стенд</span>'
-    elif 'контр' in grp_lower or 'control' in grp_lower or 'эталон' in grp_lower or 'оптимум' in grp_lower:
-        return '<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">Контроль</span>'
-    elif 'репар' in grp_lower or 'ранн' in grp_lower:
-        return '<span style="background:#f0fdfa; color:#0f766e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #99f6e4; font-size:11px; white-space:nowrap;">Репарация</span>'
-    elif 'критич' in grp_lower or 'поздн' in grp_lower:
-        return '<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">Крит. стресс</span>'
-    elif 'засух' in grp_lower or 'drought' in grp_lower:
-        return f'<span style="background:#fffbeb; color:#92400e; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+
+    # К1: Контроль (#1) — Зеленый (#059669 / #065f46)
+    if 'контр' in grp_lower or 'control' in grp_lower or 'оптимум' in grp_lower or 'эталон' in grp_lower or '#1' in grp_lower:
+        return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+
+    # К2: Осмос (#2) — Фиолетовый (#7c3aed / #6d28d9)
+    elif 'осмос' in grp_lower or 'osmo' in grp_lower or 'сол' in grp_lower or 'salin' in grp_lower or 'nacl' in grp_lower or '#2' in grp_lower:
+        return f'<span style="background:#f5f3ff; color:#6d28d9; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #ddd6fe; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+
+    # К3: Засуха (#3) — Красный (#dc2626 / #be123c)
+    elif 'засух' in grp_lower or 'drought' in grp_lower or 'терминал' in grp_lower or 'гибель' in grp_lower or 'некроз' in grp_lower or '#3' in grp_lower:
+        return f'<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+
+    # К4: Превенция (#4) — Янтарный / Золотой (#ca8a04 / #b45309)
+    elif 'превенци' in grp_lower or 'prevent' in grp_lower or 'прибор' in grp_lower or 'станци' in grp_lower or 'предиктив' in grp_lower or 'репар' in grp_lower or 'ранн' in grp_lower or '#4' in grp_lower:
+        return f'<span style="background:#fffbeb; color:#b45309; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+
+    # К5: Реакция (#5) — Синий (#2563eb / #1d4ed8)
+    elif 'реакци' in grp_lower or 'react' in grp_lower or 'глаз' in grp_lower or 'визуал' in grp_lower or 'органолепт' in grp_lower or 'тургор' in grp_lower or 'критич' in grp_lower or 'поздн' in grp_lower or '#5' in grp_lower:
+        return f'<span style="background:#eff6ff; color:#1d4ed8; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #bfdbfe; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+
+    # К6: Калибровочный стенд — Серый (#64748b / #475569)
+    elif 'калибро' in grp_lower or 'стенд' in grp_lower or '#6' in grp_lower:
+        return f'<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #cbd5e1; font-size:11px; white-space:nowrap;">{grp_name}</span>'
+
     else:
         return f'<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #e2e8f0; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
@@ -2452,12 +2459,12 @@ async def index(
 
     def get_cohort_order(r):
         grp = str(r[2] if len(r) > 2 else '').lower()
-        if 'контр' in grp or 'control' in grp: return 1
-        if 'осмос' in grp or 'сол' in grp or 'osmo' in grp: return 2
-        if 'засух' in grp or 'drought' in grp: return 3
-        if 'превенци' in grp or 'prevent' in grp: return 4
-        if 'реакци' in grp or 'react' in grp: return 5
-        if 'калибр' in grp: return 6
+        if 'контр' in grp or 'control' in grp or '#1' in grp or 'эталон' in grp: return 1
+        if 'осмос' in grp or 'сол' in grp or 'osmo' in grp or '#2' in grp: return 2
+        if 'засух' in grp or 'drought' in grp or 'терминал' in grp or '#3' in grp: return 3
+        if 'превенци' in grp or 'prevent' in grp or 'прибор' in grp or 'станци' in grp or 'предиктив' in grp or '#4' in grp: return 4
+        if 'реакци' in grp or 'react' in grp or 'глаз' in grp or 'визуал' in grp or 'органолепт' in grp or '#5' in grp: return 5
+        if 'калибр' in grp or 'стенд' in grp or '#6' in grp: return 6
         return 99
 
     def parse_row_dt(r):
