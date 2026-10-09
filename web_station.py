@@ -137,9 +137,24 @@ LAST_VALID_CLIMATE = (24.9, 65.7, 3.21)
 
 def _read_climate_sync():
     """
-    Синхронный опрос I2C-0. Xiaomi Gateway удален.
+    Синхронный опрос климата:
+    1. Приоритет: Беспроводной датчик Xiaomi Mijia на подоконнике (зона растений),
+       так как датчик SHT30 внутри закрытого оптического бокса нагревается от ламп/драйверов (~29°C).
+    2. Fallback: Локальный I2C SHT30 в боксе (если шлюз Xiaomi временно недоступен).
     """
     global LAST_VALID_CLIMATE
+    try:
+        from core.xiaomi_climate import get_windowsill_climate
+        win_c = get_windowsill_climate()
+        if win_c and (win_c.get('is_live') or win_c.get('t_c', 0) > 0):
+            t = round(float(win_c['t_c']), 1)
+            rh = round(float(win_c['rh_pct']), 1)
+            v_rail = round(float(win_c.get('battery_v', 3.15)), 2)
+            LAST_VALID_CLIMATE = (t, rh, v_rail)
+            return t, rh, v_rail
+    except Exception:
+        pass
+
     try:
         import smbus2
         with smbus2.SMBus(0) as bus:
@@ -852,19 +867,25 @@ def do_hardware_spectral_capture(group_name: str):
         v_soil, pct_soil = _reader.get_active_moisture(group_name)
     except Exception:
         v_soil, pct_soil = 1.85, 64.0
-    live_t, live_rh, _ = _read_climate_sync()
-    cur_vpd = calc_vpd(live_t, live_rh)
-
     win_c = get_windowsill_climate()
+    if win_c and (win_c.get('is_live') or win_c.get('t_c', 0) > 0):
+        air_t = round(float(win_c['t_c']), 1)
+        air_rh = round(float(win_c['rh_pct']), 1)
+    else:
+        live_t, live_rh, _ = _read_climate_sync()
+        air_t = live_t
+        air_rh = live_rh
+    cur_vpd = calc_vpd(air_t, air_rh)
+
     PENDING_SESSION = {
         'id': meas_id,
         'timestamp': ts_display,
         'group': group_name,
         'aruco_id': aruco_id,
-        't_air': live_t,
-        'rh_air': live_rh,
-        't_air_win': win_c.get('t_c', live_t),
-        'rh_air_win': win_c.get('rh_pct', live_rh),
+        't_air': air_t,
+        'rh_air': air_rh,
+        't_air_win': air_t,
+        'rh_air_win': air_rh,
         'vpd': cur_vpd,
         'v_soil': v_soil,
         'pct_soil': pct_soil,
@@ -1202,10 +1223,10 @@ async def handle_batch_save_manual(request: Request):
             pass
 
         delta_t_val = ''
+        base_air_t = float(s.get('t_air_win') or s.get('t_air', 24.5))
+        base_rh_air = float(s.get('rh_air_win') or s.get('rh_air', 55.0))
         if t_l_val:
             try:
-                # Опорная температура берется с датчика подоконника (или бокса, если недоступен)
-                base_air_t = float(s.get('t_air_win') or s.get('t_air', 24.5))
                 dt = round(float(t_l_val) - base_air_t, 1)
                 delta_t_val = str(dt)
             except Exception:
@@ -1215,7 +1236,7 @@ async def handle_batch_save_manual(request: Request):
             'cid': cid,
             'row': [
                 meas_id, ts_display, group_name, w_val,
-                s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+                base_air_t, base_rh_air, s['v_soil'], s['pct_soil'],
                 t_l_val, delta_t_val, s['vpd'],
                 s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
                 s['opt_file'], '',
@@ -1283,10 +1304,10 @@ async def handle_batch_save_final(request: Request):
                 pass
 
         delta_t_val = ''
+        base_air_t = float(s.get('t_air_win') or s.get('t_air', 24.5))
+        base_rh_air = float(s.get('rh_air_win') or s.get('rh_air', 55.0))
         if t_l_val:
             try:
-                # Опорная температура берется с датчика подоконника (или бокса, если недоступен)
-                base_air_t = float(s.get('t_air_win') or s.get('t_air', 24.5))
                 dt = round(float(t_l_val) - base_air_t, 1)
                 delta_t_val = str(dt)
             except Exception:
@@ -1305,7 +1326,7 @@ async def handle_batch_save_final(request: Request):
             'cid': cid,
             'row': [
                 meas_id, ts_display, group_name, w_val,
-                s['t_air'], s['rh_air'], s['v_soil'], s['pct_soil'],
+                base_air_t, base_rh_air, s['v_soil'], s['pct_soil'],
                 t_l_val, delta_t_val, s['vpd'],
                 s['mean_ndvi'], s['std_ndvi'], s.get('leaf_area_cm2', ''),
                 s['opt_file'], jpg_stored_name,
@@ -1536,14 +1557,21 @@ async def index(
 ):
     global PENDING_SESSION, BATCH_STATE
 
-    cur_t, cur_rh, cur_v = await get_climate_sensor().read_climate()
-    cur_vpd = calc_vpd(cur_t, cur_rh)
+    box_t, box_rh, cur_v = await get_climate_sensor().read_climate()
     t_now = int(time.time())
 
-    # Беспроводной датчик микроклимата Xiaomi на подоконнике
+    # Беспроводной датчик микроклимата Xiaomi на подоконнике (зона растений)
     win_clim = get_windowsill_climate()
-    win_t = win_clim.get('t_c', cur_t)
-    win_rh = win_clim.get('rh_pct', cur_rh)
+    if win_clim and (win_clim.get('is_live') or win_clim.get('t_c', 0) > 0):
+        cur_t = round(float(win_clim['t_c']), 1)
+        cur_rh = round(float(win_clim['rh_pct']), 1)
+    else:
+        cur_t = box_t
+        cur_rh = box_rh
+
+    win_t = cur_t
+    win_rh = cur_rh
+    cur_vpd = calc_vpd(cur_t, cur_rh)
 
     # Инициализация и выбор активной серии опытов
     exp_mgr = get_experiment_manager(DATA_DIR)
@@ -2683,6 +2711,8 @@ async def index(
         "cur_rh": cur_rh,
         "cur_vpd": cur_vpd,
         "cur_v": cur_v,
+        "box_t": box_t,
+        "box_rh": box_rh,
         "active_exp": active_exp,
         "experiments": experiments,
         "rows_count": len(rows),

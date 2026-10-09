@@ -383,34 +383,29 @@
 
     <!-- МЕТЕОРОЛОГИЧЕСКАЯ ПАНЕЛЬ МИКРОКЛИМАТА -->
     <div class="climate-bar">
-        <div class="clim-item">
-            <span class="clim-label">📡 Сенсор климата</span>
-            <span class="clim-val val-purple">Sensirion SHT30 (I2C-0)</span>
+        <div class="clim-item" style="background:rgba(255,255,255,0.7); padding:4px 10px; border-radius:6px; border:1.5px solid #0d9488;" title="Беспроводной датчик Xiaomi Mijia на подоконнике (зона растений, базовый микроклимат)">
+            <span class="clim-label" style="color:#0f766e; font-weight:800;">🪟 T возд. (Подоконник)</span>
+            <span class="clim-val val-cyan" style="font-weight:bold; font-size:15px; color:#0d9488;">{{ win_t }} °C</span>
         </div>
         <div class="clim-divider"></div>
-        <div class="clim-item">
-            <span class="clim-label">🌡️ T воздуха</span>
-            <span class="clim-val val-cyan">{{ cur_t }} °C</span>
-        </div>
-        <div class="clim-divider"></div>
-        <div class="clim-item">
+        <div class="clim-item" title="Относительная влажность воздуха на подоконнике">
             <span class="clim-label">💧 Влажность RH</span>
-            <span class="clim-val val-teal">{{ cur_rh }}%</span>
+            <span class="clim-val val-teal">{{ win_rh }}%</span>
         </div>
         <div class="clim-divider"></div>
-        <div class="clim-item">
+        <div class="clim-item" title="Дефицит упругости водяного пара на подоконнике">
             <span class="clim-label">🌬️ Дефицит VPD</span>
             <span class="clim-val val-amber">{{ cur_vpd }} кПа</span>
+        </div>
+        <div class="clim-divider"></div>
+        <div class="clim-item" title="Датчик Sensirion SHT30 внутри бокса (нагревается от аппаратуры станции)">
+            <span class="clim-label" style="color:#64748b;">📦 В боксе (SHT30)</span>
+            <span class="clim-val val-purple" style="font-size:12px;">{{ box_t }} °C <span style="font-size:10px; color:#64748b;">({{ box_rh }}%)</span></span>
         </div>
         <div class="clim-divider"></div>
         <div class="clim-item">
             <span class="clim-label">⚡ Линия 3.3V</span>
             <span class="clim-val val-slate">{{ cur_v }} В</span>
-        </div>
-        <div class="clim-divider"></div>
-        <div class="clim-item" style="background:rgba(255,255,255,0.7); padding:4px 8px; border-radius:6px; border:1px solid #99f6e4;" title="Беспроводной датчик Xiaomi Mijia на подоконнике (SID: 158d0001576282)">
-            <span class="clim-label" style="color:#0f766e; font-weight:800;">🪟 Подоконник (Xiaomi)</span>
-            <span class="clim-val" style="color:#0d9488; font-weight:bold;">{{ win_t }} °C <span style="font-size:11px; color:#64748b; font-weight:normal;">({{ win_rh }}%)</span></span>
         </div>
     </div>
 
