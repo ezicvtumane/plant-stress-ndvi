@@ -83,6 +83,37 @@ def save_calibrated_k_bal(val: float):
             f.write(f"{val:.3f}\n")
     except Exception as e:
         print(f"[Calib Save Error]: {e}")
+
+def get_agronomic_ndvi_lut() -> np.ndarray:
+    """
+    Стандартная агрономическая палитра RdYlGn (Red-Yellow-Green):
+    NDVI < 0.25 (фон, сухая биомасса, некроз) -> Красный
+    NDVI 0.25..0.60 (умеренный стресс, замедление роста) -> Оранжевый/Желтый
+    NDVI > 0.60 (активная вегетация, норма) -> Сочный насыщенный зеленый
+    """
+    lut = np.zeros((256, 1, 3), dtype=np.uint8)
+    for i in range(256):
+        t = i / 255.0
+        if t < 0.25:
+            k = t / 0.25
+            r = int(180 + k * 40)
+            g = int(20 + k * 80)
+            b = 20
+        elif t < 0.60:
+            k = (t - 0.25) / 0.35
+            r = int(220 - k * 140)
+            g = int(100 + k * 120)
+            b = 25
+        else:
+            k = (t - 0.60) / 0.40
+            r = int(80 - k * 60)
+            g = int(220 - k * 30)
+            b = int(25 + k * 30)
+        lut[i, 0] = [b, g, r]  # BGR
+    return lut
+
+AGRONOMIC_NDVI_LUT = get_agronomic_ndvi_lut()
+
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 TH_CACHE_DIR = os.path.join(STATIC_DIR, 'uti_cache')
 UTI_DIR = '/media/uti120s/Images'
@@ -757,10 +788,10 @@ def do_hardware_spectral_capture(group_name: str):
     else:
         vis_nir = frame_nir.copy()
 
-    # Высококонтрастная палитра Turbo для отображения вегетации (диапазон 0.20 .. 0.85):
+    # Агрономическая палитра вегетации RdYlGn (Красный = деградация/стресс -> Желтый -> Насыщенный зеленый):
     ndvi_disp = np.clip((ndvi_map - 0.20) / 0.65 * 255.0, 0, 255).astype(np.uint8)
-    vis_ndvi_color = cv2.applyColorMap(ndvi_disp, cv2.COLORMAP_TURBO)
-    vis_ndvi_color[leaf_mask == 0] = [35, 15, 30] # Темный нейтральный фон для почвы и артефактов
+    vis_ndvi_color = cv2.LUT(cv2.cvtColor(ndvi_disp, cv2.COLOR_GRAY2BGR), AGRONOMIC_NDVI_LUT)
+    vis_ndvi_color[leaf_mask == 0] = [35, 15, 30] # Темный нейтральный фон для почвы и фона бокса
 
     h, w, _ = frame_flash.shape
     cell_h, cell_w = h // 3, w // 3
@@ -774,10 +805,11 @@ def do_hardware_spectral_capture(group_name: str):
         cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
     else:
-        cv2.putText(annotated_ndvi, f'Calib: k={k_bal}', (15, 25),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.50, (0, 0, 0), 3)
-        cv2.putText(annotated_ndvi, f'Calib: k={k_bal}', (15, 25),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.50, (200, 255, 200), 1)
+        # Размещаем в правом верхнем углу под PLA (без наложения на ячейку #1)
+        cv2.putText(annotated_ndvi, f'Calib: k={k_bal}', (w - 260, max(26, roi_y1 + 36)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.52, (0, 0, 0), 3)
+        cv2.putText(annotated_ndvi, f'Calib: k={k_bal}', (w - 260, max(26, roi_y1 + 36)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 255, 200), 1)
 
     # Отрисовка обнаруженного фидуциального маркера ArUco
     if aruco_corners is not None and aruco_id is not None:
@@ -791,17 +823,17 @@ def do_hardware_spectral_capture(group_name: str):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 128), 2)
 
     # ---------------- МОРФОЛОГИЧЕСКИЙ АНАЛИЗ (PLA - Площадь Листьев) ----------------
-    # 1. Размерная субпиксельная калибровка масштаба (пиксели -> см²) по ArUco-маркеру (25x25 мм = 6.25 см²)
+    # 1. Размерная субпиксельная калибровка масштаба (пиксели -> см²) по ArUco-маркеру (15x15 мм = 2.25 см²)
     if aruco_corners is not None:
         pts_fl = aruco_corners.reshape((-1, 2)).astype(np.float32)
         aruco_area_px = float(cv2.contourArea(pts_fl))
         if aruco_area_px > 120.0:
-            px_to_cm2 = float(np.clip(6.25 / aruco_area_px, 0.00020, 0.00150))
+            px_to_cm2 = float(np.clip((2.25 / aruco_area_px) * 0.70, 0.00022, 0.00045))
         else:
-            px_to_cm2 = 0.00045
+            px_to_cm2 = 0.00030
     else:
-        # Номинальный масштаб бокса при разрешении 1280x720 (при отсутствии маркера)
-        px_to_cm2 = 0.00045
+        # Номинальный масштаб бокса при разрешении 1280x960 (при высоте камеры ~32 см)
+        px_to_cm2 = 0.00030
 
     total_leaf_px = int(np.count_nonzero(leaf_mask))
     leaf_area_total = round(float(total_leaf_px * px_to_cm2), 1)
@@ -843,10 +875,11 @@ def do_hardware_spectral_capture(group_name: str):
             cv2.putText(annotated_ndvi, f'{c_area} cm2', (x1 + 12, y1 + 56),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 255, 200), 1)
 
-    non_zero_ndvis = [v for v in cell_ndvis if v > 0.0]
-    if non_zero_ndvis:
-        mean_ndvi = round(float(np.mean(non_zero_ndvis)), 3)
-        std_ndvi = round(float(np.std(non_zero_ndvis)), 3)
+    # Честный средневзвешенный расчет NDVI по всем пикселям листьев кассеты:
+    leaf_pixels_ndvi = ndvi_map[leaf_mask > 0]
+    if len(leaf_pixels_ndvi) > 0:
+        mean_ndvi = round(float(np.mean(leaf_pixels_ndvi)), 3)
+        std_ndvi = round(float(np.std(leaf_pixels_ndvi)), 3)
     else:
         mean_ndvi = 0.000
         std_ndvi = 0.000
