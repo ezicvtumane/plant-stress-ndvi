@@ -823,17 +823,25 @@ def do_hardware_spectral_capture(group_name: str):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 128), 2)
 
     # ---------------- МОРФОЛОГИЧЕСКИЙ АНАЛИЗ (PLA - Площадь Листьев) ----------------
-    # 1. Размерная субпиксельная калибровка масштаба (пиксели -> см²) по ArUco-маркеру (15x15 мм = 2.25 см²)
+    # 1. Субпиксельная калибровка масштаба по ArUco-маркеру (15x15 мм = 2.25 см²)
+    # 2. Оптическая перспективная Z-компенсация высоты полога гороха:
+    #    Z_marker ≈ 24.5 см (дно/клипса кассеты), H_canopy ≈ 10.0 см (ярус листьев) -> k_z = (14.5 / 24.5)² ≈ 0.350
+    ARUCO_REAL_AREA_CM2 = 2.25
+    Z_CAMERA_MARKER_CM = 24.5
+    CANOPY_HEIGHT_CM = 10.0
+    k_perspective = float(((Z_CAMERA_MARKER_CM - CANOPY_HEIGHT_CM) / Z_CAMERA_MARKER_CM) ** 2)
+
     if aruco_corners is not None:
         pts_fl = aruco_corners.reshape((-1, 2)).astype(np.float32)
         aruco_area_px = float(cv2.contourArea(pts_fl))
         if aruco_area_px > 120.0:
-            px_to_cm2 = float(np.clip((2.25 / aruco_area_px) * 0.70, 0.00022, 0.00045))
+            scale_marker = ARUCO_REAL_AREA_CM2 / aruco_area_px
+            px_to_cm2 = float(np.clip(scale_marker * k_perspective, 0.00004, 0.00015))
         else:
-            px_to_cm2 = 0.00030
+            px_to_cm2 = 0.00008
     else:
-        # Номинальный масштаб бокса при разрешении 1280x960 (при высоте камеры ~32 см)
-        px_to_cm2 = 0.00030
+        # Номинальный калиброванный масштаб бокса 1280x960 с учетом Z-перспективы
+        px_to_cm2 = 0.00008
 
     total_leaf_px = int(np.count_nonzero(leaf_mask))
     leaf_area_total = round(float(total_leaf_px * px_to_cm2), 1)
