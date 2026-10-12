@@ -3,16 +3,22 @@ import cv2
 import numpy as np
 import shutil
 import subprocess
-import base64
-import json
 
 CURRENT_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOCAL_DIR = r"/home/pi/plant-stress-ndvi" if os.name != 'nt' else r"C:\Users\Администратор\Documents\Coglet"
+if os.path.basename(CURRENT_FILE_DIR) in ["generators", "tests"]:
+    LOCAL_DIR = os.path.dirname(os.path.dirname(CURRENT_FILE_DIR))
+elif os.path.basename(CURRENT_FILE_DIR) == "scripts":
+    LOCAL_DIR = os.path.dirname(CURRENT_FILE_DIR)
+else:
+    LOCAL_DIR = CURRENT_FILE_DIR
+
 STATIC_DIR = os.path.join(LOCAL_DIR, 'static')
 ARUCO_DIR = os.path.join(STATIC_DIR, 'aruco')
 DOCS_DIR = os.path.join(LOCAL_DIR, 'docs')
+USER_DOCS_DIR = r"C:\Users\Администратор\Documents"
 os.makedirs(ARUCO_DIR, exist_ok=True)
 os.makedirs(DOCS_DIR, exist_ok=True)
+os.makedirs(USER_DOCS_DIR, exist_ok=True)
 
 # 5 основных когорт биологического эксперимента (Синхронный посев 29.09.2026)
 ARUCO_CASSETTES = [
@@ -20,29 +26,28 @@ ARUCO_CASSETTES = [
         "ФИЗИОЛОГИЧЕСКИЙ ОПТИМУМ",
         "Полив чистой водой 100% ПВ (20 мл/сут) · Базовый эталон", 
         "НОРМА"),
-    (2, "КАССЕТА №2: ОСМОС", 
-        "ОСМОТИЧЕСКИЙ СТРЕСС",
-        "Раствор 150 мМ NaCl · Строго отдельный лоток-поддон!", 
+    (2, "КАССЕТА №2: ЗАСОЛЕНИЕ", 
+        "ОСМОТИЧЕСКИЙ СТРЕСС (NaCl 100 мМ)",
+        "Раствор 100 мМ NaCl · Строго отдельный лоток-поддон!", 
         "ОСМОС"),
-    (3, "КАССЕТА №3: ЗАСУХА", 
-        "ВОДНЫЙ ДЕФИЦИТ",
-        "Полное прекращение полива 96+ ч (контроль гибели)", 
-        "ГИБЕЛЬ"),
-    (4, "КАССЕТА №4: ПРЕВЕНЦИЯ", 
-        "РАННИЙ ПОЛИВ ПО АЛЕРТУ",
+    (3, "КАССЕТА №3: ПРЕВЕНТИВНАЯ РЕГИДРАТАЦИЯ", 
+        "КУПИРОВАНИЕ СТРЕССА ПО АЛЕРТУ СТАНЦИИ",
         "Полив строго при ΔT ≥ +0.8°C (~40 ч, до потери тургора)", 
         "АЛЕРТ"),
-    (5, "КАССЕТА №5: РЕАКЦИЯ", 
-        "ПОЛИВ ПО ВИЗУАЛЬНЫМ ПРИЗНАКАМ",
+    (4, "КАССЕТА №4: ВИЗУАЛЬНЫЙ КОНТРОЛЬ", 
+        "РЕАКТИВНЫЙ ПОЛИВ (ТРАДИЦИОННЫЙ ОСМОТР)",
         "Полив только при макро-поникании листьев (72–84 ч)", 
         "УВЯДАНИЕ"),
+    (5, "КАССЕТА №5: ТЕРМИНАЛЬНАЯ ЗАСУХА", 
+        "ПРЕДЕЛ ЖИЗНЕСПОСОБНОСТИ ТКАНИ",
+        "Полное прекращение полива 96+ ч (контроль гибели)", 
+        "ГИБЕЛЬ"),
 ]
 
 # Получаем словарь ArUco 4x4
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50) if hasattr(cv2.aruco, 'getPredefinedDictionary') else cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
 
 # Генерируем чистовые монохромные PNG маркеров (25x25 мм калибровочные с белой Quiet Zone и тонким черным контуром реза)
-aruco_b64 = {}
 for m_id, name, strat, reg, status in ARUCO_CASSETTES:
     if hasattr(aruco_dict, 'generateImageMarker'):
         marker_raw = aruco_dict.generateImageMarker(m_id, 240)
@@ -60,45 +65,31 @@ for m_id, name, strat, reg, status in ARUCO_CASSETTES:
 
     png_path = os.path.join(ARUCO_DIR, f'aruco_{m_id}.png')
     _, buf = cv2.imencode('.png', marker_outlined)
-    with open(png_path, 'wb') as f_out:
-        f_out.write(buf.tobytes())
-    b64_str = base64.b64encode(buf.tobytes()).decode('utf-8')
-    aruco_b64[m_id] = b64_str
+    buf.tofile(png_path)
+    print(f'Created clean B&W marker: {png_path}')
 
-# Иконки из json
-icons_json_path = os.path.join(STATIC_DIR, "icons_perfect_b64_v2.json")
-if not os.path.exists(icons_json_path):
-    icons_json_path = "/tmp/icons_perfect_b64_v2.json"
-if not os.path.exists(icons_json_path):
-    icons_json_path = r"C:\Users\Администратор\.gemini\antigravity\brain\7e11935d-0a78-4d40-8cd3-6cf60934260e\scratch\icons_perfect_b64_v2.json"
-
-with open(icons_json_path, "r", encoding="utf-8") as f_ic:
-    ICONS_B64 = json.load(f_ic)
-
-# Генерация HTML-карточек
+# ==============================================================================
+# 1. HTML-ВЕРСИЯ ЛИСТА МАРКЕРОВ (КОНТУРНЫЙ Ч/Б ДИЗАЙН ДЛЯ МОНОХРОМНОЙ ПЕЧАТИ)
+# ==============================================================================
 cards_html = ""
 for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
-    img_src = f"data:image/png;base64,{aruco_b64[m_id]}"
-    b64_icon = ICONS_B64[m_id - 1]
-    icon_src = f"data:image/png;base64,{b64_icon}"
-    
     cards_html += f"""
         <div class="marker-card">
-            <!-- 1. Левый блок: ArUco-маркер (СТРОГО 70x70 px, аналогично пиктограмме) -->
+            <!-- Левый блок: ArUco-маркер для камеры (основной) -->
             <div class="aruco-box">
                 <div class="aruco-img-wrap">
-                    <img src="{img_src}" alt="ArUco #{m_id}">
+                    <img src="/static/aruco/aruco_{m_id}.png" alt="ArUco {m_id}">
                 </div>
                 <div class="aruco-caption">ARUCO #{m_id}</div>
             </div>
 
-            <!-- 2. Центральный блок: Пиктограмма с номером (СТРОГО 70x70 px) -->
+            <!-- Центральный блок: Контурный номер для человека (Алисы) -->
             <div class="num-badge">
-                <img src="{icon_src}" alt="Icon" class="num-icon">
-                <div class="num-digit">{m_id}</div>
+                <div class="num-sub">КАССЕТА</div>
+                <div class="num-val">{m_id}</div>
             </div>
 
-            <!-- 4. Правый блок: Научный регламент и статус когорты -->
+            <!-- Правый блок: Научный регламент и статус -->
             <div class="info-block">
                 <div class="header-line">
                     <span class="card-title">{title}</span>
@@ -109,10 +100,10 @@ for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
                 <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:{m_id} | S_calib = 6.25 см²</div>
             </div>
 
-            <!-- 5. Резервный маркер для тыльного борта (встроенный base64, без ошибки!) -->
+            <!-- Резервный компактный маркер для противоположного борта -->
             <div class="reserve-box">
                 <div class="reserve-img-wrap">
-                    <img src="{img_src}" alt="ArUco #{m_id} Reserve">
+                    <img src="/static/aruco/aruco_{m_id}.png" alt="ArUco {m_id} Reserve">
                 </div>
                 <div class="reserve-caption">№{m_id} (Резерв)</div>
             </div>
@@ -172,90 +163,75 @@ html_content = f"""<!DOCTYPE html>
         .cards-list {{
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 7px;
         }}
         .marker-card {{
             border: 1.5px solid #000000;
             border-radius: 8px;
-            padding: 5px 8px;
+            padding: 6px 8px;
             display: flex;
             align-items: center;
             background: #ffffff;
             page-break-inside: avoid;
             gap: 10px;
         }}
-        
-        /* 1. Блок ArUco (СТРОГО ОДИНАКОВЫЙ РАЗМЕР С ПИКТОГРАММОЙ: 70x70 px) */
+        /* ArUco box */
         .aruco-box {{
-            width: 98px;
-            height: 98px;
-            border: 2px solid #000000;
-            border-radius: 8px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: #ffffff;
+            width: 74px;
             flex-shrink: 0;
-            position: relative;
-            padding: 2px;
         }}
         .aruco-img-wrap {{
-            width: 78px;
-            height: 78px;
+            width: 68px;
+            height: 68px;
             display: flex;
             align-items: center;
             justify-content: center;
         }}
         .aruco-img-wrap img {{
-            width: 75px;
-            height: 75px;
+            width: 64px;
+            height: 64px;
             image-rendering: pixelated;
         }}
         .aruco-caption {{
-            font-size: 8px;
-            font-weight: 800;
+            font-size: 7.5px;
+            font-weight: bold;
             font-family: monospace;
-            color: #000000;
-            line-height: 1;
             margin-top: 2px;
-            letter-spacing: 0.2px;
+            color: #222222;
         }}
-
-        /* 2. Блок пиктограммы (СТРОГО ОДИНАКОВЫЙ РАЗМЕР С ARUCO: 70x70 px) */
+        /* Number badge */
         .num-badge {{
-            width: 98px;
-            height: 98px;
-            border: 2px solid #000000;
-            border-radius: 8px;
+            width: 70px;
+            height: 70px;
+            border: 2.5px solid #000000;
+            border-radius: 10px;
             display: flex;
-            position: relative;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
             background: #ffffff;
-            overflow: hidden;
         }}
-        .num-icon {{
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            width: 62px;
-            height: 62px;
-            object-fit: contain;
+        .num-sub {{
+            font-size: 7.5px;
+            font-weight: 700;
+            font-family: monospace;
+            letter-spacing: 0.5px;
+            color: #444444;
+            margin-bottom: -4px;
         }}
-        .num-digit {{
-            position: absolute;
-            bottom: 3px;
-            right: 8px;
-            font-size: 38px;
-            font-family: Arial, sans-serif;
-            color: #000000;
+        .num-val {{
+            font-size: 42px;
             font-weight: 900;
             line-height: 1;
+            color: #000000;
+            font-family: Arial, sans-serif;
         }}
-
-        /* 4. Блок информации */
+        /* Info block */
         .info-block {{
             flex: 1;
             min-width: 0;
@@ -268,71 +244,66 @@ html_content = f"""<!DOCTYPE html>
             margin-bottom: 2px;
         }}
         .card-title {{
-            font-size: 13px;
+            font-size: 11.5px;
             font-weight: 800;
             color: #000000;
         }}
         .status-tag {{
-            font-size: 10.5px;
+            font-size: 10px;
             font-weight: 900;
             border: 1px solid #000000;
-            padding: 1px 6px;
+            padding: 1px 5px;
             border-radius: 3px;
         }}
         .card-strategy {{
-            font-size: 10.5px;
+            font-size: 9.5px;
             font-weight: 700;
             color: #222222;
             margin-bottom: 2px;
         }}
         .card-protocol {{
-            font-size: 9.5px;
+            font-size: 8.5px;
             color: #111111;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }}
         .tech-pill {{
             display: inline-block;
-            font-size: 8.5px;
+            font-size: 7.5px;
             font-family: monospace;
             border: 1px solid #666666;
-            padding: 1px 6px;
+            padding: 1px 5px;
             border-radius: 3px;
             color: #222222;
         }}
-
-        /* 5. Резервный маркер (справа) */
+        /* Reserve box */
         .reserve-box {{
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 82px;
+            width: 58px;
             flex-shrink: 0;
             border-left: 1px dashed #888888;
             padding-left: 8px;
         }}
         .reserve-img-wrap {{
-            width: 72px;
-            height: 72px;
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
         }}
         .reserve-img-wrap img {{
-            width: 66px;
-            height: 66px;
+            width: 46px;
+            height: 46px;
             image-rendering: pixelated;
         }}
         .reserve-caption {{
-            font-size: 7.5px;
+            font-size: 7px;
             font-family: monospace;
-            font-weight: bold;
-            margin-top: 2px;
-            color: #333333;
-            text-align: center;
-            line-height: 1.1;
+            margin-top: 1px;
+            color: #444444;
         }}
-
         .footer {{
             margin-top: 8px;
             font-size: 8px;
@@ -395,19 +366,19 @@ with open(sheet_html_path, 'w', encoding='utf-8') as f:
     f.write(html_content)
 print(f'Created printable HTML: {sheet_html_path}')
 
-# Copy to docs
+# Copy to docs and user Documents
 docs_html = os.path.join(DOCS_DIR, 'aruco_markers_sheet.html')
 shutil.copy2(sheet_html_path, docs_html)
+user_html = os.path.join(USER_DOCS_DIR, 'Лист_ArUco_маркеров_для_5_кассет.html')
+shutil.copy2(sheet_html_path, user_html)
 
 # ==============================================================================
-# 2. КОМПИЛЯЦИЯ ВЫСОКОТОЧНОГО ВЕКТОРНОГО PDF ЧЕРЕЗ CHROME / CHROMIUM HEADLESS
+# 2. КОМПИЛЯЦИЯ ВЫСОКОТОЧНОГО ВЕКТОРНОГО PDF ЧЕРЕЗ CHROME HEADLESS
 # ==============================================================================
 pdf_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.pdf')
 chrome_paths = [
-    r"/usr/bin/chromium",
-    r"/usr/bin/chromium-browser",
-    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
     "google-chrome",
     "chromium"
 ]
@@ -428,6 +399,9 @@ if chrome_bin:
         print(f'Compiled clean B&W PDF: {pdf_path} ({os.path.getsize(pdf_path)/1024:.1f} KB)')
         docs_pdf = os.path.join(DOCS_DIR, 'aruco_markers_sheet.pdf')
         shutil.copy2(pdf_path, docs_pdf)
+        user_pdf = os.path.join(USER_DOCS_DIR, 'Лист_ArUco_маркеров_для_5_кассет.pdf')
+        shutil.copy2(pdf_path, user_pdf)
+        print(f'Copied PDF to {docs_pdf} and {user_pdf}')
     else:
         print('Chrome headless warning:', res.stderr)
 else:
