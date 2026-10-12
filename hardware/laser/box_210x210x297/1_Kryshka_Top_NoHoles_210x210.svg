@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="220.0mm" height="220.0mm" viewBox="0 0 220.0 220.0" version="1.1">
+<style>
+    .cut { stroke: #ff0000; stroke-width: 0.15; fill: none; } /* Красный: контур резки */
+    .engrave_line { stroke: #0000ff; stroke-width: 0.2; fill: none; stroke-dasharray: 2, 1; } /* Синий пунктир: разметка */
+    .engrave_solid { stroke: #0000ff; stroke-width: 0.25; fill: none; } /* Синий сплошной: гравировка */
+    .text_note { font-family: 'Segoe UI', Arial, sans-serif; font-size: 3.8px; fill: #475569; }
+    .text_title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 5px; font-weight: bold; fill: #0f172a; }
+</style>
+
+    <!-- Заготовка листа А4 (210 x 297 мм) для наглядности позиционирования -->
+    <rect x="5" y="5" width="210.0" height="210.0" rx="2" class="cut"/>
+    
+    <!-- Тонкие центровочные оси для удобства ручной сверловки по месту -->
+    <line x1="110.0" y1="12" x2="110.0" y2="203.0" class="engrave_line"/>
+    <line x1="12" y1="110.0" x2="203.0" y2="110.0" class="engrave_line"/>
+    <circle cx="110.0" cy="110.0" r="1.5" class="engrave_solid"/>
+    
+    <text x="12" y="15" class="text_title">1. ВЕРХНЯЯ КРЫШКА (TOP) — ГЛУХАЯ</text>
+    <text x="12" y="22" class="text_note">Габариты: 210 x 210 мм | Вырезается из листа А4 | Отверстия сверлятся по месту</text>
+    
+</svg>
