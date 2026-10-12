@@ -177,7 +177,7 @@ def _read_climate_sync():
     try:
         from core.xiaomi_climate import get_windowsill_climate
         win_c = get_windowsill_climate()
-        if win_c and (win_c.get('is_live') or win_c.get('t_c', 0) > 0):
+        if win_c and win_c.get('is_live') and win_c.get('t_c') is not None:
             t = round(float(win_c['t_c']), 1)
             rh = round(float(win_c['rh_pct']), 1)
             v_rail = round(float(win_c.get('battery_v', 3.15)), 2)
@@ -906,10 +906,13 @@ def do_hardware_spectral_capture(group_name: str):
         from src.sensors_ads1115 import SoilMoistureReader
         _reader = SoilMoistureReader()
         v_soil, pct_soil = _reader.get_active_moisture(group_name)
+        if v_soil is None:
+            v_soil, pct_soil = '', ''
     except Exception:
-        v_soil, pct_soil = 1.85, 64.0
+        v_soil, pct_soil = '', ''
+
     win_c = get_windowsill_climate()
-    if win_c and (win_c.get('is_live') or win_c.get('t_c', 0) > 0):
+    if win_c and win_c.get('is_live') and win_c.get('t_c') is not None:
         air_t = round(float(win_c['t_c']), 1)
         air_rh = round(float(win_c['rh_pct']), 1)
     else:
@@ -1255,13 +1258,16 @@ async def handle_batch_save_manual(request: Request):
             t_l_val = str(round(float(s['t_air']), 1))
 
         pct_raw = form.get(f'pct_soil_{i}', '')
-        pct_s = str(pct_raw).strip().replace(',', '.') if str(pct_raw).strip() else s.get('user_pct_soil', '64.0')
-        try:
-            ps = float(pct_s)
-            s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-            s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
-        except Exception:
-            pass
+        if str(pct_raw).strip():
+            try:
+                ps = float(str(pct_raw).strip().replace(',', '.'))
+                s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
+                s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+            except Exception:
+                pass
+        elif group_name in ['Превенция', 'Реакция']:
+            s['pct_soil'] = ''
+            s['v_soil'] = ''
 
         delta_t_val = ''
         base_air_t = float(s.get('t_air_win') or s.get('t_air', 24.5))
@@ -1343,6 +1349,9 @@ async def handle_batch_save_final(request: Request):
                 s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
             except Exception:
                 pass
+        elif group_name in ['Превенция', 'Реакция']:
+            s['pct_soil'] = ''
+            s['v_soil'] = ''
 
         delta_t_val = ''
         base_air_t = float(s.get('t_air_win') or s.get('t_air', 24.5))

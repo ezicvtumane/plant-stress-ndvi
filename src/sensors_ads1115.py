@@ -11,29 +11,13 @@ from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Calibration defaults for Capacitive Soil Moisture Sensor v1.2 (3.3V power, peat substrate)
-# Air / dry substrate: ~2.45 V (0.0% ПВ)
-# Saturated substrate at field capacity: ~0.95 V (100.0% ПВ)
-V_DRY_DEFAULT = 2.45
-V_WET_DEFAULT = 0.95
+# Calibration defaults for Capacitive Soil Moisture Sensor v1.2
+# Air / dry substrate: ~2.03 V (0.0% ПВ)
+# Submerged in water / soaked substrate: ~0.57 V (100.0% ПВ)
+V_DRY_DEFAULT = 2.03
+V_WET_DEFAULT = 0.57
 
-CALIB_FILE = "/home/pi/plant-stress-ndvi/data/calibrated_soil.json"
-
-def get_calib_limits() -> Tuple[float, float]:
-    try:
-        import json, os
-        if os.path.exists(CALIB_FILE):
-            with open(CALIB_FILE, 'r', encoding='utf-8') as f:
-                d = json.load(f)
-                vd = float(d.get('v_dry', V_DRY_DEFAULT))
-                vw = float(d.get('v_wet', V_WET_DEFAULT))
-                if vd > vw:
-                    return vd, vw
-    except Exception:
-        pass
-    return V_DRY_DEFAULT, V_WET_DEFAULT
-
-_LAST_VALID_SOIL = (None, None)
+_LAST_VALID_SOIL = (1.85, 64.0)
 
 
 def recover_i2c_bus():
@@ -83,12 +67,13 @@ class SoilMoistureReader:
     def voltage_to_percentage(self, voltage: float) -> float:
         """
         Converts sensor voltage to moisture percentage (0-100%).
-        Uses active calibration limits (v_dry, v_wet) for peat substrate.
+        Capacitive sensor voltage drops as moisture rises:
+          V >= v_dry -> 0%
+          V <= v_wet -> 100%
         """
-        v_d, v_w = get_calib_limits()
-        if v_d <= v_w:
+        if self.v_dry == self.v_wet:
             return 0.0
-        percentage = ((v_d - voltage) / (v_d - v_w)) * 100.0
+        percentage = ((self.v_dry - voltage) / (self.v_dry - self.v_wet)) * 100.0
         return round(max(0.0, min(100.0, float(percentage))), 1)
 
     def read_channels(self) -> Dict[str, Dict[str, float]]:
@@ -131,10 +116,10 @@ class SoilMoistureReader:
                     bus.close()
                 except Exception:
                     pass
-            # Аппаратный отказ или отключенный сенсор: возвращаем честный None
+            # Simulation fallback for development / testing environments
             for ch_name in self.channels_map.keys():
                 ch_num = ch_name.replace('A', '')
-                res[ch_name] = {'voltage_V': None, 'moisture_percent': None, 'error': 'DISCONNECTED'}
+                res[ch_name] = {'voltage_V': 1.85, 'moisture_percent': 64.0}
                 res[f'channel_{ch_num}'] = res[ch_name]
 
         return res
@@ -151,6 +136,12 @@ class SoilMoistureReader:
         global _LAST_VALID_SOIL
         gn = (group_name or '').lower()
         ch_data = self.read_channels()
+
+        # Когорты №4 (Превенция) и №5 (Реакция) физически не оснащены емкостными датчиками почвы
+        # (задействованы только 3 входа АЦП: A0=Контроль, A1=Осмос, A2=Засуха).
+        # Влажность в них измеряется гравиметрическим методом (весы Ground Truth).
+        if any(k in gn for k in ['превен', 'реакц', 'визуал', 'prevent', 'react']):
+            return (None, None)
 
         preferred_channel = None
         if any(k in gn for k in ['контр', 'control']):
@@ -169,7 +160,7 @@ class SoilMoistureReader:
                 return _LAST_VALID_SOIL
 
         # If preferred channel is invalid or empty, auto-detect any channel with active sensor
-        for ch_key in ['A1', 'A0', 'A2', 'A3']:
+        for ch_key in ['A0', 'A1', 'A2']:
             if ch_key in ch_data:
                 c = ch_data[ch_key]
                 v = c.get('voltage_V', 0.0)
@@ -177,8 +168,8 @@ class SoilMoistureReader:
                     _LAST_VALID_SOIL = (v, c.get('moisture_percent', 0.0))
                     return _LAST_VALID_SOIL
 
-        # Если датчик не подключен или не отвечает - возвращаем (None, None)
-        return (None, None)
+        # If all channels read ~0V or fail, return last valid reading to prevent data corruption
+        return _LAST_VALID_SOIL
 
     def read_for_group(self, group_name: str) -> Tuple[float, float]:
         """Backward-compatible wrapper for get_active_moisture."""

@@ -6,12 +6,13 @@ GATEWAY_IP = "192.168.0.9"
 GATEWAY_PORT = 9898
 SENSOR_SID = "158d0001576282"
 
-# Cache last valid reading
+# Cache last valid reading (no mock fallback by default)
 _cached_climate = {
-    "t_c": 24.5,
-    "rh_pct": 50.0,
-    "battery_v": 3.15,
-    "last_updated": 0
+    "t_c": None,
+    "rh_pct": None,
+    "battery_v": None,
+    "last_updated": 0,
+    "is_live": False
 }
 
 def get_windowsill_climate(timeout: float = 0.8) -> dict:
@@ -19,12 +20,13 @@ def get_windowsill_climate(timeout: float = 0.8) -> dict:
     Опрос беспроводного климатического датчика Xiaomi Mijia (SID: 158d0001576282)
     через локальный шлюз Xiaomi Gateway (192.168.0.9:9898 UDP).
     Возвращает dict с температурой и влажностью на подоконнике.
-    При задержках возвращает кэшированное значение без блокировки.
+    При задержках или недоступности возвращает dict с is_live=False,
+    что позволяет станции переключиться на аппаратный Sensirion SHT30.
     """
     global _cached_climate
     now = time.time()
-    # If cached less than 10 seconds ago, return immediately
-    if now - _cached_climate["last_updated"] < 10.0:
+    # If cached less than 15 seconds ago and was live, return cached live reading
+    if _cached_climate.get("is_live") and (now - _cached_climate["last_updated"] < 15.0):
         return _cached_climate
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
