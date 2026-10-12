@@ -116,6 +116,7 @@ class SoilMoistureReader:
                     bus.close()
                 except Exception:
                     pass
+            recover_i2c_bus()
             # Simulation fallback for development / testing environments
             for ch_name in self.channels_map.keys():
                 ch_num = ch_name.replace('A', '')

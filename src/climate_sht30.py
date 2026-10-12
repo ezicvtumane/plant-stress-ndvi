@@ -2,7 +2,6 @@
 Модуль мониторинга микроклимата зоны вегетации:
 Прецизионный датчик температуры и влажности Sensirion SHT30.
 Подключение по локальной аппаратной шине I2C-0 (адрес 0x44).
-(Старый шлюз Xiaomi Gateway удален)
 """
 
 import time
@@ -19,7 +18,7 @@ def calc_vpd(t_c: float, rh_pct: float) -> float:
         return 0.60
 
 def read_climate_i2c_sync() -> tuple[float, float, float]:
-    """Синхронный опрос SHT30 по шине I2C."""
+    """Синхронный опрос SHT30 по шине I2C с авто-восстановлением шины."""
     try:
         import smbus2
         with smbus2.SMBus(0) as bus:
@@ -34,7 +33,11 @@ def read_climate_i2c_sync() -> tuple[float, float, float]:
                 v_rail = 3.30
                 return t, rh_val, v_rail
     except Exception as e:
-        pass
+        try:
+            from src.sensors_ads1115 import recover_i2c_bus
+            recover_i2c_bus()
+        except Exception:
+            pass
     return 24.8, 65.5, 3.21
 
 async def read_climate_async() -> tuple[float, float, float]:
