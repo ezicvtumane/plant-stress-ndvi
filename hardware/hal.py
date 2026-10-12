@@ -64,7 +64,7 @@ class RealADS1115(SoilSensor):
 class MockADS1115(SoilSensor):
     async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
         v = round(1.5 + random.uniform(-0.5, 0.5), 2)
-        pct = 100.0 * (2.03 - v) / (2.03 - 0.57)
+        pct = 100.0 * (2.03 - v) / (2.03 - 0.44)
         return v, round(max(0.0, min(100.0, pct)), 1)
 
 # Получение синглтонов

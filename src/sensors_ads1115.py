@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 # Calibration defaults for Capacitive Soil Moisture Sensor v1.2
 # Air / dry substrate: ~2.03 V (0.0% ПВ)
-# Submerged in water / soaked substrate: ~0.57 V (100.0% ПВ)
+# Submerged in water / soaked substrate: ~0.44 V (100.0% ПВ)
 V_DRY_DEFAULT = 2.03
-V_WET_DEFAULT = 0.57
+V_WET_DEFAULT = 0.44
 
 _LAST_VALID_SOIL = (1.85, 64.0)
 
