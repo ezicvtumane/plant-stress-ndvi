@@ -2371,7 +2371,7 @@ async def index(
                     <form action="/api/start_spectral" method="post" style="margin-top:8px;">
                         <select name="group_name" style="margin-bottom:6px; font-size:12px;">
                             <option value="Контроль">Кассета 1: Контроль (Оптимум 100% ПВ)</option>
-                            <option value="Засоление (NaCl)">Кассета 2: Засоление (NaCl 150 мМ, изолятор)</option>
+                            <option value="Засоление (NaCl)">Кассета 2: Засоление (NaCl 100 мМ, изолятор)</option>
                             <option value="Превентивная регидратация">Кассета 3: Превентивная регидратация (ранний полив по ΔT)</option>
                             <option value="Традиционный визуальный контроль">Кассета 4: Традиционный визуальный контроль (потеря тургора)</option>
                             <option value="Терминальная засуха">Кассета 5: Терминальная засуха (контроль гибели)</option>
@@ -2471,7 +2471,7 @@ async def index(
                     </div>
                     <div style="font-size:15px; font-weight:700; color:#6d28d9; margin:2px 0;">{cnt_salt} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#5b21b6; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #ddd6fe;">150 мМ NaCl</div>
+                    <div style="font-size:8.5px; color:#5b21b6; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #ddd6fe;">100 мМ NaCl</div>
                 </div>
                 <!-- К3: Терминальная засуха -->
                 <div style="flex:1; background:#fff1f2; border:1.5px solid #dc2626; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
