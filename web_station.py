@@ -1001,7 +1001,7 @@ def handle_save_final(
         try:
             ps_val = float(pct_soil.strip().replace(',', '.'))
             s['pct_soil'] = round(max(0.0, min(100.0, ps_val)), 1)
-            s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+            s['v_soil'] = round(2.03 - (s['pct_soil'] / 100.0) * 1.46, 2)
         except Exception:
             pass
 
@@ -1262,7 +1262,7 @@ async def handle_batch_save_manual(request: Request):
             try:
                 ps = float(str(pct_raw).strip().replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-                s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+                s['v_soil'] = round(2.03 - (s['pct_soil'] / 100.0) * 1.46, 2)
             except Exception:
                 pass
         elif group_name in ['Превенция', 'Реакция']:
@@ -1346,7 +1346,7 @@ async def handle_batch_save_final(request: Request):
             try:
                 ps = float(str(pct_raw).strip().replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-                s['v_soil'] = round(3.0 - (s['pct_soil'] / 100.0) * 1.8, 2)
+                s['v_soil'] = round(2.03 - (s['pct_soil'] / 100.0) * 1.46, 2)
             except Exception:
                 pass
         elif group_name in ['Превенция', 'Реакция']:
