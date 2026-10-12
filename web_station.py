@@ -1612,9 +1612,11 @@ async def index(
 
     # Беспроводной датчик микроклимата Xiaomi на подоконнике (зона растений)
     win_clim = get_windowsill_climate()
-    if win_clim and (win_clim.get('is_live') or win_clim.get('t_c', 0) > 0):
-        cur_t = round(float(win_clim['t_c']), 1)
-        cur_rh = round(float(win_clim['rh_pct']), 1)
+    tc_val = win_clim.get('t_c') if win_clim else None
+    rh_val = win_clim.get('rh_pct') if win_clim else None
+    if win_clim and tc_val is not None and (win_clim.get('is_live') or tc_val > 0):
+        cur_t = round(float(tc_val), 1)
+        cur_rh = round(float(rh_val), 1) if rh_val is not None else box_rh
     else:
         cur_t = box_t
         cur_rh = box_rh
