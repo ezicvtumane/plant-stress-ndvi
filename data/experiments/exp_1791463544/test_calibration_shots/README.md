@@ -4,4 +4,4 @@
 
 Чистовые замеры 2-дневного эксперимента вынесены в:
 * [`../images/`](../images/) (20 файлов замеров #167–#171 и #175–#179)
-* [`/media/pilot_experiment_pea_2days/`](/media/pilot_experiment_pea_2days/README.md) (структурированный медиа-архив)
+* [`/media/pilot_experiment_pea_2days/`](../../../../media/experiment_series_pea/README.md) (структурированный медиа-архив)
