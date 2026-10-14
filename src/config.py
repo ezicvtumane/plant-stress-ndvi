@@ -19,10 +19,10 @@ for d in [RAW_DATA_DIR, PROCESSED_DATA_DIR, TRIPTYCH_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # Camera / Optical Sensor Configuration
-# Logitech C270 / diymore IMX179 NoIR sensor running at 1280x720 (16:9)
+# Logitech C270 / diymore IMX179 NoIR sensor running at native 1280x960 (4:3)
 CAMERA_INDEX = 0  # /dev/video0
 CAMERA_WIDTH = 1280
-CAMERA_HEIGHT = 720
+CAMERA_HEIGHT = 960
 CAMERA_MANUAL_EXPOSURE = 1  # 1 = Manual mode in V4L2
 CAMERA_EXPOSURE_VALUE = 120  # Fixed shutter value
 CAMERA_AUTO_WB = 0  # 0 = Manual White Balance (AWB disabled)
