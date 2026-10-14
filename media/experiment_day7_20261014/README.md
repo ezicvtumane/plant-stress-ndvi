@@ -26,11 +26,11 @@
 
 | Когорта | Режим водного режима / стресса | Вид сбоку (Side) | Вид сверху (Top) | Исходные имена |
 | :--- | :--- | :---: | :---: | :---: |
-| **№ 1 («Контроль»)** | 100% ПВ (Оптимальный полив) | [`k1_control_side.jpg`](k1_control_side.jpg) | [`k1_control_top.jpg`](k1_control_top.jpg) | `1.jpg`, `1в.jpg` |
-| **№ 2 («Осмос»)** | 100 мМ $\text{NaCl}$ (Физиологическая засуха) | [`k2_osmotic_side.jpg`](k2_osmotic_side.jpg) | [`k2_osmotic_top.jpg`](k2_osmotic_top.jpg) | `2.jpg`, `2в.jpg` |
-| **№ 3 («Терминальная засуха»)** | 0% полива с момента всходов | [`k3_drought_side.jpg`](k3_drought_side.jpg) | [`k3_drought_top.jpg`](k3_drought_top.jpg) | `3.jpg`, `3в.jpg` |
-| **№ 4 («Превенция»)** | Ранний полив на День 5 ($\Delta T \ge +0.8\,^\circ\text{C}$) | [`k4_prevention_side.jpg`](k4_prevention_side.jpg) | [`k4_prevention_top.jpg`](k4_prevention_top.jpg) | `4.jpg`, `4в.jpg` |
-| **№ 5 («Реакция»)** | Ожидание макроскопического увядания | [`k5_reaction_side.jpg`](k5_reaction_side.jpg) | [`k5_reaction_top.jpg`](k5_reaction_top.jpg) | `5.jpg`, `5в.jpg` |
+| **№ 1 («Контроль»)** | 100% ПВ (Оптимальный полив) | [`k1_control_side.jpg`](k1_control_side.jpg) | [`k1_control_top.jpg`](k1_control_top.jpg) | [`k1_control_side.jpg`](k1_control_side.jpg) |
+| **№ 2 («Осмос»)** | 100 мМ $\text{NaCl}$ (Физиологическая засуха) | [`k2_osmotic_side.jpg`](k2_osmotic_side.jpg) | [`k2_osmotic_top.jpg`](k2_osmotic_top.jpg) | [`k2_osmotic_side.jpg`](k2_osmotic_side.jpg) |
+| **№ 3 («Терминальная засуха»)** | 0% полива с момента всходов | [`k3_drought_side.jpg`](k3_drought_side.jpg) | [`k3_drought_top.jpg`](k3_drought_top.jpg) | [`k3_drought_side.jpg`](k3_drought_side.jpg) |
+| **№ 4 («Превенция»)** | Ранний полив на День 5 ($\Delta T \ge +0.8\,^\circ\text{C}$) | [`k4_prevention_side.jpg`](k4_prevention_side.jpg) | [`k4_prevention_top.jpg`](k4_prevention_top.jpg) | [`k4_prevention_side.jpg`](k4_prevention_side.jpg) |
+| **№ 5 («Реакция»)** | Ожидание макроскопического увядания | [`k5_reaction_side.jpg`](k5_reaction_side.jpg) | [`k5_reaction_top.jpg`](k5_reaction_top.jpg) | [`k5_reaction_side.jpg`](k5_reaction_side.jpg) |
 
 ---
 
