@@ -540,7 +540,10 @@
             <div style="margin-bottom:12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                     <label style="font-size:11px; font-weight:bold; color:#0284c7;">💧 Влажность субстрата (%):</label>
-                    <button type="button" onclick="document.getElementById('edit_soil').value='--'" style="font-size:9.5px; color:#64748b; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; padding:1px 5px; cursor:pointer;" title="Установить прочерк (нет датчика)">нет датчика</button>
+                    <label style="font-size:11px; color:#475569; display:flex; align-items:center; gap:4px; cursor:pointer; font-weight:600;">
+                        <input type="checkbox" id="edit_no_soil_sensor" onchange="toggleNoSoilSensor(this.checked)" style="cursor:pointer; accent-color:#0284c7;">
+                        нет датчика
+                    </label>
                 </div>
                 <input type="text" name="pct_soil" id="edit_soil" placeholder="-- (N/A) или %" style="width:100%; padding:8px; font-size:13px; border:1.5px solid #cbd5e1; border-radius:6px; box-sizing:border-box;">
             </div>
@@ -566,6 +569,23 @@ function adjTemp(id, delta) {
     let cur = parseFloat(inp.value.replace(',', '.')) || 23.5;
     inp.value = (cur + delta).toFixed(1);
 }
+function toggleNoSoilSensor(checked) {
+    let inp = document.getElementById('edit_soil');
+    if (checked) {
+        inp.value = '--';
+        inp.readOnly = true;
+        inp.style.background = '#f1f5f9';
+        inp.style.color = '#64748b';
+        inp.style.cursor = 'not-allowed';
+    } else {
+        if (inp.value === '--') inp.value = '';
+        inp.readOnly = false;
+        inp.style.background = '#ffffff';
+        inp.style.color = '#000000';
+        inp.style.cursor = 'text';
+        inp.focus();
+    }
+}
 function openEditModal(id, grp, ts, tLeaf, weight, soil) {
     document.getElementById('edit_meas_id').value = id;
     document.getElementById('edit_cohort').value = grp || '';
@@ -580,8 +600,23 @@ function openEditModal(id, grp, ts, tLeaf, weight, soil) {
     if (cleanW === '--') cleanW = '';
     document.getElementById('edit_weight').value = cleanW;
     let cleanS = (soil || '').replace('%', '').trim();
-    if (cleanS === '--' || cleanS.toLowerCase().indexOf('none') !== -1 || cleanS === '') cleanS = '--';
-    document.getElementById('edit_soil').value = cleanS;
+    let isNoSensor = (cleanS === '--' || cleanS.toLowerCase().indexOf('none') !== -1 || cleanS === '');
+    let chk = document.getElementById('edit_no_soil_sensor');
+    if (chk) chk.checked = isNoSensor;
+    let sInp = document.getElementById('edit_soil');
+    if (isNoSensor) {
+        sInp.value = '--';
+        sInp.readOnly = true;
+        sInp.style.background = '#f1f5f9';
+        sInp.style.color = '#64748b';
+        sInp.style.cursor = 'not-allowed';
+    } else {
+        sInp.value = cleanS;
+        sInp.readOnly = false;
+        sInp.style.background = '#ffffff';
+        sInp.style.color = '#000000';
+        sInp.style.cursor = 'text';
+    }
     let modal = document.getElementById('editModal');
     modal.style.display = 'flex';
 }

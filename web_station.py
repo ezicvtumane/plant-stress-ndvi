@@ -1552,9 +1552,16 @@ def handle_update_measurement(
                     if weight_g.strip() and len(r) >= 20:
                         r[3] = weight_g.strip().replace(',', '.')
 
-                    if pct_soil.strip():
+                    raw_ps = pct_soil.strip()
+                    if raw_ps in ['--', '-', 'none', 'null', 'n/a', '']:
+                        if len(r) >= 24:
+                            r[7] = ''
+                            r[6] = ''
+                        elif len(r) >= 20:
+                            r[5] = ''
+                    else:
                         try:
-                            ps = float(pct_soil.strip().replace(',', '.'))
+                            ps = float(raw_ps.replace(',', '.').replace('%', '').strip())
                             ps = round(max(0.0, min(100.0, ps)), 1)
                             if len(r) >= 24:
                                 r[7] = str(ps)
@@ -1562,7 +1569,11 @@ def handle_update_measurement(
                             elif len(r) >= 20:
                                 r[5] = str(ps)
                         except Exception:
-                            pass
+                            if len(r) >= 24:
+                                r[7] = ''
+                                r[6] = ''
+                            elif len(r) >= 20:
+                                r[5] = ''
 
                     if out_fname:
                         if len(r) >= 24:
