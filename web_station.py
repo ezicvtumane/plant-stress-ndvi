@@ -2617,7 +2617,7 @@ async def index(
                     elif dt_val <= 0.5:
                         stress_badge = f'<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Нач. стресс)</span>'
                     elif dt_val <= 1.8:
-                        stress_badge = f'<span style="background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ОКНО СПАСЕНИЯ)</span>'
+                        stress_badge = f'<span style="background:#fff7ed;color:#c2410c;border:1px solid #fb923c;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:700;">{delta_str} (ОКНО СПАСЕНИЯ)</span>'
                     else:
                         stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ТОЧКА НЕВОЗВРАТА)</span>'
                 except Exception:
@@ -2651,7 +2651,7 @@ async def index(
                     elif dt_val <= 0.5:
                         stress_badge = f'<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Нач. стресс)</span>'
                     elif dt_val <= 1.8:
-                        stress_badge = f'<span style="background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ОКНО СПАСЕНИЯ)</span>'
+                        stress_badge = f'<span style="background:#fff7ed;color:#c2410c;border:1px solid #fb923c;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:700;">{delta_str} (ОКНО СПАСЕНИЯ)</span>'
                     else:
                         stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ТОЧКА НЕВОЗВРАТА)</span>'
                 except Exception:
