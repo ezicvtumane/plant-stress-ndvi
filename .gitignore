@@ -79,3 +79,11 @@ measurements_latest.csv
 static/*.bmp
 static/raw_original_thermals/
 static/thermal_uploads/
+
+# Archives, backups and scratch
+*.tar.gz
+*.bak
+archive_*/
+scratch/
+scripts/scratch/
+
