@@ -1,5 +1,5 @@
 """
-Hardware and Calibration Configuration
+Hardware, Optical and Sensor Configuration
 Author: Alisa Kovaleva
 Project: Plant Stress Active Dual-Wavelength Spectrophotometry Complex
 """
@@ -19,6 +19,7 @@ for d in [RAW_DATA_DIR, PROCESSED_DATA_DIR, TRIPTYCH_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 # Camera / Optical Sensor Configuration
+# Logitech C270 / diymore IMX179 NoIR sensor running at 1280x720 (16:9)
 CAMERA_INDEX = 0  # /dev/video0
 CAMERA_WIDTH = 1280
 CAMERA_HEIGHT = 720
@@ -26,9 +27,10 @@ CAMERA_MANUAL_EXPOSURE = 1  # 1 = Manual mode in V4L2
 CAMERA_EXPOSURE_VALUE = 120  # Fixed shutter value
 CAMERA_AUTO_WB = 0  # 0 = Manual White Balance (AWB disabled)
 
-# Photometric Calibration Parameters (18% Gray Card)
-# k = I_660_ref / I_850_ref (sensor sensitivity ratio)
+# Photometric Calibration Parameters (PTFE / Pure Fluoroplastic-4 White Reference)
+# k_bal = I_660_ref / I_850_ref (sensor sensitivity ratio balancing 660nm and 850nm)
 DEFAULT_K_COEFFICIENT = 4.07
+FLAT_FIELD_K_FACTOR = 0.0518  # Lens vignetting compensation factor for edge cells
 
 # Plant Segmentation & Masking
 NIR_BACKGROUND_THRESHOLD = 15  # Minimum pixel intensity under 850nm to classify as plant
@@ -39,19 +41,33 @@ NDVI_HEALTHY_MIN = 0.60  # Normal active photosynthetic tissue (healthy chloropl
 NDVI_STRESS_MIN = 0.35   # Latent stress range: 0.35 < NDVI <= 0.60
 NDVI_NECROTIC_MAX = 0.35 # Severe stress / senescence / cellular damage
 
-# Soil Moisture Sensor Calibration (ADS1115 v1.2 Capacitive Sensor)
-# Two-point calibration voltages
-V_DRY = 2.75   # Voltage in open air (0% moisture)
-V_WET = 1.30   # Voltage submerged in water (100% moisture)
-ADS1115_I2C_ADDRESS = 0x48
-ADS1115_I2C_BUS = 1
+# Thermal Stress & Physiological Alert Thresholds (Delta_T = T_leaf - T_air)
+DELTA_T_OPTIMUM_MAX = 0.0    # Normal transpiration: leaf is cooler than air (Delta_T < 0 C)
+DELTA_T_ALERT_THRESHOLD = 0.8 # Early alert threshold: Delta_T >= +0.8 C (stomata closing)
+CWSI_ALERT_THRESHOLD = 0.5   # Empirical Crop Water Stress Index alert
 
-# Relay GPIO Control Pins (Orange Pi / Linux GPIO)
-# Active LOW or HIGH depending on relay board (default: active LOW)
-RELAY_PIN_850NM = 12  # PA12
-RELAY_PIN_660NM = 11  # PA11
+# Thermal & NDVI False-Color Palettes
+NDVI_COLORMAP = "COLORMAP_JET"      # Standard OpenCV palette for NDVI thermal representation
+THERMAL_COLORMAP = "COLORMAP_INFERNO" # High-contrast palette for infrared thermography
+
+# Soil Moisture Sensor Calibration (ADS1115 v1.2 Capacitive Sensor)
+# Calibrated for peat substrate in standard seedling cassettes:
+# V_DRY = ~2.03 V (air / dry peat substrate, 0.0% ПВ)
+# V_WET = ~0.44 V (water / fully saturated substrate, 100.0% ПВ)
+V_DRY = 2.03
+V_WET = 0.44
+ADS1115_I2C_ADDRESS = 0x48
+ADS1115_I2C_BUS = 0  # /dev/i2c-0 (sun60i-a733-i2c0 overlay)
+
+# Relay GPIO Control Pins (Orange Pi 4 Pro V1.3.2 / Allwinner H6)
+# Directly controlling 2-channel 5V relay module via gpiochip1 (Port L lines)
+# Pin 10 -> PL7 (line 7 on gpiochip1) for 850nm (NIR)
+# Pin 7  -> PL4 (line 4 on gpiochip1) for 660nm (Red)
+RELAY_PIN_850NM = 7  # PL7
+RELAY_PIN_660NM = 4  # PL4
+RELAY_GPIOCHIP = "/dev/gpiochip1"
 RELAY_ACTIVE_LOW = True
 FLASH_SETTLING_TIME_SEC = 0.15  # Stabilization delay after switching relay before frame capture
 
 # Thermal Imaging Configuration (UNI-T UTi120S)
-LEAF_EMISSIVITY = 0.98  # Standard emissivity for plant leaves
+LEAF_EMISSIVITY = 0.98  # Standard emissivity for plant leaves (Pisum sativum L.)
