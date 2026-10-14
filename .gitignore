@@ -75,3 +75,7 @@ static/*.jpg
 static/uti_cache/
 wiring_*.png
 measurements_latest.csv
+
+static/*.bmp
+static/raw_original_thermals/
+static/thermal_uploads/
