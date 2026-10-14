@@ -69,9 +69,9 @@
 ### Когорта №1: Контроль (Оптимальный полив)
 | День 1 (8 окт, #171) | День 2 (9 окт, #179) | День 3 (10 окт, #181) | День 4 (11 окт, #188) | День 5 (12 окт, #207) | День 6 (13 окт, #222) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| ![NDVI К1 Д1](day1_20261008/opt_k1_control_#171.jpg) | ![NDVI К1 Д2](day2_20261009/opt_k1_control_#179.jpg) | ![NDVI К1 Д3](day3_20261010/opt_k1_control_#181.jpg) | ![NDVI К1 Д4](day4_20261011/opt_k1_control_#188.jpg) | ![NDVI К1 Д5](day5_20261012/opt_k1_control_#207.jpg) | ![NDVI К1 Д6](day6_20261013/opt_k1_control_#222.jpg) |
+| ![NDVI К1 Д1](day1_20261008/opt_k1_control_%23171.jpg) | ![NDVI К1 Д2](day2_20261009/opt_k1_control_%23179.jpg) | ![NDVI К1 Д3](day3_20261010/opt_k1_control_%23181.jpg) | ![NDVI К1 Д4](day4_20261011/opt_k1_control_%23188.jpg) | ![NDVI К1 Д5](day5_20261012/opt_k1_control_%23207.jpg) | ![NDVI К1 Д6](day6_20261013/opt_k1_control_%23222.jpg) |
 | `0.789` · 272 г · 10.0 см² | `0.752` · 252 г · 14.8 см² | `0.755` · 249.8 г · 17.8 см² | `0.808` · 251.4 г · 21.2 см² | `0.751` · 254.7 г · 15.1 см² | `0.754` · 252.3 г · 18.2 см² |
-| ![Термо К1 Д1](day1_20261008/therm_k1_control_#171.jpg) | ![Термо К1 Д2](day2_20261009/therm_k1_control_#179.jpg) | ![Термо К1 Д3](day3_20261010/therm_k1_control_#181.jpg) | ![Термо К1 Д4](day4_20261011/therm_k1_control_#188.jpg) | ![Термо К1 Д5](day5_20261012/therm_k1_control_#207.jpg) | ![Термо К1 Д6](day6_20261013/therm_k1_control_#222.jpg) |
+| ![Термо К1 Д1](day1_20261008/therm_k1_control_%23171.jpg) | ![Термо К1 Д2](day2_20261009/therm_k1_control_%23179.jpg) | ![Термо К1 Д3](day3_20261010/therm_k1_control_%23181.jpg) | ![Термо К1 Д4](day4_20261011/therm_k1_control_%23188.jpg) | ![Термо К1 Д5](day5_20261012/therm_k1_control_%23207.jpg) | ![Термо К1 Д6](day6_20261013/therm_k1_control_%23222.jpg) |
 | $T=23.7^\circ\text{C}$ ($\Delta T=-1.2$) | $T=23.0^\circ\text{C}$ ($\Delta T=-0.9$) | $T=23.2^\circ\text{C}$ ($\Delta T=-1.0$) | $T=22.3^\circ\text{C}$ ($\Delta T=-1.8$) | $T=22.1^\circ\text{C}$ ($\Delta T=-1.5$) | $T=21.8^\circ\text{C}$ ($\Delta T=-1.6$) |
 
 ---
@@ -79,9 +79,9 @@
 ### Когорта №2: Осмос (100 мМ NaCl, отдельный поддон)
 | День 1 (8 окт, #167) | День 2 (9 окт, #175) | День 3 (10 окт, #182) | День 4 (11 окт, #189) | День 5 (12 окт, #208) | День 6 (13 окт, #223) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| ![NDVI К2 Д1](day1_20261008/opt_k2_osmo_#167.jpg) | ![NDVI К2 Д2](day2_20261009/opt_k2_osmo_#175.jpg) | ![NDVI К2 Д3](day3_20261010/opt_k2_osmo_#182.jpg) | ![NDVI К2 Д4](day4_20261011/opt_k2_osmo_#189.jpg) | ![NDVI К2 Д5](day5_20261012/opt_k2_osmo_#208.jpg) | ![NDVI К2 Д6](day6_20261013/opt_k2_osmo_#223.jpg) |
+| ![NDVI К2 Д1](day1_20261008/opt_k2_osmo_%23167.jpg) | ![NDVI К2 Д2](day2_20261009/opt_k2_osmo_%23175.jpg) | ![NDVI К2 Д3](day3_20261010/opt_k2_osmo_%23182.jpg) | ![NDVI К2 Д4](day4_20261011/opt_k2_osmo_%23189.jpg) | ![NDVI К2 Д5](day5_20261012/opt_k2_osmo_%23208.jpg) | ![NDVI К2 Д6](day6_20261013/opt_k2_osmo_%23223.jpg) |
 | `0.830` · 295 г · 5.6 см² | `0.800` · 283 г · 9.0 см² | `0.781` · 282.0 г · 17.9 см² | `0.777` · 283.1 г · 19.4 см² | `0.784` · 287.2 г · 15.1 см² | `0.822` · 287.2 г · 14.9 см² |
-| ![Термо К2 Д1](day1_20261008/therm_k2_osmo_#167.jpg) | ![Термо К2 Д2](day2_20261009/therm_k2_osmo_#175.jpg) | ![Термо К2 Д3](day3_20261010/therm_k2_osmo_#182.jpg) | ![Термо К2 Д4](day4_20261011/therm_k2_osmo_#189.jpg) | ![Термо К2 Д5](day5_20261012/therm_k2_osmo_#208.jpg) | ![Термо К2 Д6](day6_20261013/therm_k2_osmo_#223.jpg) |
+| ![Термо К2 Д1](day1_20261008/therm_k2_osmo_%23167.jpg) | ![Термо К2 Д2](day2_20261009/therm_k2_osmo_%23175.jpg) | ![Термо К2 Д3](day3_20261010/therm_k2_osmo_%23182.jpg) | ![Термо К2 Д4](day4_20261011/therm_k2_osmo_%23189.jpg) | ![Термо К2 Д5](day5_20261012/therm_k2_osmo_%23208.jpg) | ![Термо К2 Д6](day6_20261013/therm_k2_osmo_%23223.jpg) |
 | $T=23.2^\circ\text{C}$ ($\Delta T=-1.7$) | $T=23.2^\circ\text{C}$ ($\Delta T=-0.7$) | $T=23.9^\circ\text{C}$ ($\Delta T=-0.3$) | $T=23.5^\circ\text{C}$ ($\Delta T=-0.6$) | $T=24.6^\circ\text{C}$ ($\Delta T=+1.0$) | $T=23.5^\circ\text{C}$ ($\Delta T=+0.1$) |
 
 ---
@@ -89,9 +89,9 @@
 ### Когорта №3: Засуха (Водный дефицит)
 | День 1 (8 окт, #168) | День 2 (9 окт, #176) | День 3 (10 окт, #183) | День 4 (11 окт, #190) | День 5 (12 окт, #209) | День 6 (13 окт, #224) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| ![NDVI К3 Д1](day1_20261008/opt_k3_drought_#168.jpg) | ![NDVI К3 Д2](day2_20261009/opt_k3_drought_#176.jpg) | ![NDVI К3 Д3](day3_20261010/opt_k3_drought_#183.jpg) | ![NDVI К3 Д4](day4_20261011/opt_k3_drought_#190.jpg) | ![NDVI К3 Д5](day5_20261012/opt_k3_drought_#209.jpg) | ![NDVI К3 Д6](day6_20261013/opt_k3_drought_#224.jpg) |
+| ![NDVI К3 Д1](day1_20261008/opt_k3_drought_%23168.jpg) | ![NDVI К3 Д2](day2_20261009/opt_k3_drought_%23176.jpg) | ![NDVI К3 Д3](day3_20261010/opt_k3_drought_%23183.jpg) | ![NDVI К3 Д4](day4_20261011/opt_k3_drought_%23190.jpg) | ![NDVI К3 Д5](day5_20261012/opt_k3_drought_%23209.jpg) | ![NDVI К3 Д6](day6_20261013/opt_k3_drought_%23224.jpg) |
 | `0.810` · 298 г · 9.3 см² | `0.790` · 270 г · 12.3 см² | `0.748` · 254.4 г · 16.1 см² | `0.810` · 241.5 г · 17.2 см² | `0.767` · 231.0 г · 9.7 см² | `0.739` · 220.2 г · 11.3 см² |
-| ![Термо К3 Д1](day1_20261008/therm_k3_drought_#168.jpg) | ![Термо К3 Д2](day2_20261009/therm_k3_drought_#176.jpg) | ![Термо К3 Д3](day3_20261010/therm_k3_drought_#183.jpg) | ![Термо К3 Д4](day4_20261011/therm_k3_drought_#190.jpg) | ![Термо К3 Д5](day5_20261012/therm_k3_drought_#209.jpg) | ![Термо К3 Д6](day6_20261013/therm_k3_drought_#224.jpg) |
+| ![Термо К3 Д1](day1_20261008/therm_k3_drought_%23168.jpg) | ![Термо К3 Д2](day2_20261009/therm_k3_drought_%23176.jpg) | ![Термо К3 Д3](day3_20261010/therm_k3_drought_%23183.jpg) | ![Термо К3 Д4](day4_20261011/therm_k3_drought_%23190.jpg) | ![Термо К3 Д5](day5_20261012/therm_k3_drought_%23209.jpg) | ![Термо К3 Д6](day6_20261013/therm_k3_drought_%23224.jpg) |
 | $T=23.6^\circ\text{C}$ ($\Delta T=-1.3$) | $T=23.0^\circ\text{C}$ ($\Delta T=-0.9$) | $T=23.8^\circ\text{C}$ ($\Delta T=-0.5$) | $T=23.7^\circ\text{C}$ ($\Delta T=-0.4$) | $T=24.5^\circ\text{C}$ ($\Delta T=+0.9$) | $T=23.7^\circ\text{C}$ ($\Delta T=+0.3$) |
 
 ---
@@ -99,9 +99,9 @@
 ### Когорта №4: Превенция (Ранний полив по алерту станции)
 | День 1 (8 окт, #169) | День 2 (9 окт, #177) | День 3 (10 окт, #184) | День 4 (11 окт, #191) | День 5 (12 окт, #210) | День 6 (13 окт, #225) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| ![NDVI К4 Д1](day1_20261008/opt_k4_prevention_#169.jpg) | ![NDVI К4 Д2](day2_20261009/opt_k4_prevention_#177.jpg) | ![NDVI К4 Д3](day3_20261010/opt_k4_prevention_#184.jpg) | ![NDVI К4 Д4](day4_20261011/opt_k4_prevention_#191.jpg) | ![NDVI К4 Д5](day5_20261012/opt_k4_prevention_#210.jpg) | ![NDVI К4 Д6](day6_20261013/opt_k4_prevention_#225.jpg) |
+| ![NDVI К4 Д1](day1_20261008/opt_k4_prevention_%23169.jpg) | ![NDVI К4 Д2](day2_20261009/opt_k4_prevention_%23177.jpg) | ![NDVI К4 Д3](day3_20261010/opt_k4_prevention_%23184.jpg) | ![NDVI К4 Д4](day4_20261011/opt_k4_prevention_%23191.jpg) | ![NDVI К4 Д5](day5_20261012/opt_k4_prevention_%23210.jpg) | ![NDVI К4 Д6](day6_20261013/opt_k4_prevention_%23225.jpg) |
 | `0.796` · 297 г · 5.2 см² | `0.747` · 274 г · 5.6 см² | `0.742` · 261.0 г · 10.8 см² | `0.755` · 253.0 г · 11.1 см² | `0.743` · 246.8 г · 5.9 см² | `0.778` · 265.0 г · 8.2 см² |
-| ![Термо К4 Д1](day1_20261008/therm_k4_prevention_#169.jpg) | ![Термо К4 Д2](day2_20261009/therm_k4_prevention_#177.jpg) | ![Термо К4 Д3](day3_20261010/therm_k4_prevention_#184.jpg) | ![Термо К4 Д4](day4_20261011/therm_k4_prevention_#191.jpg) | ![Термо К4 Д5](day5_20261012/therm_k4_prevention_#210.jpg) | ![Термо К4 Д6](day6_20261013/therm_k4_prevention_#225.jpg) |
+| ![Термо К4 Д1](day1_20261008/therm_k4_prevention_%23169.jpg) | ![Термо К4 Д2](day2_20261009/therm_k4_prevention_%23177.jpg) | ![Термо К4 Д3](day3_20261010/therm_k4_prevention_%23184.jpg) | ![Термо К4 Д4](day4_20261011/therm_k4_prevention_%23191.jpg) | ![Термо К4 Д5](day5_20261012/therm_k4_prevention_%23210.jpg) | ![Термо К4 Д6](day6_20261013/therm_k4_prevention_%23225.jpg) |
 | $T=23.8^\circ\text{C}$ ($\Delta T=-1.1$) | $T=23.0^\circ\text{C}$ ($\Delta T=-0.9$) | $T=23.9^\circ\text{C}$ ($\Delta T=-0.3$) | $T=23.7^\circ\text{C}$ ($\Delta T=-0.4$) | $T=24.5^\circ\text{C}$ ($\Delta T=+0.9$) | $T=22.7^\circ\text{C}$ ($\Delta T=-0.7$) |
 
 ---
@@ -109,7 +109,7 @@
 ### Когорта №5: Реакция (Полив по визуальному увяданию)
 | День 1 (8 окт, #170) | День 2 (9 окт, #178) | День 3 (10 окт, #185) | День 4 (11 окт, #192) | День 5 (12 окт, #211) | День 6 (13 окт, #226) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| ![NDVI К5 Д1](day1_20261008/opt_k5_reaction_#170.jpg) | ![NDVI К5 Д2](day2_20261009/opt_k5_reaction_#178.jpg) | ![NDVI К5 Д3](day3_20261010/opt_k5_reaction_#185.jpg) | ![NDVI К5 Д4](day4_20261011/opt_k5_reaction_#192.jpg) | ![NDVI К5 Д5](day5_20261012/opt_k5_reaction_#211.jpg) | ![NDVI К5 Д6](day6_20261013/opt_k5_reaction_#226.jpg) |
+| ![NDVI К5 Д1](day1_20261008/opt_k5_reaction_%23170.jpg) | ![NDVI К5 Д2](day2_20261009/opt_k5_reaction_%23178.jpg) | ![NDVI К5 Д3](day3_20261010/opt_k5_reaction_%23185.jpg) | ![NDVI К5 Д4](day4_20261011/opt_k5_reaction_%23192.jpg) | ![NDVI К5 Д5](day5_20261012/opt_k5_reaction_%23211.jpg) | ![NDVI К5 Д6](day6_20261013/opt_k5_reaction_%23226.jpg) |
 | `0.801` · 290 г · 9.6 см² | `0.795` · 264 г · 9.8 см² | `0.785` · 252.9 г · 15.7 см² | `0.783` · 243.8 г · 17.8 см² | `0.771` · 235.3 г · 11.9 см² | `0.755` · 228.7 г · 6.7 см² |
-| ![Термо К5 Д1](day1_20261008/therm_k5_reaction_#170.jpg) | ![Термо К5 Д2](day2_20261009/therm_k5_reaction_#178.jpg) | ![Термо К5 Д3](day3_20261010/therm_k5_reaction_#185.jpg) | ![Термо К5 Д4](day4_20261011/therm_k5_reaction_#192.jpg) | ![Термо К5 Д5](day5_20261012/therm_k5_reaction_#211.jpg) | ![Термо К5 Д6](day6_20261013/therm_k5_reaction_#226.jpg) |
+| ![Термо К5 Д1](day1_20261008/therm_k5_reaction_%23170.jpg) | ![Термо К5 Д2](day2_20261009/therm_k5_reaction_%23178.jpg) | ![Термо К5 Д3](day3_20261010/therm_k5_reaction_%23185.jpg) | ![Термо К5 Д4](day4_20261011/therm_k5_reaction_%23192.jpg) | ![Термо К5 Д5](day5_20261012/therm_k5_reaction_%23211.jpg) | ![Термо К5 Д6](day6_20261013/therm_k5_reaction_%23226.jpg) |
 | $T=23.3^\circ\text{C}$ ($\Delta T=-1.2$) | $T=23.1^\circ\text{C}$ ($\Delta T=-0.8$) | $T=24.0^\circ\text{C}$ ($\Delta T=-0.2$) | $T=23.6^\circ\text{C}$ ($\Delta T=-0.5$) | $T=24.6^\circ\text{C}$ ($\Delta T=+1.0$) | $T=23.2^\circ\text{C}$ ($\Delta T=-0.2$) |

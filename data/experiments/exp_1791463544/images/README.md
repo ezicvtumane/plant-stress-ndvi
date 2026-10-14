@@ -17,4 +17,4 @@
 * `opt_178_...`, `therm_178_...` — Кассета №5: Реакция (#178)
 
 Все технические, калибровочные и пристрелочные кадры (#118–#166) вынесены в соседний каталог [`../test_calibration_shots/`](../test_calibration_shots/).  
-Удобно структурированная галерея с превью и анализом доступна в [`/media/pilot_experiment_pea_2days/`](/media/pilot_experiment_pea_2days/README.md).
+Удобно структурированная галерея с превью и анализом доступна в [`/media/pilot_experiment_pea_2days/`](../../../../media/experiment_series_pea/README.md).
