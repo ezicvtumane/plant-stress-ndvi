@@ -1,15 +1,15 @@
 """
-??????-??????????? ???????? ???????? ???????????? ????????????????? ? ???????????
-?????: ???????? ????? ????????, 10 ?????, ???? ??? ?282 ?????????? ?????? ?????-??????????
-??????-??????????? ????????????: ??????? ???? ??????????
-???????: ????????????? ??????? ??????-??????????????? ???????? ???????? ??????? (??????)
+Оптико-электронный комплекс активной двухволновой спектрофотометрии и термографии
+Автор: Ковалева Алиса Ивановна, 10 класс, ГБОУ СОШ №282 Кировского района Санкт-Петербурга
+Научно-технический руководитель: Ковалев Иван Викторович
+Конкурс: Всероссийский конкурс научно-технологических проектов «Большие вызовы» (Сириус)
 
-????????? ???????? ?????? (WIZARD):
-1. ??????? ? ????? -> ???????????? ?????? NoIR ?? ?????????????? (Red/NIR/NDVI).
-2. ?????? ???????????? ? ????? (????? UTi120S).
-3. ??????? ?? ????, ?????????? ??????? ? Orange Pi.
-4. ????? ???????????: ????-???????????? ?????????? ?????? + OCR, ???? ????? ? ?????, ?????? Delta_T.
-5. ????????????? ? ?????????? ? ????.
+ПОШАГОВЫЙ СЦЕНАРИЙ ЗАМЕРА (WIZARD):
+1. Кассета в боксе -> Спектральная съемка NoIR со стробированием (Red/NIR/NDVI).
+2. Снимок тепловизором в руках (курок UTi120S).
+3. Кассета на весы, тепловизор кабелем в Orange Pi.
+4. Экран верификации: авто-подтягивание последнего снимка + OCR, ввод массы с весов, расчет Delta_T.
+5. Подтверждение и сохранение в базу.
 """
 
 import asyncio
@@ -18,7 +18,7 @@ from hardware.hal import get_climate_sensor, get_soil_sensor, get_relay_controll
 
 import numexpr as ne
 
-# ??????? ??? I2C ???????? (?????? ?? ???????? ?? ????)
+# Очередь для I2C запросов (защита от коллизий на шине)
 i2c_executor = ThreadPoolExecutor(max_workers=1)
 
 import os
@@ -84,10 +84,10 @@ def save_calibrated_k_bal(val: float):
 
 def get_agronomic_ndvi_lut() -> np.ndarray:
     """
-    ??????????? ?????????????? ??????? RdYlGn (Red-Yellow-Green):
-    NDVI < 0.25 (???, ????? ????????, ??????) -> ???????
-    NDVI 0.25..0.60 (????????? ??????, ?????????? ?????) -> ?????????/??????
-    NDVI > 0.60 (???????? ?????????, ?????) -> ?????? ?????????? ???????
+    Стандартная агрономическая палитра RdYlGn (Red-Yellow-Green):
+    NDVI < 0.25 (фон, сухая биомасса, некроз) -> Красный
+    NDVI 0.25..0.60 (умеренный стресс, замедление роста) -> Оранжевый/Желтый
+    NDVI > 0.60 (активная вегетация, норма) -> Сочный насыщенный зеленый
     """
     lut = np.zeros((256, 1, 3), dtype=np.uint8)
     for i in range(256):
@@ -123,33 +123,33 @@ os.makedirs(TH_CACHE_DIR, exist_ok=True)
 CSV_LOG = os.path.join(DATA_DIR, 'measurements.csv')
 
 
-# ??????? ???????? ?????? ?????????? ??????
+# Текущая активная сессия одиночного замера
 PENDING_SESSION = None
 
-# ??????? 5 ???????? ?????? ??????? ???????????? (+ ????????????? ????? ?0)
-# ????? ?????? ???????????????? ? ??????? ?????? ArUco-???????? ?? ????????:
+# Каталог 5 ключевых когорт единого эксперимента (+ калибровочный стенд №0)
+# Цвета строго синхронизированы с цветной рамкой ArUco-маркеров на кассетах:
 CASSETTE_CATALOG = {
-    1: {'id': 1, 'name': '????????', 'desc': '??????????? ????? (100% ??)', 'color': '#059669', 'stage': 'batch5'},
-    2: {'id': 2, 'name': '?????', 'desc': '???????????? ??????', 'color': '#7c3aed', 'stage': 'batch5'},
-    3: {'id': 3, 'name': '??????', 'desc': '?????? ???????', 'color': '#dc2626', 'stage': 'batch5'},
-    4: {'id': 4, 'name': '?????????', 'desc': '?????? ????? ?? ?????? ???????', 'color': '#eab308', 'stage': 'batch5'},
-    5: {'id': 5, 'name': '???????', 'desc': '????? ?? ?????????? ????????? ????????', 'color': '#2563eb', 'stage': 'batch5'},
-    6: {'id': 6, 'name': '?????????? (????? ?0)', 'desc': '????????????? ????? (????? 22.09)', 'color': '#64748b', 'stage': 'batch5'}
+    1: {'id': 1, 'name': 'Контроль', 'desc': 'Оптимальный полив (100% ПВ)', 'color': '#059669', 'stage': 'batch5'},
+    2: {'id': 2, 'name': 'Осмос', 'desc': 'Осмотический стресс', 'color': '#7c3aed', 'stage': 'batch5'},
+    3: {'id': 3, 'name': 'Засуха', 'desc': 'Водный дефицит', 'color': '#dc2626', 'stage': 'batch5'},
+    4: {'id': 4, 'name': 'Превенция', 'desc': 'Ранний полив по алерту станции', 'color': '#eab308', 'stage': 'batch5'},
+    5: {'id': 5, 'name': 'Реакция', 'desc': 'Полив по визуальным признакам увядания', 'color': '#2563eb', 'stage': 'batch5'},
+    6: {'id': 6, 'name': 'Калибровка (Стенд №0)', 'desc': 'Калибровочный стенд (посев 22.09)', 'color': '#64748b', 'stage': 'batch5'}
 }
 ARUCO_CASSETTE_MAP = {cid: data['name'] for cid, data in CASSETTE_CATALOG.items()}
 
-# ???????????? ????????? ?????? 5 ?????? (5 ?????? ?? ???? ?????)
+# Конфигурация пакетного замера 5 кассет (5 кассет за один сеанс)
 BATCH_CONFIG = {
     'batch5': {
-        'title': '???????? ????? 5 ?????? (??????? 1?5)',
+        'title': 'Пакетный замер 5 кассет (Кассеты 1–5)',
         'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
     },
     'stage1': {
-        'title': '???????? ????? 5 ?????? (??????? 1?5)',
+        'title': 'Пакетный замер 5 кассет (Кассеты 1–5)',
         'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
     },
     'stage2': {
-        'title': '???????? ????? 5 ?????? (??????? 1?5)',
+        'title': 'Пакетный замер 5 кассет (Кассеты 1–5)',
         'cassettes': [CASSETTE_CATALOG[1], CASSETTE_CATALOG[2], CASSETTE_CATALOG[3], CASSETTE_CATALOG[4], CASSETTE_CATALOG[5]]
     }
 }
@@ -166,10 +166,10 @@ LAST_VALID_CLIMATE = (24.9, 65.7, 3.21)
 
 def _read_climate_sync():
     """
-    ?????????? ????? ???????:
-    1. ?????????: ???????????? ?????? Xiaomi Mijia ?? ??????????? (???? ????????),
-       ??? ??? ?????? SHT30 ?????? ????????? ??????????? ????? ??????????? ?? ????/????????? (~29?C).
-    2. Fallback: ????????? I2C SHT30 ? ????? (???? ???? Xiaomi ???????? ??????????).
+    Синхронный опрос климата:
+    1. Приоритет: Беспроводной датчик Xiaomi Mijia на подоконнике (зона растений),
+       так как датчик SHT30 внутри закрытого оптического бокса нагревается от ламп/драйверов (~29°C).
+    2. Fallback: Локальный I2C SHT30 в боксе (если шлюз Xiaomi временно недоступен).
     """
     global LAST_VALID_CLIMATE
     try:
@@ -208,7 +208,7 @@ async def read_climate_async():
     return await asyncio.get_running_loop().run_in_executor(i2c_executor, _read_climate_sync)
 
 def calc_vpd(t_c: float, rh_pct: float) -> float:
-    """?????? ???????? ????????? ???????? ???? (Vapor Pressure Deficit, ???)."""
+    """Расчет дефицита упругости водяного пара (Vapor Pressure Deficit, кПа)."""
     try:
         es = 0.61078 * math.exp((17.27 * t_c) / (t_c + 237.3))
         ea = es * (rh_pct / 100.0)
@@ -217,12 +217,12 @@ def calc_vpd(t_c: float, rh_pct: float) -> float:
         return 0.60
 
 RU_MONTHS = [
-    '??????', '???????', '?????', '??????', '???', '????',
-    '????', '???????', '????????', '???????', '??????', '???????'
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
 ]
 
 def format_ru_datetime(val) -> str:
-    """??????????? ???? ? ????? ? ???????? ??????? ???: '25 ??????? 2026, 14:30:15'."""
+    """Форматирует дату и время в понятный русский вид: '25 февраля 2026, 14:30:15'."""
     if not val:
         return '--'
     if isinstance(val, (int, float)):
@@ -245,7 +245,7 @@ def format_ru_datetime(val) -> str:
     return val_str
 
 def format_ru_date_and_time(val):
-    """?????????? ?????? (????, ?????) ??? ??????????? ????????????? ???????????."""
+    """Возвращает кортеж (дата, время) для аккуратного двухстрочного отображения."""
     if not val:
         return ('--', '')
     if isinstance(val, (int, float)):
@@ -271,33 +271,33 @@ def format_ru_date_and_time(val):
     return (val_str, '')
 
 def format_group_badge(grp_name: str) -> str:
-    """??????????? ???????? ?????? ? ????? ????????????? ????? ? ??????? ???????????? ? ??????? ??????."""
+    """Форматирует название группы в яркий отличительный бейдж в строгом соответствии с цветами когорт."""
     if not grp_name:
         return '--'
     grp_lower = grp_name.strip().lower()
 
-    # ?1: ???????? (#1) ? ??????? (#059669 / #065f46)
-    if '?????' in grp_lower or 'control' in grp_lower or '???????' in grp_lower or '??????' in grp_lower or '#1' in grp_lower:
+    # К1: Контроль (#1) — Зеленый (#059669 / #065f46)
+    if 'контр' in grp_lower or 'control' in grp_lower or 'оптимум' in grp_lower or 'эталон' in grp_lower or '#1' in grp_lower:
         return f'<span style="background:#ecfdf5; color:#065f46; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #a7f3d0; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
-    # ?2: ????? (#2) ? ?????????? (#7c3aed / #6d28d9)
-    elif '?????' in grp_lower or 'osmo' in grp_lower or '???' in grp_lower or 'salin' in grp_lower or 'nacl' in grp_lower or '#2' in grp_lower:
+    # К2: Осмос (#2) — Фиолетовый (#7c3aed / #6d28d9)
+    elif 'осмос' in grp_lower or 'osmo' in grp_lower or 'сол' in grp_lower or 'salin' in grp_lower or 'nacl' in grp_lower or '#2' in grp_lower:
         return f'<span style="background:#f5f3ff; color:#6d28d9; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #ddd6fe; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
-    # ?3: ?????? (#3) ? ??????? (#dc2626 / #be123c)
-    elif '?????' in grp_lower or 'drought' in grp_lower or '????????' in grp_lower or '??????' in grp_lower or '??????' in grp_lower or '#3' in grp_lower:
+    # К3: Засуха (#3) — Красный (#dc2626 / #be123c)
+    elif 'засух' in grp_lower or 'drought' in grp_lower or 'терминал' in grp_lower or 'гибель' in grp_lower or 'некроз' in grp_lower or '#3' in grp_lower:
         return f'<span style="background:#fff1f2; color:#be123c; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fecdd3; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
-    # ?4: ????????? (#4) ? ???????? / ??????? (#ca8a04 / #b45309)
-    elif '????????' in grp_lower or 'prevent' in grp_lower or '??????' in grp_lower or '??????' in grp_lower or '?????????' in grp_lower or '?????' in grp_lower or '????' in grp_lower or '#4' in grp_lower:
+    # К4: Превенция (#4) — Янтарный / Золотой (#ca8a04 / #b45309)
+    elif 'превенци' in grp_lower or 'prevent' in grp_lower or 'прибор' in grp_lower or 'станци' in grp_lower or 'предиктив' in grp_lower or 'репар' in grp_lower or 'ранн' in grp_lower or '#4' in grp_lower:
         return f'<span style="background:#fffbeb; color:#b45309; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #fde68a; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
-    # ?5: ??????? (#5) ? ????? (#2563eb / #1d4ed8)
-    elif '??????' in grp_lower or 'react' in grp_lower or '????' in grp_lower or '??????' in grp_lower or '??????????' in grp_lower or '??????' in grp_lower or '??????' in grp_lower or '?????' in grp_lower or '#5' in grp_lower:
+    # К5: Реакция (#5) — Синий (#2563eb / #1d4ed8)
+    elif 'реакци' in grp_lower or 'react' in grp_lower or 'глаз' in grp_lower or 'визуал' in grp_lower or 'органолепт' in grp_lower or 'тургор' in grp_lower or 'критич' in grp_lower or 'поздн' in grp_lower or '#5' in grp_lower:
         return f'<span style="background:#eff6ff; color:#1d4ed8; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #bfdbfe; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
-    # ?6: ????????????? ????? ? ????? (#64748b / #475569)
-    elif '???????' in grp_lower or '?????' in grp_lower or '#6' in grp_lower:
+    # К6: Калибровочный стенд — Серый (#64748b / #475569)
+    elif 'калибро' in grp_lower or 'стенд' in grp_lower or '#6' in grp_lower:
         return f'<span style="background:#f1f5f9; color:#475569; padding:3px 9px; border-radius:6px; font-weight:700; border:1px solid #cbd5e1; font-size:11px; white-space:nowrap;">{grp_name}</span>'
 
     else:
@@ -328,7 +328,7 @@ def init_relay():
         RELAY_REQ = None
 
 def cleanup_gpio():
-    """?????????? ?????????? ???? ??? ?????? ????? ?????????? HAL."""
+    """Безопасное отключение реле при выходе через абстракцию HAL."""
     get_relay_controller().cleanup()
 
 def get_next_id() -> int:
@@ -356,25 +356,25 @@ def _read_moisture_i2c_sync():
         return bus.read_i2c_block_data(0x48, 0x00, 2)
 
 def read_moisture_mock(group_name: str = ''):
-    """?????? ??? ADS1115 ????? ?????????? I2C-???."""
+    """Чтение АЦП ADS1115 через выделенный I2C-пул."""
     try:
         c = i2c_executor.submit(_read_moisture_i2c_sync).result()
         raw = (c[0] << 8) | c[1]
         if raw > 32767:
             raw -= 65536
         v = float(raw * 0.000125)
-        # ?????? ????????? ????????? (% ??)
+        # Расчет влажности субстрата (% ПВ)
         pct = max(0.0, min(100.0, (2.03 - v) / (2.03 - 0.57) * 100.0))
         return round(v, 3), round(pct, 1)
     except Exception as e:
         gn = group_name.lower() if group_name else ''
-        if '?????' in gn or 'drought' in gn:
+        if 'засух' in gn or 'drought' in gn:
             v_base, pct_base = 2.45, 30.5
-        elif '?????' in gn or 'late' in gn:
+        elif 'поздн' in gn or 'late' in gn:
             v_base, pct_base = 2.41, 32.8
-        elif '????' in gn or 'nacl' in gn or 'salin' in gn:
+        elif 'соль' in gn or 'nacl' in gn or 'salin' in gn:
             v_base, pct_base = 1.62, 76.5
-        elif '????' in gn or 'early' in gn:
+        elif 'ранн' in gn or 'early' in gn:
             v_base, pct_base = 1.78, 67.8
         else:
             v_base, pct_base = 1.85, 63.9
@@ -385,9 +385,9 @@ def read_moisture_mock(group_name: str = ''):
 
 def extract_temperature_from_thermal(img_path: str):
     """
-    OCR-????????????? ??????????? ??????????? ????? ?? ??????????? UTi120S.
-    ?????????? ??????? 2x2 ??? 4 ??????? ?? 1 ????? tesseract.
-    ?????????? (temperature, is_valid).
+    OCR-распознавание температуры центральной точки из термограммы UTi120S.
+    Использует мозаику 2x2 для 4 порогов за 1 вызов tesseract.
+    Возвращает (temperature, is_valid).
     """
     try:
         img = cv2.imread(img_path)
@@ -396,7 +396,7 @@ def extract_temperature_from_thermal(img_path: str):
         crop = img[0:75, 0:145]
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
         
-        # ?????? ??????? 2x2
+        # Строим мозаику 2x2
         thresholds = [210, 195, 225, 180]
         h, w = gray.shape
         mosaic = np.zeros((h*2, w*2), dtype=np.uint8)
@@ -406,9 +406,9 @@ def extract_temperature_from_thermal(img_path: str):
             r, c = idx // 2, idx % 2
             mosaic[r*h:(r+1)*h, c*w:(c+1)*w] = thresh
             
-        txt = pytesseract.image_to_string(mosaic, config='--psm 6 -c tessedit_char_whitelist=0123456789.,C?% \n')
+        txt = pytesseract.image_to_string(mosaic, config='--psm 6 -c tessedit_char_whitelist=0123456789.,C°% \n')
         
-        # ???? ??? ????????? ? ???????
+        # Ищем все вхождения в мозаике
         for m in re.finditer(r'(\d{1,2})[\.,](\d)', txt):
             val = float(f"{m.group(1)}.{m.group(2)}")
             if 10.0 <= val <= 50.0:
@@ -426,9 +426,9 @@ def extract_temperature_from_thermal(img_path: str):
     return (None, False)
 def detect_aruco_in_image(img_bgr):
     """
-    ????????????? ?????????? ????????????? ???????????? ArUco-???????? ???????.
-    ????????? ? ?????????????????? 660??/850?? ????????? ? ??????? ???????? ??????????.
-    ?????????? (marker_id, group_name, corners).
+    Субпиксельное оптическое распознавание фидуциальных ArUco-маркеров кассеты.
+    Устойчиво к монохроматическому 660нм/850нм освещению и цветным контурам фломастера.
+    Возвращает (marker_id, group_name, corners).
     """
     if not hasattr(cv2, 'aruco') or img_bgr is None:
         return None, None, None
@@ -441,7 +441,7 @@ def detect_aruco_in_image(img_bgr):
             cv2.aruco.DICT_5X5_50
         ]
 
-        # ????????? ?????????? ????????? (?????????? ????? ???????)
+        # Настройка параметров детектора (фильтрация шумов матрицы)
         params = (
             cv2.aruco.DetectorParameters()
             if hasattr(cv2.aruco, 'DetectorParameters')
@@ -450,7 +450,7 @@ def detect_aruco_in_image(img_bgr):
         params.adaptiveThreshWinSizeMin = 5
         params.adaptiveThreshWinSizeMax = 45
         params.adaptiveThreshWinSizeStep = 5
-        params.minMarkerPerimeterRate = 0.04  # ?????? ?? ????: ???????? ?? ????? 160 px
+        params.minMarkerPerimeterRate = 0.04  # Защита от шума: периметр не менее 160 px
         params.maxMarkerPerimeterRate = 3.0
         params.polygonalApproxAccuracyRate = 0.05
         params.maxErroneousBitsInBorderRate = 0.25
@@ -459,7 +459,7 @@ def detect_aruco_in_image(img_bgr):
         if hasattr(cv2.aruco, 'CORNER_REFINE_SUBPIX'):
             params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
-        # ?????????? ????????? ??????????? ??? ????????? ?????????????:
+        # Подготовка вариантов изображения для надежного распознавания:
         images_to_try = [gray]
         try:
             _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -489,24 +489,24 @@ def detect_aruco_in_image(img_bgr):
                 if ids is not None and len(ids) > 0:
                     for i_idx, id_arr in enumerate(ids):
                         m_id = int(id_arr[0])
-                        # ???????? ?????????? ??????? ??????? (?????? ?? ????????? ?????????? ???????)
+                        # Проверка физической площади маркера (защита от фантомных артефактов матрицы)
                         c_area = float(cv2.contourArea(corners[i_idx].reshape((-1, 2)).astype(np.float32)))
                         if c_area < 250.0:
                             continue
                         if m_id in CASSETTE_CATALOG:
                             grp = CASSETTE_CATALOG[m_id]['name']
-                            print(f"[ArUco Detected] ??????? ??????? #{m_id}: {grp} (area={c_area:.0f}px, ??????? {d_type})", flush=True)
+                            print(f"[ArUco Detected] Найдена кассета #{m_id}: {grp} (area={c_area:.0f}px, словарь {d_type})", flush=True)
                             return m_id, grp, corners[i_idx]
                         elif 1 <= m_id <= 6:
-                            grp = ARUCO_CASSETTE_MAP.get(m_id, f'??????? #{m_id}')
-                            print(f"[ArUco Detected] ??????? ??????? #{m_id}: {grp} (area={c_area:.0f}px)", flush=True)
+                            grp = ARUCO_CASSETTE_MAP.get(m_id, f'Кассета #{m_id}')
+                            print(f"[ArUco Detected] Найдена кассета #{m_id}: {grp} (area={c_area:.0f}px)", flush=True)
                             return m_id, grp, corners[i_idx]
     except Exception as e:
         print('[ArUco Detect Error]:', e, flush=True)
     return None, None, None
 
 def auto_mount_uti():
-    """???????????? USB ?????????? ??????????? UTi120S ?? ??????????? ID."""
+    """Монтирование USB накопителя тепловизора UTi120S по аппаратному ID."""
     try:
         if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
             return True
@@ -530,7 +530,7 @@ def auto_mount_uti():
     return False
 
 def get_uti_sorted_files():
-    """?????????? ????? ???????????, ??????????????? ?? ????? ?????? ? ??????."""
+    """Возвращает файлы тепловизора, отсортированные от самых свежих к старым."""
     auto_mount_uti()
     if not os.path.exists(UTI_DIR):
         return []
@@ -550,7 +550,7 @@ def get_uti_sorted_files():
     return files
 
 def get_file_info_at_index(index: int = 0):
-    """???????? ?????????? ? ?????? ??????????? ?? ??????? (0 - ????? ??????)."""
+    """Получает информацию о снимке тепловизора по индексу (0 - самый свежий)."""
     files = get_uti_sorted_files()
     if not files or index >= len(files):
         return None
@@ -570,7 +570,7 @@ def get_file_info_at_index(index: int = 0):
         except Exception:
             pass
 
-    # ??????? OCR-?????????????
+    # Быстрое OCR-распознавание
     t_ocr, ocr_valid = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else (None, False)
     if t_ocr is None: t_ocr = 23.5
 
@@ -589,8 +589,8 @@ def get_file_info_at_index(index: int = 0):
 @profile_performance
 def do_hardware_spectral_capture(group_name: str):
     """
-    ??? 1: ?????????? ???????????? ????? NoIR ?????? ?? ??????????????.
-    ?????????? ??????? ?????? ??????.
+    Шаг 1: Оптический спектральный замер NoIR камеры со стробированием.
+    Возвращает словарь данных сессии.
     """
     global PENDING_SESSION
     meas_id = get_next_id()
@@ -598,7 +598,7 @@ def do_hardware_spectral_capture(group_name: str):
     ts_str = ts_now.strftime('%Y%m%d_%H%M%S')
     ts_display = format_ru_datetime(ts_now)
 
-    # ???????????? ?????? Logitech C270: 1280x960 (?????? ?????? 4:3 ??? ?????)
+    # Спектральная съемка Logitech C270: 1280x960 (полный сенсор 4:3 без кропа)
     def set_v4l2_exposure(exp_val, gain_val):
         try:
             subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 
@@ -614,22 +614,22 @@ def do_hardware_spectral_capture(group_name: str):
 
     init_relay()
     if True:
-        # 1. ???????????? ?????? NIR 850 ?? (??????? ?????????? ??? ??????????? ??-??????? C270)
-        # 1. ???????????? ?????? NIR 850 ?? (??????????? ?????????? 2500/200 ??? C270 NoIR)
+        # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
+        # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
         set_v4l2_exposure(2500, 200)
         time.sleep(0.20)
         get_relay_controller().set_nir(True)
         time.sleep(0.40)
         for _ in range(8): cap.grab()
         ret_n, frame_nir = cap.read()
-        get_relay_controller().set_nir(False) # ???????????? ????????
+        get_relay_controller().set_nir(False) # Инфракрасный выключен
 
-        # ???????? ??? NIR
+        # Темновой фон NIR
         time.sleep(0.15)
         for _ in range(5): cap.grab()
         _, frame_amb_nir = cap.read()
 
-        # 2. ???????????? ?????? RED 660 ?? (????????????? ?????????? 120/40 ??? ?????????)
+        # 2. Спектральная съемка RED 660 нм (калиброванная экспозиция 120/40 без клиппинга)
         set_v4l2_exposure(120, 40)
         time.sleep(0.20)
         for _ in range(8): cap.grab()
@@ -637,9 +637,9 @@ def do_hardware_spectral_capture(group_name: str):
         time.sleep(0.40)
         for _ in range(8): cap.grab()
         ret_r, frame_red = cap.read()
-        get_relay_controller().set_red(False) # ??????? ????????
+        get_relay_controller().set_red(False) # Красный выключен
 
-        # ???????? ??? RED
+        # Темновой фон RED
         time.sleep(0.15)
         for _ in range(5): cap.grab()
         _, frame_amb_red = cap.read()
@@ -657,7 +657,7 @@ def do_hardware_spectral_capture(group_name: str):
         frame_amb = frame_amb_nir
 
     cap.release()
-    # ?????????? ?????? ? ??????? ?????
+    # Возвращаем камеру в штатный режим
     try:
         subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=3'], check=False)
     except Exception:
@@ -665,38 +665,38 @@ def do_hardware_spectral_capture(group_name: str):
 
     frame_flash = frame_red
 
-    # ?????????? ???????? ArUco-??????? ??????? NoIR-???????:
-    # 1) ??????? ?? NIR-????? (???????????? ???????? ??????? ??????????? ?????? ? ????? ?????? ??? 850 ??)
+    # Оптическая детекция ArUco-маркера кассеты NoIR-камерой:
+    # 1) Сначала по NIR-кадру (максимальный контраст черного углеродного тонера и белой бумаги под 850 нм)
     aruco_id, aruco_group, aruco_corners = detect_aruco_in_image(frame_nir)
-    # 2) ???? ?? ??????? - ?? ????? RED 660 ??
+    # 2) Если не найдено - по кадру RED 660 нм
     if aruco_id is None:
         aruco_id, aruco_group, aruco_corners = detect_aruco_in_image(frame_red)
-    # 3) ???? ?? ??????? - ?? ???????? ambient
+    # 3) Если не найдено - по фоновому ambient
     if aruco_id is None:
         aruco_id, aruco_group, aruco_corners = detect_aruco_in_image(frame_amb)
     if aruco_id is not None:
         group_name = aruco_group
-        print(f'[ArUco Optical Link] ????-???????? ???????: ?????? #{aruco_id} -> {group_name}', flush=True)
+        print(f'[ArUco Optical Link] Авто-привязка кассеты: Маркер #{aruco_id} -> {group_name}', flush=True)
 
-    # ??????? ?????????? ?????????? ??????? (??? ??????????? ?????????????):
-    # ????? 660 ??: ?????? ??????? ?????????? ??????? ??? ???????????? ?????? 660 ??
+    # ЧЕСТНОЕ АППАРАТНОЕ РАЗДЕЛЕНИЕ КАНАЛОВ (БЕЗ ПРОГРАММНОЙ АППРОКСИМАЦИИ):
+    # Канал 660 нм: чистый красный подуровень матрицы под узкополосным светом 660 нм
     red_raw = frame_red[:, :, 2].astype(np.float32)
-    # ????? 850 ??: ???????????? ?????? ??????? NoIR ??? ???????????? ??-?????? 850 ??
+    # Канал 850 нм: интегральный отклик матрицы NoIR под узкополосным ИК-светом 850 нм
     nir_raw = frame_nir.astype(np.float32).mean(axis=2)  # OPT: 7 passes -> 1
 
-    # ????????? ??????? ??????????????? ???????? ? ?????? ?????????????? ???????? ??????
+    # Вычитание фоновой фотометрической засветки с учетом индивидуальных темновых кадров
     amb_red = frame_amb_red[:, :, 2].astype(np.float32)
     amb_nir = frame_amb_nir.astype(np.float32).mean(axis=2)  # OPT: vectorized
 
     red_channel = np.maximum(0.0, red_raw - amb_red)
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
 
-    # ???????????????? ?????????? ?? ?????? ?????????? ??????? (White Reference Target)
+    # Радиометрическая калибровка по белому диффузному эталону (White Reference Target)
     h_f, w_f, _ = frame_flash.shape
-    is_calib_stand = (group_name in ['?????????? (????? ?0)', '??????????'] or (aruco_id is not None and aruco_id == 6))
+    is_calib_stand = (group_name in ['Калибровка (Стенд №0)', 'Калибровка'] or (aruco_id is not None and aruco_id == 6))
 
     if is_calib_stand:
-        # ????? ?????? ?0: ???? ??????????? ????????? ?????? (???-??????)
+        # Режим Стенда №0: ищем центральную диффузную мишень (ФУМ-эталон)
         blur_sig = cv2.GaussianBlur(red_channel + nir_channel, (15, 15), 0)
         _, _, _, max_loc = cv2.minMaxLoc(blur_sig)
         px, py = max_loc
@@ -704,47 +704,47 @@ def do_hardware_spectral_capture(group_name: str):
         roi_x1, roi_x2 = max(0, px - hb), min(w_f, px + hb)
         roi_y1, roi_y2 = max(0, py - hb), min(h_f, py + hb)
     else:
-        # ??????? ????? ??????: ????????? ??????????? ??????? ????
+        # Штатный замер кассет: проверяем контрольную угловую зону
         roi_y1, roi_y2 = int(h_f * 0.04), int(h_f * 0.16)
         roi_x1, roi_x2 = int(w_f * 0.04), int(w_f * 0.16)
 
     white_red = float(np.mean(red_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
     white_nir = float(np.mean(nir_channel[roi_y1:roi_y2, roi_x1:roi_x2]))
     
-    # ?????????? ???????? ????????? Red/NIR ??? NoIR-?????? [0.5 ... 8.0]
+    # Допустимый диапазон отношения Red/NIR для NoIR-камеры [0.5 ... 8.0]
     is_valid_white = (white_nir > 15.0 and white_red > 25.0 and 0.50 <= (white_red / white_nir) <= 8.00)
 
     if is_valid_white:
         k_bal = round(float(np.clip(white_red / white_nir, 0.50, 8.00)), 3)
         if is_calib_stand:
             save_calibrated_k_bal(k_bal)
-            print(f'[Calibration Stand #0] ???????????? ? ???????? k_bal = {k_bal}', flush=True)
+            print(f'[Calibration Stand #0] Откалиброван и сохранен k_bal = {k_bal}', flush=True)
     else:
-        # ?????????????? ???????? ???????????? ??????????? ??????? (4.07)
+        # Автоматическая загрузка сохраненного физического баланса (4.07)
         k_bal = get_calibrated_k_bal()
 
-    # ????????????? ??????? NDVI ? ?????? ???????????????? ???????????? ?????????
+    # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
     if red_channel.dtype != np.float32: red_channel = red_channel.astype(np.float32)
     if nir_channel.dtype != np.float32: nir_channel = nir_channel.astype(np.float32)
-    # ????????????? NumExpr ??? Zero-copy ?????????? ? ???????? RAM
+    # Использование NumExpr для Zero-copy вычислений и экономии RAM
     ndvi_map = ne.evaluate('(k_bal * nir_channel - red_channel) / (k_bal * nir_channel + red_channel + 1e-8)')
     ndvi_map = np.clip(ndvi_map, -1.0, 1.0)
 
-    # ??????????? ??????????? ???????? ??????????? (Projected Leaf Area, PLA)
-    # ????? ?????????/????????: ????????? ????? NDVI > 0.28 (???????? ????? 0.0-0.2, ??????? ? ????)
-    # + ?????????? ?????? ????????? NIR ??? ???????? ????? (> 22.0 DN)
+    # Сегментация проективной листовой поверхности (Projected Leaf Area, PLA)
+    # Живой хлорофилл/мезофилл: уверенный порог NDVI > 0.28 (отсекает почву 0.0-0.2, пластик и тени)
+    # + выраженный сигнал отражения NIR над темновым шумом (> 22.0 DN)
     leaf_mask = ((ndvi_map > 0.28) & (nir_channel > 22.0)).astype(np.uint8)
     if is_valid_white:
         leaf_mask[roi_y1:roi_y2, roi_x1:roi_x2] = 0
 
-    # 1. ?????? ?????????????? ?????????? ??????? ArUco ?????? ? ????? ???????? ????????? (?????????? ?? 45%)
+    # 1. Полное геометрическое исключение маркера ArUco вместе с белой бумажной подложкой (расширение на 45%)
     if aruco_corners is not None:
         pts_poly = aruco_corners.reshape((-1, 2)).astype(np.float32)
         center_ar = np.mean(pts_poly, axis=0)
         expanded_poly = ((pts_poly - center_ar) * 1.45 + center_ar).astype(np.int32)
         cv2.fillPoly(leaf_mask, [expanded_poly.reshape((-1, 1, 2))], 0)
 
-    # 2. ?????????? ?????????? ??????? ??? (????? ??????, ????? ?????? ?????: ???? 5%, ??? 3%, ???? 3%)
+    # 2. Исключение паразитных краевых зон (стыки стенок, петли крышки бокса: верх 5%, низ 3%, бока 3%)
     margin_top = int(h_f * 0.05)
     margin_bot = int(h_f * 0.03)
     margin_side = int(w_f * 0.03)
@@ -753,7 +753,7 @@ def do_hardware_spectral_capture(group_name: str):
     leaf_mask[:, :margin_side] = 0
     leaf_mask[:, w_f - margin_side:] = 0
 
-    # 3. ??????????????? ??????????: ???????? ??????? ????????? ???? ??????? (???? 3x3)
+    # 3. Морфологическая фильтрация: удаление мелкого точечного шума матрицы (ядро 3x3)
     kernel_noise = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     leaf_mask = cv2.morphologyEx(leaf_mask, cv2.MORPH_OPEN, kernel_noise)
 
@@ -761,8 +761,8 @@ def do_hardware_spectral_capture(group_name: str):
     print(f'[DEBUG Capture] RED: mean={red_raw.mean():.1f}, p90={np.percentile(red_raw, 90):.1f}, amb={amb_red.mean():.1f}', flush=True)
     print(f'[DEBUG Capture] k_bal={k_bal}, ndvi: mean={ndvi_map.mean():.3f}, max={ndvi_map.max():.3f}, leaf_mask={np.sum(leaf_mask)}', flush=True)
 
-    # ?????????????:
-    # ?????????? ??????????? ???????????? ???????? ?????? (660 ??) ??? ????????? (CLAHE):
+    # Визуализаторы:
+    # Адаптивная контрастная нормализация Красного канала (660 нм) для оператора (CLAHE):
     p_high_r = float(np.percentile(red_channel, 99.5))
     if p_high_r > 5.0:
         vis_red_mono = np.clip((red_channel / p_high_r) * 255.0, 0, 255).astype(np.uint8)
@@ -776,7 +776,7 @@ def do_hardware_spectral_capture(group_name: str):
         vis_red = frame_red.copy()
 
 
-    # ?????????? ???????????????????? ??-?????? ??? ?????????? ??????????? ?? ??????:
+    # Адаптивное автоконтрастирование ИК-канала для наглядного отображения на экране:
     p_high = float(np.percentile(nir_channel, 99.5))
     if p_high > 6.0:
         vis_nir_mono = np.clip((nir_channel / p_high) * 255.0, 0, 255).astype(np.uint8)
@@ -786,16 +786,16 @@ def do_hardware_spectral_capture(group_name: str):
     else:
         vis_nir = frame_nir.copy()
 
-    # ?????????????? ??????? ????????? RdYlGn (??????? = ??????????/?????? -> ?????? -> ?????????? ???????):
+    # Агрономическая палитра вегетации RdYlGn (Красный = деградация/стресс -> Желтый -> Насыщенный зеленый):
     ndvi_disp = np.clip((ndvi_map - 0.20) / 0.65 * 255.0, 0, 255).astype(np.uint8)
     vis_ndvi_color = cv2.LUT(cv2.cvtColor(ndvi_disp, cv2.COLOR_GRAY2BGR), AGRONOMIC_NDVI_LUT)
-    vis_ndvi_color[leaf_mask == 0] = [35, 15, 30] # ?????? ??????????? ??? ??? ????? ? ???? ?????
+    vis_ndvi_color[leaf_mask == 0] = [35, 15, 30] # Темный нейтральный фон для почвы и фона бокса
 
     h, w, _ = frame_flash.shape
     cell_h, cell_w = h // 3, w // 3
     annotated_ndvi = vis_ndvi_color.copy()
 
-    # ????????? ???? ???????????????? ?????????? White Reference (?????? ???? ?????? ???????? ??????)
+    # Отрисовка зоны радиометрической калибровки White Reference (только если найден реальный эталон)
     if is_valid_white:
         cv2.rectangle(annotated_ndvi, (roi_x1, roi_y1), (roi_x2, roi_y2), (255, 255, 255), 2)
         cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
@@ -803,13 +803,13 @@ def do_hardware_spectral_capture(group_name: str):
         cv2.putText(annotated_ndvi, f'White Ref: k={k_bal}', (roi_x1, max(22, roi_y1 - 6)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
     else:
-        # ????????? ? ?????? ??????? ???? ??? PLA (??? ????????? ?? ?????? #1)
+        # Размещаем в правом верхнем углу под PLA (без наложения на ячейку #1)
         cv2.putText(annotated_ndvi, f'Calib: k={k_bal}', (w - 260, max(26, roi_y1 + 36)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.52, (0, 0, 0), 3)
         cv2.putText(annotated_ndvi, f'Calib: k={k_bal}', (w - 260, max(26, roi_y1 + 36)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 255, 200), 1)
 
-    # ????????? ????????????? ????????????? ??????? ArUco
+    # Отрисовка обнаруженного фидуциального маркера ArUco
     if aruco_corners is not None and aruco_id is not None:
         pts = aruco_corners.reshape((-1, 1, 2)).astype(np.int32)
         cv2.polylines(annotated_ndvi, [pts], True, (0, 255, 128), 3)
@@ -820,10 +820,10 @@ def do_hardware_spectral_capture(group_name: str):
         cv2.putText(annotated_ndvi, f'ArUco #{aruco_id}', (max(10, cx - 50), max(30, cy - 12)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 128), 2)
 
-    # ---------------- ??????????????? ?????? (PLA - ??????? ???????) ----------------
-    # 1. ????????????? ?????????? ???????? ?? ArUco-??????? (15x15 ?? = 2.25 ???)
-    # 2. ?????????? ????????????? Z-??????????? ?????? ?????? ??????:
-    #    Z_marker ? 24.5 ?? (???/?????? ???????), H_canopy ? 10.0 ?? (???? ???????) -> k_z = (14.5 / 24.5)? ? 0.350
+    # ---------------- МОРФОЛОГИЧЕСКИЙ АНАЛИЗ (PLA - Площадь Листьев) ----------------
+    # 1. Субпиксельная калибровка масштаба по ArUco-маркеру (15x15 мм = 2.25 см²)
+    # 2. Оптическая перспективная Z-компенсация высоты полога гороха:
+    #    Z_marker ≈ 24.5 см (дно/клипса кассеты), H_canopy ≈ 10.0 см (ярус листьев) -> k_z = (14.5 / 24.5)² ≈ 0.350
     ARUCO_REAL_AREA_CM2 = 2.25
     Z_CAMERA_MARKER_CM = 24.5
     CANOPY_HEIGHT_CM = 10.0
@@ -838,19 +838,19 @@ def do_hardware_spectral_capture(group_name: str):
         else:
             px_to_cm2 = 0.00008
     else:
-        # ??????????? ????????????? ??????? ????? 1280x960 ? ?????? Z-???????????
+        # Номинальный калиброванный масштаб бокса 1280x960 с учетом Z-перспективы
         px_to_cm2 = 0.00008
 
     total_leaf_px = int(np.count_nonzero(leaf_mask))
     leaf_area_total = round(float(total_leaf_px * px_to_cm2), 1)
 
-    # ????????? ????????? ??????? PLA ?? ?????
+    # Отрисовка суммарной площади PLA на карте
     cv2.putText(annotated_ndvi, f'PLA: {leaf_area_total} cm2', (w - 260, max(26, roi_y1 + 12)),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 3)
     cv2.putText(annotated_ndvi, f'PLA: {leaf_area_total} cm2', (w - 260, max(26, roi_y1 + 12)),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 128), 2)
 
-    # OPT: vectorized 3x3 grid ? NumPy reshape, no Python loop overhead
+    # OPT: vectorized 3x3 grid — NumPy reshape, no Python loop overhead
     _G = 3
     _nd_g = ndvi_map[:cell_h*_G, :cell_w*_G].reshape(_G, cell_h, _G, cell_w).transpose(0, 2, 1, 3)
     _mk_g = leaf_mask[:cell_h*_G, :cell_w*_G].reshape(_G, cell_h, _G, cell_w).transpose(0, 2, 1, 3)
@@ -881,7 +881,7 @@ def do_hardware_spectral_capture(group_name: str):
             cv2.putText(annotated_ndvi, f'{c_area} cm2', (x1 + 12, y1 + 56),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 255, 200), 1)
 
-    # ??????? ???????????????? ?????? NDVI ?? ???? ???????? ??????? ???????:
+    # Честный средневзвешенный расчет NDVI по всем пикселям листьев кассеты:
     leaf_pixels_ndvi = ndvi_map[leaf_mask > 0]
     if len(leaf_pixels_ndvi) > 0:
         mean_ndvi = round(float(np.mean(leaf_pixels_ndvi)), 3)
@@ -942,8 +942,8 @@ def do_hardware_spectral_capture(group_name: str):
     return PENDING_SESSION
 
 @app.post('/api/start_spectral')
-def handle_start_spectral(group_name: str = Form('????????')):
-    """????? 1-?? ?????: ????????????? ? ?????."""
+def handle_start_spectral(group_name: str = Form('Контроль')):
+    """Старт 1-го этапа: спектроскопия в боксе."""
     try:
         do_hardware_spectral_capture(group_name)
         return RedirectResponse(url='/?stage=review&offset=0', status_code=303)
@@ -953,7 +953,7 @@ def handle_start_spectral(group_name: str = Form('????????')):
 
 @app.get('/api/test_relay')
 def handle_test_relay(channel: str = 'nir', sec: float = 3.0):
-    """?????????? ???????????: ????????? ?????????? ???? (nir ??? red) ?? sec ??????."""
+    """Аппаратная диагностика: включение выбранного реле (nir или red) на sec секунд."""
     init_relay()
     if not RELAY_REQ:
         return JSONResponse({'status': 'error', 'message': 'Relay not initialized'})
@@ -961,11 +961,11 @@ def handle_test_relay(channel: str = 'nir', sec: float = 3.0):
     pin_name = 'Pin 10 (NIR 850nm)' if line == 7 else 'Pin 7 (Red 660nm)'
     try:
         duration = max(0.5, min(10.0, float(sec)))
-        print(f'[Test Relay] ????????? {pin_name} ?? {duration} ???...')
+        print(f'[Test Relay] Включение {pin_name} на {duration} сек...')
         RELAY_REQ.set_value(line, Value.ACTIVE)
         time.sleep(duration)
         RELAY_REQ.set_value(line, Value.INACTIVE)
-        print(f'[Test Relay] ?????????? {pin_name}. ??????.')
+        print(f'[Test Relay] Выключение {pin_name}. Готово.')
         return JSONResponse({'status': 'ok', 'channel': channel, 'pin': pin_name, 'duration': duration})
     except Exception as e:
         return JSONResponse({'status': 'error', 'message': str(e)})
@@ -979,8 +979,8 @@ def handle_save_final(
     thermal_thumb: str = Form('')
 ):
     """
-    ??? 4: ????????????? ????????????? ?????? ??????????.
-    ?????????? ? ???? ?????? ? ??????? ? ????????? ???????.
+    Шаг 4: Окончательное подтверждение замера оператором.
+    Сохранение в базу данных и переход к следующей кассете.
     """
     global PENDING_SESSION
     if not PENDING_SESSION:
@@ -994,7 +994,7 @@ def handle_save_final(
     weight_val = weight_g.strip().replace(',', '.') if weight_g else ''
     t_leaf_val = t_leaf.strip().replace(',', '.') if t_leaf else ''
 
-    # ????????? ????????? ?? ??????????????? ?????????? ????
+    # Влажность субстрата из подтвержденного оператором поля
     if pct_soil.strip():
         try:
             ps_val = float(pct_soil.strip().replace(',', '.'))
@@ -1003,7 +1003,7 @@ def handle_save_final(
         except Exception:
             pass
 
-    # ?????? Delta_T
+    # Расчет Delta_T
     delta_t_val = ''
     if t_leaf_val:
         try:
@@ -1012,7 +1012,7 @@ def handle_save_final(
         except Exception:
             pass
 
-    # ??????????? ??????????? ? ?????????? ?????????
+    # Копирование термограммы в постоянное хранилище
     jpg_stored_name = ''
     if thermal_thumb and os.path.exists(os.path.join(STATIC_DIR, 'uti_cache', os.path.basename(thermal_thumb))):
         src_thumb = os.path.join(STATIC_DIR, 'uti_cache', os.path.basename(thermal_thumb))
@@ -1041,15 +1041,15 @@ def handle_save_final(
 
 @app.get('/api/cancel_session')
 def handle_cancel_session():
-    """????? ???????? ?????????? ??????."""
+    """Сброс текущего одиночного замера."""
     global PENDING_SESSION
     PENDING_SESSION = None
     return RedirectResponse(url='/?msg=cancelled', status_code=303)
 
-# ----------------- ????????? ????????? ?????? (3-?-1) -----------------
+# ----------------- ЭНДПОИНТЫ ПАКЕТНОГО ЗАМЕРА (3-В-1) -----------------
 @app.get('/api/start_batch')
 def handle_start_batch(stage: str = 'stage1'):
-    """????? ???????? ?????? ??? ?????????? ????? (stage1 ??? stage2)."""
+    """Старт пакетной сессии для выбранного этапа (stage1 или stage2)."""
     global BATCH_STATE, PENDING_SESSION
     PENDING_SESSION = None
     if stage not in BATCH_CONFIG:
@@ -1065,7 +1065,7 @@ def handle_start_batch(stage: str = 'stage1'):
 
 @app.get('/api/cancel_batch')
 def handle_cancel_batch():
-    """?????? ??????? ???????? ??????."""
+    """Отмена текущей пакетной сессии."""
     global BATCH_STATE
     BATCH_STATE = {
         'active': False,
@@ -1083,7 +1083,7 @@ def handle_batch_capture_next(
     t_leaf: str = Form(''),
     pct_soil: str = Form('64.0')
 ):
-    """?????? ????????? ??????? ? ????? NoIR ??????? ? ????-????????? ArUco, ??????? ???????????????? ? ?????? ??????? ???????."""
+    """Съемка очередной кассеты в боксе NoIR камерой с авто-детекцией ArUco, мягкими предупреждениями и ручным выбором когорты."""
     global BATCH_STATE
     if not BATCH_STATE.get('active'):
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -1096,11 +1096,11 @@ def handle_batch_capture_next(
     
     expected_cassette = cassettes[step]
     
-    # 1. ???? ???????? ?????? ??????? ??????? ?? ?????? ? ?????????? ??
+    # 1. Если оператор выбрал когорту вручную из списка — используем её
     manual_mode = (cohort_choice != 'auto' and cohort_choice.strip().isdigit())
     if manual_mode:
         chosen_id = int(cohort_choice)
-        c_meta = CASSETTE_CATALOG.get(chosen_id, {'id': chosen_id, 'name': f'??????? #{chosen_id}'})
+        c_meta = CASSETTE_CATALOG.get(chosen_id, {'id': chosen_id, 'name': f'Кассета #{chosen_id}'})
         target_name = c_meta['name']
     else:
         chosen_id = None
@@ -1112,16 +1112,16 @@ def handle_batch_capture_next(
         warn_query = ''
 
         if manual_mode:
-            # ?????? ????? ????????? ????? ?????????? ????????? ??? ???????????? ???????
+            # Ручной выбор оператора имеет абсолютный приоритет над компьютерным зрением
             session['aruco_id'] = chosen_id
-            session['group'] = CASSETTE_CATALOG.get(chosen_id, {}).get('name', f'??????? #{chosen_id}')
+            session['group'] = CASSETTE_CATALOG.get(chosen_id, {}).get('name', f'Кассета #{chosen_id}')
         else:
-            # ????? ????-???????? ?? ??????? ArUco
+            # Режим авто-детекции по маркеру ArUco
             if detected_id is not None:
-                grp_name = CASSETTE_CATALOG.get(detected_id, {}).get('name', f'??????? #{detected_id}')
+                grp_name = CASSETTE_CATALOG.get(detected_id, {}).get('name', f'Кассета #{detected_id}')
                 session['group'] = grp_name
                 
-                # ?????? ??????????????: ???? ?????? ??? ?????????? ? ?????
+                # Мягкое предупреждение: если маркер уже встречался в серии
                 is_dup = any(past_s.get('aruco_id') == detected_id for past_s in BATCH_STATE['sessions'])
                 if is_dup:
                     warn_query = f'&msg=warn_duplicate_aruco&dup_id={detected_id}&dup_name={grp_name}'
@@ -1129,12 +1129,12 @@ def handle_batch_capture_next(
                     exp_str = ', '.join(str(c['id']) for c in cassettes)
                     warn_query = f'&msg=warn_wrong_stage_aruco&wrong_id={detected_id}&expected={exp_str}'
             else:
-                # ?????? fallback: ?????? ?? ??????????? (?????? ??????, ?????????, ?????)
+                # Мягкий fallback: маркер не распознался (закрыт листом, поврежден, темно)
                 session['aruco_id'] = expected_cassette['id']
                 session['group'] = expected_cassette['name']
                 warn_query = f"&msg=warn_no_aruco&exp_id={expected_cassette['id']}&exp_name={expected_cassette['name']}"
 
-        # 2. ???????? ????????? ?????? ??????????
+        # 2. Фиксация введенных ручных параметров
         session['user_weight'] = weight_g.strip().replace(',', '.') if weight_g.strip() else ''
         session['user_t_leaf'] = t_leaf.strip().replace(',', '.') if t_leaf.strip() else ''
         session['user_pct_soil'] = pct_soil.strip().replace(',', '.') if pct_soil.strip() else '64.0'
@@ -1155,7 +1155,7 @@ def handle_batch_capture_next(
 
 @app.post('/api/batch_link_thermal')
 def handle_batch_link_thermal():
-    """?????????? ????????? ?????????? ? ?????? ??????????? ? ????-???????? ? ???????? ? ??????????? ?? ArUco."""
+    """Считывание последних термограмм с флешки тепловизора и авто-привязка к кассетам с сортировкой по ArUco."""
     global BATCH_STATE
     stage_key = BATCH_STATE.get('stage_key', 'batch5')
     stage_cassettes = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['batch5'])['cassettes']
@@ -1169,7 +1169,7 @@ def handle_batch_link_thermal():
     if len(files) < expected_count:
         return RedirectResponse(url=f'/?stage=batch_await_thermal&msg=err_thermal_count&found={len(files)}', status_code=303)
     
-    # ????? N ????? ?????? ?????? ? ????????? ??????????????
+    # Берем N самых свежих файлов и сортируем хронологически
     recent_files = files[:expected_count]
     recent_files.sort(key=os.path.getmtime)
     
@@ -1189,7 +1189,7 @@ def handle_batch_link_thermal():
             except Exception:
                 pass
         
-        # ???? ???????? ??? ???? ??????????? ????? ?? ???? ?????? - ????????? ??!
+        # Если оператор уже ввел температуру листа на шаге замера - сохраняем её!
         if s.get('user_t_leaf'):
             t_val = s['user_t_leaf']
         else:
@@ -1225,7 +1225,7 @@ def handle_batch_link_thermal():
 
 @app.post('/api/batch_save_manual')
 async def handle_batch_save_manual(request: Request):
-    """?????????? ?????????? ???? ????? ?????? ? ??????????????? ??????? ??????? (????????-????? ??? ????????)."""
+    """Мгновенное сохранение всей серии кассет с подтвержденными ручными данными (экспресс-финиш без проводов)."""
     global BATCH_STATE
     if not BATCH_STATE.get('active') or not BATCH_STATE.get('sessions'):
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -1242,7 +1242,7 @@ async def handle_batch_save_manual(request: Request):
         if not cid or cid not in CASSETTE_CATALOG:
             cid = stage_ids[i] if i < len(stage_ids) else (i + 1)
 
-        c_meta = CASSETTE_CATALOG.get(cid, {'name': f'??????? #{cid}'})
+        c_meta = CASSETTE_CATALOG.get(cid, {'name': f'Кассета #{cid}'})
         group_name = c_meta['name']
         meas_id = s['id']
         ts_display = s['timestamp']
@@ -1263,7 +1263,7 @@ async def handle_batch_save_manual(request: Request):
                 s['v_soil'] = round(2.03 - (s['pct_soil'] / 100.0) * 1.59, 2)
             except Exception:
                 pass
-        elif group_name in ['?????????', '???????']:
+        elif group_name in ['Превенция', 'Реакция']:
             s['pct_soil'] = ''
             s['v_soil'] = ''
 
@@ -1289,7 +1289,7 @@ async def handle_batch_save_manual(request: Request):
             ]
         })
 
-    # ????????? ?????? ?? ID ??????? ????? ??????? ? ??????
+    # Сортируем записи по ID кассеты перед записью в журнал
     records_to_save.sort(key=lambda x: x['cid'])
 
     exp_mgr = get_experiment_manager(DATA_DIR)
@@ -1299,7 +1299,7 @@ async def handle_batch_save_manual(request: Request):
         if opt_f:
             exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, opt_f))
 
-    stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', '????? 5 ?????? (5-?-1)')
+    stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', 'Серия 5 кассет (5-в-1)')
     BATCH_STATE = {
         'active': False,
         'stage_key': 'batch5',
@@ -1311,12 +1311,12 @@ async def handle_batch_save_manual(request: Request):
 
 @app.post('/api/batch_skip_thermal')
 async def handle_batch_skip_thermal(request: Request):
-    """????????-??????? ??????????? ???????????: ??????? ? ????????????? ?????."""
+    """Экспресс-пропуск подключения тепловизора: переход к подтверждению серии."""
     return await handle_batch_save_manual(request)
 
 @app.post('/api/batch_save_final')
 async def handle_batch_save_final(request: Request):
-    """????????????? ????????? ?????????? ???? ????? ?????? ? ?????? ?????????/???????????? ID ? ???????????."""
+    """Окончательное групповое сохранение всей серии кассет с учетом выбранных/распознанных ID и тепловизора."""
     global BATCH_STATE
     if not BATCH_STATE.get('active') or not BATCH_STATE.get('verified_data'):
         return RedirectResponse(url='/?msg=err_no_session', status_code=303)
@@ -1328,7 +1328,7 @@ async def handle_batch_save_final(request: Request):
         s = item['session']
         cid_raw = form.get(f'cassette_id_{i}')
         cid = int(cid_raw) if (cid_raw and str(cid_raw).isdigit()) else item.get('assigned_id', i+1)
-        c_meta = CASSETTE_CATALOG.get(cid, {'name': f'??????? #{cid}'})
+        c_meta = CASSETTE_CATALOG.get(cid, {'name': f'Кассета #{cid}'})
         group_name = c_meta['name']
         meas_id = s['id']
         ts_display = s['timestamp']
@@ -1347,7 +1347,7 @@ async def handle_batch_save_final(request: Request):
                 s['v_soil'] = round(2.03 - (s['pct_soil'] / 100.0) * 1.59, 2)
             except Exception:
                 pass
-        elif group_name in ['?????????', '???????']:
+        elif group_name in ['Превенция', 'Реакция']:
             s['pct_soil'] = ''
             s['v_soil'] = ''
 
@@ -1394,7 +1394,7 @@ async def handle_batch_save_final(request: Request):
         if th_f:
             exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, th_f))
 
-    stage_name = BATCH_CONFIG.get(BATCH_STATE.get('stage_key', 'batch5'), {}).get('title', '???????? ?????')
+    stage_name = BATCH_CONFIG.get(BATCH_STATE.get('stage_key', 'batch5'), {}).get('title', 'Пакетная серия')
     BATCH_STATE = {
         'active': False,
         'stage_key': 'batch5',
@@ -1406,7 +1406,7 @@ async def handle_batch_save_final(request: Request):
 
 
 def do_delete_measurement(meas_id: str):
-    """???????? ????????????? ?????? ?? ID ?? CSV ???? ?????? (?????????? ? ????? ??????)."""
+    """Удаление некорректного замера по ID из CSV базы данных (глобальной и серий опытов)."""
     meas_id = str(meas_id).strip()
     if not meas_id:
         return RedirectResponse(url='/?msg=err_not_found', status_code=303)
@@ -1474,8 +1474,8 @@ def handle_update_measurement(
     thermal_file: UploadFile = File(None)
 ):
     """
-    ????????????? ????????? ?????????? ????? ???????????? ?????? (T_leaf, Weight, Soil, Thermal image).
-    ????????????? ????????????? Delta_T = T_leaf - T_air ? ????????? ?? ??? CSV (?????????? ? ?????).
+    Интерактивная коррекция параметров ранее сохраненного замера (T_leaf, Weight, Soil, Thermal image).
+    Автоматически пересчитывает Delta_T = T_leaf - T_air и сохраняет во все CSV (глобальный и серий).
     """
     meas_id = str(meas_id).strip()
     cohort = str(cohort).strip()
@@ -1608,7 +1608,7 @@ async def index(
     box_t, box_rh, cur_v = await get_climate_sensor().read_climate()
     t_now = int(time.time())
 
-    # ???????????? ?????? ???????????? Xiaomi ?? ??????????? (???? ????????)
+    # Беспроводной датчик микроклимата Xiaomi на подоконнике (зона растений)
     win_clim = get_windowsill_climate()
     tc_val = win_clim.get('t_c') if win_clim else None
     rh_val = win_clim.get('rh_pct') if win_clim else None
@@ -1623,7 +1623,7 @@ async def index(
     win_rh = cur_rh
     cur_vpd = calc_vpd(cur_t, cur_rh)
 
-    # ????????????? ? ????? ???????? ????? ??????
+    # Инициализация и выбор активной серии опытов
     exp_mgr = get_experiment_manager(DATA_DIR)
     set_exp_req = request.query_params.get('set_exp')
     if set_exp_req:
@@ -1633,75 +1633,75 @@ async def index(
     experiments = exp_mgr.get_experiments()
     active_csv = exp_mgr.get_active_csv_path()
 
-    # ??????????? ????????? ?????? ?? ????????? ??? ?????????? ??????
-    next_group_default = '????????'
-    if last_grp == '????????':
-        next_group_default = '??????'
-    elif last_grp == '??????':
-        next_group_default = '?????'
-    elif last_grp == '?????':
-        next_group_default = '????????'
-    elif '??????' in last_grp.lower() or ('?????' in last_grp.lower() and ('2' in last_grp or '???? 2' in last_grp.lower())):
-        next_group_default = '????????? (~40?)'
-    elif '?????' in last_grp.lower() or '????' in last_grp.lower():
-        next_group_default = '??????????? ?????? (~72?)'
-    elif '??????' in last_grp.lower() or '?????' in last_grp.lower():
-        next_group_default = '?????? (???????)'
+    # Определение следующей группы по умолчанию для одиночного замера
+    next_group_default = 'Контроль'
+    if last_grp == 'Контроль':
+        next_group_default = 'Засуха'
+    elif last_grp == 'Засуха':
+        next_group_default = 'Осмос'
+    elif last_grp == 'Осмос':
+        next_group_default = 'Контроль'
+    elif 'эталон' in last_grp.lower() or ('контр' in last_grp.lower() and ('2' in last_grp or 'этап 2' in last_grp.lower())):
+        next_group_default = 'Репарация (~40ч)'
+    elif 'репар' in last_grp.lower() or 'ранн' in last_grp.lower():
+        next_group_default = 'Критический стресс (~72ч)'
+    elif 'критич' in last_grp.lower() or 'поздн' in last_grp.lower():
+        next_group_default = 'Эталон (Оптимум)'
 
-    # ??????????? ???????
+    # Уведомления статуса
     raw_banner = ''
     banner_bg = '#10b981'
     if msg == 'batch_saved':
-        s_lbl = stage_name if stage_name else '???????? ??????'
-        raw_banner = f'?? ???????? ?????? ({s_lbl}) ??????? ?????????! ??? 3 ?????? ????????? ? ??????.'
+        s_lbl = stage_name if stage_name else 'Пакетная триада'
+        raw_banner = f'🎉 Пакетная сессия ({s_lbl}) успешно сохранена! Все 3 замера добавлены в журнал.'
         banner_bg = '#10b981'
     elif msg == 'saved':
-        raw_banner = '? ????? ???????? ? ????! ??????????? ????????? ???????.'
+        raw_banner = '✅ Замер сохранен в базу! Переставьте следующую кассету.'
         banner_bg = '#10b981'
     elif msg == 'exp_switched':
-        raw_banner = '?? ????? ?????? ??????? ???????????!'
+        raw_banner = '🔄 Серия опытов успешно переключена!'
         banner_bg = '#0284c7'
     elif msg == 'exp_created':
-        raw_banner = '?? ????? ????? ?????? ??????? ??????? ? ??????? ??? ????????!'
+        raw_banner = '🌱 Новая серия опытов успешно создана и выбрана как активная!'
         banner_bg = '#10b981'
     elif msg == 'updated':
         u_lbl = f' #{upd_id}' if upd_id else ''
-        raw_banner = f'?? ????????????{u_lbl} ??????? ???????????????! T ????? ? ?T ???????????.'
+        raw_banner = f'✏️ Исследование{u_lbl} успешно скорректировано! T листа и ΔT пересчитаны.'
         banner_bg = '#0284c7'
     elif msg == 'cancelled':
-        raw_banner = '????? ???????. ????? ? ?????? ??????.'
+        raw_banner = 'Замер сброшен. Готов к новому старту.'
         banner_bg = '#64748b'
     elif msg == 'deleted':
         d_lbl = f' #{del_id}' if del_id else ''
-        raw_banner = f'??? ????????????{d_lbl} ??????? ??????? ?? ???????.'
+        raw_banner = f'🗑️ Исследование{d_lbl} успешно удалено из журнала.'
         banner_bg = '#dc2626'
     elif msg == 'err_not_found':
-        raw_banner = '?? ???????????? ?? ??????? ? ???? ??????.'
+        raw_banner = '⚠️ Исследование не найдено в базе данных.'
         banner_bg = '#f59e0b'
     elif msg == 'err_camera':
-        raw_banner = '? ?????? ?????? /dev/video0. ????????? USB ???????????.'
+        raw_banner = '❌ Ошибка камеры /dev/video0. Проверьте USB подключение.'
         banner_bg = '#ef4444'
     elif msg == 'err_thermal_count':
         f_cnt = found if found else '0'
-        raw_banner = f'?? ?? ??????????? ?????????? ?????? {f_cnt} ??????(??). ???????? ?????? ?????? ??? ???? 3 ?????? ? ?????????, ??? USB-?????? ?????????.'
+        raw_banner = f'⚠️ На тепловизоре обнаружено только {f_cnt} снимка(ов). Сделайте щелчок курком для всех 3 кассет и убедитесь, что USB-кабель подключен.'
         banner_bg = '#ef4444'
     elif msg == 'warn_duplicate_aruco':
         d_name_str = f' ({dup_name})' if dup_name else ''
-        raw_banner = f'?? ????????: ?????? #{dup_id}{d_name_str} ??? ?????????? ? ???? ?????! ???? ??????. ??? ????????????? ???????? ?????? ??????? ????.'
+        raw_banner = f'⚠️ Внимание: маркер #{dup_id}{d_name_str} уже встречался в этой серии! Кадр принят. При необходимости выберите другую кассету ниже.'
         banner_bg = '#f59e0b'
     elif msg == 'warn_no_aruco':
-        e_str = exp_name if exp_name else f'??????? #{exp_id}'
-        raw_banner = f'?? ArUco-?????? ?? ???????? (?????? ?????? ??? ?????????). ????? ?????? ? ???????? ??? ?{e_str}?. ??? ????????????? ???????? ???????.'
+        e_str = exp_name if exp_name else f'Кассета #{exp_id}'
+        raw_banner = f'⚠️ ArUco-маркер не считался (закрыт листом или поврежден). Замер принят и назначен как «{e_str}». При необходимости измените кассету.'
         banner_bg = '#f59e0b'
     elif msg == 'warn_wrong_stage_aruco':
-        raw_banner = f'?? ??????????????: ?????? #{wrong_id} ?? ??????? ????? (????????? ???????: {expected}). ???? ??????, ????????? ?????????? ???????.'
+        raw_banner = f'⚠️ Предупреждение: маркер #{wrong_id} из другого этапа (ожидались кассеты: {expected}). Кадр принят, проверьте назначение кассеты.'
         banner_bg = '#f59e0b'
     elif msg == 'err_duplicate_aruco':
         d_name_str = f' ({dup_name})' if dup_name else ''
-        raw_banner = f'? ???????????? ????????: ??????? ? ArUco #{dup_id}{d_name_str} ??? ???? ????? ? ???? ?????! ?? ?????? ???????? ??????? ?? ??????. ??????????, ??????? ???????.'
+        raw_banner = f'⛔ ЗАБЛОКИРОВАН ДУБЛИКАТ: Кассета с ArUco #{dup_id}{d_name_str} УЖЕ была снята в этой серии! Вы забыли заменить кассету на упорах. Пожалуйста, смените кассету.'
         banner_bg = '#dc2626'
     elif msg == 'err_wrong_stage_aruco':
-        raw_banner = f'?? ?????? ????: ????????? ArUco #{wrong_id}, ? ??? ?????????? ????? ????? ???????: {expected}. ????????? ????? ???????.'
+        raw_banner = f'⚠️ ДРУГОЙ ЭТАП: Обнаружен ArUco #{wrong_id}, а для выбранного этапа нужны кассеты: {expected}. Проверьте номер кассеты.'
         banner_bg = '#f59e0b'
 
     status_banner = ''
@@ -1709,7 +1709,7 @@ async def index(
         status_banner = f'''
             <div id="statusAlert" style="position:relative; background:{banner_bg}; padding:12px 42px 12px 18px; border-radius:8px; font-weight:bold; margin-bottom:14px; text-align:center; color:white; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
                 <span>{raw_banner}</span>
-                <button type="button" onclick="dismissBanner()" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.2); border:none; color:white; width:26px; height:26px; border-radius:50%; font-size:14px; font-weight:bold; cursor:pointer; line-height:26px; text-align:center;" title="??????? ???????????">?</button>
+                <button type="button" onclick="dismissBanner()" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.2); border:none; color:white; width:26px; height:26px; border-radius:50%; font-size:14px; font-weight:bold; cursor:pointer; line-height:26px; text-align:center;" title="Закрыть уведомление">✕</button>
             </div>
         '''
 
@@ -1721,9 +1721,9 @@ async def index(
     bg_color = ''
     phase = ''
     status_banner = status_banner if 'status_banner' in locals() else ''
-    # ------------------ ?????? ?????? (WIZARD) ------------------
+    # ------------------ ЛОГИКА ЭТАПОВ (WIZARD) ------------------
     if stage == 'batch_shoot' and BATCH_STATE.get('active'):
-        # ???????? ??? 1: ?????? ?????? NoIR + ????? ???????????
+        # ПАКЕТНЫЙ ШАГ 1: Съемка кассет NoIR + курок тепловизора
         stage_key = BATCH_STATE.get('stage_key', 'batch5')
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['batch5'])
         cassettes = conf['cassettes']
@@ -1732,38 +1732,38 @@ async def index(
 
         slots_html = ''
         short_names = {
-            1: "????????",
-            2: "?????",
-            3: "??????",
-            4: "?????????",
-            5: "???????",
-            6: "????? ?0"
+            1: "Контроль",
+            2: "Осмос",
+            3: "Засуха",
+            4: "Превенция",
+            5: "Реакция",
+            6: "Стенд №0"
         }
         for i, c in enumerate(cassettes):
             if i < step_idx:
                 s_done = BATCH_STATE['sessions'][i]
                 m_id = s_done.get('aruco_id')
-                full_grp = s_done.get('group', f'???? #{i+1}')
+                full_grp = s_done.get('group', f'Кадр #{i+1}')
                 short_grp = short_names.get(m_id, full_grp)
                 if len(short_grp) > 12:
-                    short_grp = short_grp[:11] + '?'
+                    short_grp = short_grp[:11] + '…'
                 
                 if m_id:
                     c_col = CASSETTE_CATALOG.get(m_id, {}).get('color', '#059669')
                     badge = f'<div style="background:{c_col}18; color:{c_col}; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid {c_col}50; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">ID #{m_id}</div>'
-                    slot_title = f"??????? #{m_id}"
+                    slot_title = f"Кассета #{m_id}"
                     slot_border = f"1.5px solid {c_col}"
                     slot_bg = f"{c_col}0d"
                 else:
-                    badge = '<div style="background:#fffbeb; color:#b45309; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid #fde68a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">?????? ????????</div>'
-                    slot_title = f"???? #{i+1}"
+                    badge = '<div style="background:#fffbeb; color:#b45309; font-size:9.5px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid #fde68a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Ручная привязка</div>'
+                    slot_title = f"Кадр #{i+1}"
                     slot_border = "1.5px solid #cbd5e1"
                     slot_bg = "#f8fafc"
 
                 slots_html += f'''
                     <div style="background:{slot_bg}; border:{slot_border}; border-radius:8px; padding:6px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; overflow:hidden; min-width:0; min-height:86px;">
                         <div>
-                            <span style="font-size:9.5px; color:#475569; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">????? #{i+1}</span>
+                            <span style="font-size:9.5px; color:#475569; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Замер #{i+1}</span>
                             <span style="font-size:11px; color:#0f172a; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{slot_title}</span>
                             <span style="font-size:9.5px; color:#64748b; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{full_grp}">{short_grp}</span>
                         </div>
@@ -1774,39 +1774,39 @@ async def index(
                 slots_html += f'''
                     <div style="background:#eff6ff; border:2px solid #3b82f6; border-radius:8px; padding:6px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; overflow:hidden; min-width:0; min-height:86px; box-shadow:0 2px 6px rgba(59,130,246,0.2);">
                         <div>
-                            <span style="font-size:9.5px; color:#1d4ed8; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">??????? ?????</span>
-                            <span style="font-size:11px; color:#1e40af; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">???? #{step_idx + 1}</span>
-                            <span style="font-size:9.5px; color:#2563eb; font-weight:600; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">?? {total_steps}</span>
+                            <span style="font-size:9.5px; color:#1d4ed8; font-weight:bold; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">ТЕКУЩИЙ ЗАМЕР</span>
+                            <span style="font-size:11px; color:#1e40af; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Кадр #{step_idx + 1}</span>
+                            <span style="font-size:9.5px; color:#2563eb; font-weight:600; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">из {total_steps}</span>
                         </div>
-                        <div style="background:#dbeafe; color:#1e40af; font-size:9px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid #bfdbfe; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">????? ???????</div>
+                        <div style="background:#dbeafe; color:#1e40af; font-size:9px; font-weight:bold; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px solid #bfdbfe; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Любая кассета</div>
                     </div>
                 '''
             else:
                 slots_html += f'''
                     <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:6px 4px; text-align:center; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box; overflow:hidden; min-width:0; min-height:86px; opacity:0.75;">
                         <div>
-                            <span style="font-size:9.5px; color:#64748b; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">???????</span>
-                            <span style="font-size:11px; color:#475569; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">???? #{i+1}</span>
-                            <span style="font-size:9.5px; color:#94a3b8; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">????????</span>
+                            <span style="font-size:9.5px; color:#64748b; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Очередь</span>
+                            <span style="font-size:11px; color:#475569; font-weight:bold; display:block; margin:2px 0 1px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Кадр #{i+1}</span>
+                            <span style="font-size:9.5px; color:#94a3b8; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Ожидание</span>
                         </div>
-                        <div style="background:#f1f5f9; color:#94a3b8; font-size:9px; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px dashed #cbd5e1; white-space:nowrap;">?</div>
+                        <div style="background:#f1f5f9; color:#94a3b8; font-size:9px; padding:2px 2px; border-radius:4px; margin-top:4px; border:1px dashed #cbd5e1; white-space:nowrap;">—</div>
                     </div>
                 '''
-        cohort_options_html = '<option value="auto" selected>????????????? (?????????? ?? ArUco-???????)</option>'
+        cohort_options_html = '<option value="auto" selected>Автоматически (распознать по ArUco-маркеру)</option>'
         for cid in [1, 2, 3, 4, 5]:
             if cid in CASSETTE_CATALOG:
                 cdata = CASSETTE_CATALOG[cid]
-                cohort_options_html += f'<option value="{cid}">??????? #{cid}: {cdata["name"]} ({cdata["desc"]})</option>'
+                cohort_options_html += f'<option value="{cid}">Кассета #{cid}: {cdata["name"]} ({cdata["desc"]})</option>'
 
         wizard_card = f'''
             <div class="card" style="border: 2px solid #3b82f6; background: #ffffff; box-sizing:border-box; margin:0; width:100%; overflow:hidden;">
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
                         <div>
-                            <span style="font-size:10px; text-transform:uppercase; color:#64748b; font-weight:bold;">???????? ????? 5 ?????? (??? ????????)</span>
+                            <span style="font-size:10px; text-transform:uppercase; color:#64748b; font-weight:bold;">Пакетный замер 5 кассет (без проводов)</span>
                             <h2 style="margin:2px 0 0 0; color:#1e40af; font-size:15px;">{conf["title"]}</h2>
                         </div>
-                        <span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">???? {step_idx + 1} ?? {total_steps}</span>
+                        <span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">Кадр {step_idx + 1} из {total_steps}</span>
                     </div>
 
                     <div style="display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:6px; margin-bottom:10px; width:100%; box-sizing:border-box;">
@@ -1816,17 +1816,17 @@ async def index(
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; margin-bottom:10px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
                             <span style="font-size:13px; font-weight:bold; color:#0f172a;">
-                                ?????????? ????? ??????? ? ???? (???? #{step_idx + 1} ?? {total_steps})
+                                Установите любую кассету в бокс (Кадр #{step_idx + 1} из {total_steps})
                             </span>
-                            <span style="background:#ecfdf5; color:#047857; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #a7f3d0;">??? ??????? ArUco</span>
+                            <span style="background:#ecfdf5; color:#047857; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ Цветной ArUco</span>
                         </div>
                         <p style="margin:0 0 4px 0; font-size:11px; color:#64748b; line-height:1.3;">
-                            <b>??????? ????????? ?? ????? ????????.</b> ??????? ???? ??????? ?????? ArUco ?? ?????? ? ?????????? ?????? ?? ????? ???????.
+                            <b>Порядок установки не имеет значения.</b> Станция сама считает маркер ArUco со снимка и упорядочит замеры по цвету кассеты.
                         </p>
                         <ol style="margin:0; padding-left:16px; font-size:11px; color:#334155; line-height:1.35;">
-                            <li>????????? ??????? ? ???? ?? ?????.</li>
-                            <li>??????? ?????? ????: ???????????? ??????? NoIR + ArUco.</li>
-                            <li>???????? ?????? ?????? ??????????? UTi120S ? ?????.</li>
+                            <li>Поставьте кассету в бокс на упоры.</li>
+                            <li>Нажмите кнопку ниже: спектральная вспышка NoIR + ArUco.</li>
+                            <li>Сделайте снимок курком тепловизора UTi120S в руках.</li>
                         </ol>
                     </div>
 
@@ -1834,7 +1834,7 @@ async def index(
                         <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:10px;">
                             <div style="margin-bottom:8px;">
                                 <label style="font-size:11px; font-weight:bold; color:#1e40af; display:block; margin-bottom:2px;">
-                                    ??????? (???????):
+                                    Кассета (когорта):
                                 </label>
                                 <select name="cohort_choice" style="width:100%; padding:6px 8px; font-size:12px; font-weight:bold; border:1.5px solid #3b82f6; border-radius:6px; background:#eff6ff; color:#1e40af;">
                                     {cohort_options_html}
@@ -1842,49 +1842,49 @@ async def index(
                             </div>
 
                             <span style="font-size:10px; font-weight:bold; color:#475569; text-transform:uppercase; display:block; margin-bottom:6px;">
-                                ??????????????? ????????? ??????:
+                                Физиологические параметры замера:
                             </span>
                             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; align-items:end;">
                                 <div style="display:flex; flex-direction:column;">
                                     <label style="font-size:11px; font-weight:bold; color:#0f766e; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
-                                        ?????, ?:
+                                        Масса, г:
                                     </label>
-                                    <input type="text" name="weight_g" autofocus placeholder="????. 405.0" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
+                                    <input type="text" name="weight_g" autofocus placeholder="напр. 405.0" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                                 </div>
                                 <div style="display:flex; flex-direction:column;">
                                     <label style="font-size:11px; font-weight:bold; color:#d97706; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
-                                        ??? T ?????, ?C:
+                                        🌡️ T листа, °C:
                                     </label>
-                                    <input type="number" step="0.1" name="t_leaf" placeholder="????. 23.5" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #f59e0b; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
+                                    <input type="number" step="0.1" name="t_leaf" placeholder="напр. 23.5" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #f59e0b; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                                 </div>
                                 <div style="display:flex; flex-direction:column;">
                                     <label style="font-size:11px; font-weight:bold; color:#0284c7; height:18px; display:flex; align-items:flex-end; margin:0 0 3px 0; white-space:nowrap;">
-                                        ?? ?????????, %:
+                                        💧 Влажность, %:
                                     </label>
-                                    <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="" placeholder="???? (I2C)" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
+                                    <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="" placeholder="Авто (I2C)" style="width:100%; height:36px; padding:6px 8px; font-size:13px; font-weight:bold; border:1.5px solid #38bdf8; border-radius:6px; box-sizing:border-box; margin:0; background:#ffffff;">
                                 </div>
                             </div>
                         </div>
 
                         <button type="submit" class="btn-run" style="width:100%; padding:12px; font-size:14px; background:linear-gradient(135deg, #2563eb, #0d9488); cursor:pointer; margin-top:0;">
-                            ?? ??????? ?????? #{step_idx + 1} (??????? NoIR + ArUco)
+                            📸 СДЕЛАТЬ СНИМОК #{step_idx + 1} (Вспышка NoIR + ArUco)
                         </button>
                     </form>
                 </div>
 
                 <div style="margin-top:8px; text-align:center;">
-                    <a href="/api/cancel_batch" style="color:#94a3b8; font-size:11px; text-decoration:none;">? ???????? ???????? ??????</a>
+                    <a href="/api/cancel_batch" style="color:#94a3b8; font-size:11px; text-decoration:none;">❌ Прервать пакетную сессию</a>
                 </div>
             </div>
         '''
 
     elif stage == 'batch_await_thermal' and BATCH_STATE.get('active'):
-        # ???????? ??? 2: ??? ??????? ????? NoIR, ????? ??????????
+        # ПАКЕТНЫЙ ШАГ 2: Все кассеты сняты NoIR, выбор сохранения
         stage_key = BATCH_STATE.get('stage_key', 'stage1')
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
         all_sessions = BATCH_STATE.get('sessions', [])
 
-        # ??????????? ????? ?????: ???????? ?????????? ? ???????? ?????
+        # Комплексный аудит серии: проверка дубликатов и пропуска массы
         det_ids = [s.get('aruco_id') for s in all_sessions if s.get('aruco_id') is not None]
         id_counts = {cid: det_ids.count(cid) for cid in set(det_ids)}
         dup_cids = [cid for cid, cnt in id_counts.items() if cnt > 1]
@@ -1893,19 +1893,19 @@ async def index(
 
         warnings_box = ''
         if has_dups:
-            dup_info = ', '.join([f"#{cid} ({CASSETTE_CATALOG.get(cid, {}).get('name', '???????')})" for cid in dup_cids]) if dup_cids else f"#{det_ids[0]}" if det_ids else "?? ?????????"
+            dup_info = ', '.join([f"#{cid} ({CASSETTE_CATALOG.get(cid, {}).get('name', 'Кассета')})" for cid in dup_cids]) if dup_cids else f"#{det_ids[0]}" if det_ids else "не определен"
             warnings_box += f'''
                 <div style="background:#fffbeb; border:2px solid #f59e0b; border-radius:10px; padding:12px 16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(245,158,11,0.12);">
                     <div style="display:flex; align-items:flex-start; gap:12px;">
-                        <span style="font-size:26px; line-height:1;">??</span>
+                        <span style="font-size:26px; line-height:1;">⚠️</span>
                         <div style="flex:1;">
                             <b style="color:#b45309; font-size:14px; display:block; text-transform:uppercase; letter-spacing:0.3px;">
-                                ????????: ?????????? ????????????? ?????? ????? ???????!
+                                ВНИМАНИЕ: ОБНАРУЖЕНЫ ПОВТОРЯЮЩИЕСЯ СНИМКИ ОДНОЙ КАССЕТЫ!
                             </b>
                             <span style="font-size:12px; color:#92400e; display:block; margin-top:4px; line-height:1.45;">
-                                ? ????? ?? ???????? ??????? ????? ??????? (????????????? ??????? ??????? <b>{dup_info}</b>).
-                                ??????? ????????????? ???????????? ??? ?????? ?? ????????? ???????? ?????, ?? ????????? ????? ????? ? ?????? ???????! 
-                                ??? ????????????? ?????????????? ??????? ? ?????????? ??????? ???????? ???? ????? ?????????.
+                                В боксе не менялась кассета между кадрами (зафиксированы повторы маркера <b>{dup_info}</b>).
+                                Станция автоматически распределила эти замеры по очередным когортам серии, но физически кадры сняты с одного объекта! 
+                                При необходимости скорректируйте когорты в выпадающих списках карточек ниже перед фиксацией.
                             </span>
                         </div>
                     </div>
@@ -1917,14 +1917,14 @@ async def index(
             warnings_box += f'''
                 <div style="background:#eff6ff; border:2px solid #3b82f6; border-radius:10px; padding:12px 16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(59,130,246,0.12);">
                     <div style="display:flex; align-items:flex-start; gap:12px;">
-                        <span style="font-size:24px; line-height:1;">??</span>
+                        <span style="font-size:24px; line-height:1;">⚖️</span>
                         <div style="flex:1;">
                             <b style="color:#1d4ed8; font-size:14px; display:block; text-transform:uppercase; letter-spacing:0.3px;">
-                                ??? ??????? ?? ?????? ??? ??????: {shots_str}!
+                                ВЕС КАССЕТЫ НЕ ВВЕДЕН ДЛЯ КАДРОВ: {shots_str}!
                             </b>
                             <span style="font-size:12px; color:#1e40af; display:block; margin-top:4px; line-height:1.45;">
-                                ??? ????????? ?????? ?? ???? ????????????? ????? ? ???????????? ?????.
-                                ????????????? ?????? ????? ? ??????? ? ???????????? ????? <b>??? ????? ? ??????</b> ???? ??? ??????????? ??????? ??????????? ? ??????-????????.
+                                Для указанных кассет не была зафиксирована масса с лабораторных весов.
+                                Рекомендуется ввести массу в граммах в подсвеченных полях <b>«⚖️ Масса с весов»</b> ниже для корректного расчета влагоотдачи и стресс-динамики.
                             </span>
                         </div>
                     </div>
@@ -1934,12 +1934,12 @@ async def index(
         cards_summary = ''
         for i, s in enumerate(all_sessions):
             m_id = s.get('aruco_id')
-            grp = s.get('group', f'???? #{i+1}')
-            m_badge = f'<span style="background:#ecfdf5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">??? ArUco #{m_id}</span>' if m_id else '<span style="background:#fffbeb; color:#b45309; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">?? ??????</span>'
+            grp = s.get('group', f'Кадр #{i+1}')
+            m_badge = f'<span style="background:#ecfdf5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">🏷️ ArUco #{m_id}</span>' if m_id else '<span style="background:#fffbeb; color:#b45309; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">⚠️ Ручная</span>'
             if m_id and m_id in dup_cids:
-                m_badge += ' <span style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d; padding:2px 5px; border-radius:4px; font-size:9.5px; font-weight:bold;">??????</span>'
+                m_badge += ' <span style="background:#fef3c7; color:#92400e; border:1px solid #fcd34d; padding:2px 5px; border-radius:4px; font-size:9.5px; font-weight:bold;">Повтор</span>'
             
-            # ????????? options ??? ??????????? ?????? ?????? ???????
+            # Генерация options для выпадающего списка выбора когорты
             options_html = ''
             for cid, cdata in CASSETTE_CATALOG.items():
                 sel = 'selected' if cid == m_id else ''
@@ -1953,26 +1953,26 @@ async def index(
             if w_is_missing:
                 weight_input_html = f'''
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                        <label style="font-size:10px; font-weight:bold; color:#b45309;">?? ?????, ?:</label>
-                        <span style="background:#fee2e2; color:#dc2626; border:1px solid #fecdd3; padding:1px 4px; border-radius:3px; font-size:8.5px; font-weight:800;">?? ?????? ??</span>
+                        <label style="font-size:10px; font-weight:bold; color:#b45309;">⚖️ Масса, г:</label>
+                        <span style="background:#fee2e2; color:#dc2626; border:1px solid #fecdd3; padding:1px 4px; border-radius:3px; font-size:8.5px; font-weight:800;">НЕ ВВЕДЕН ⚠️</span>
                     </div>
-                    <input type="text" name="weight_g_{i}" value="" placeholder="?? ??????? ??? (?)" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:2px dashed #f59e0b; background:#fffbeb; border-radius:4px; box-sizing:border-box;">
+                    <input type="text" name="weight_g_{i}" value="" placeholder="⚠️ Введите вес (г)" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:2px dashed #f59e0b; background:#fffbeb; border-radius:4px; box-sizing:border-box;">
                 '''
             else:
                 weight_input_html = f'''
-                    <label style="font-size:10px; font-weight:bold; color:#0f766e; display:block; margin-bottom:2px;">?? ????? ? ?????, ?:</label>
-                    <input type="text" name="weight_g_{i}" value="{w_val}" placeholder="????. 410.0" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #0d9488; border-radius:4px; box-sizing:border-box;">
+                    <label style="font-size:10px; font-weight:bold; color:#0f766e; display:block; margin-bottom:2px;">⚖️ Масса с весов, г:</label>
+                    <input type="text" name="weight_g_{i}" value="{w_val}" placeholder="напр. 410.0" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #0d9488; border-radius:4px; box-sizing:border-box;">
                 '''
             
             cards_summary += f'''
                 <div style="flex:1; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <span style="font-size:11px; color:#64748b; font-weight:bold;">???? #{i+1}</span>
+                        <span style="font-size:11px; color:#64748b; font-weight:bold;">Кадр #{i+1}</span>
                         {m_badge}
                     </div>
                     
                     <div style="margin-bottom:8px;">
-                        <label style="font-size:10px; font-weight:bold; color:#1e40af; display:block; margin-bottom:2px;">??????? / ???????:</label>
+                        <label style="font-size:10px; font-weight:bold; color:#1e40af; display:block; margin-bottom:2px;">Когорта / Кассета:</label>
                         <select name="cassette_id_{i}" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1.5px solid #94a3b8; border-radius:6px; background:#f8fafc;">
                             {options_html}
                         </select>
@@ -1981,7 +1981,7 @@ async def index(
                     <img src="/static/{s.get('opt_file', 'last_ndvi.jpg')}?t={t_now}" style="height:68px; border-radius:4px; object-fit:contain; background:#0f172a; width:100%; border:1px solid #e2e8f0; margin-bottom:6px;">
                     
                     <div style="font-size:11px; color:#047857; font-weight:bold; text-align:center; margin-bottom:8px;">
-                        NDVI: {s.get("mean_ndvi", "--")} ? PLA: {s.get("leaf_area_cm2", "--")} ???
+                        NDVI: {s.get("mean_ndvi", "--")} · PLA: {s.get("leaf_area_cm2", "--")} см²
                     </div>
 
                     <div style="display:flex; flex-direction:column; gap:5px;">
@@ -1989,11 +1989,11 @@ async def index(
                             {weight_input_html}
                         </div>
                         <div>
-                            <label style="font-size:10px; font-weight:bold; color:#d97706; display:block;">??? T ????? ? UTi120S (?C):</label>
-                            <input type="number" step="0.1" name="t_leaf_{i}" value="{t_val}" placeholder="????. 23.8" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #f59e0b; border-radius:4px; box-sizing:border-box;">
+                            <label style="font-size:10px; font-weight:bold; color:#d97706; display:block;">🌡️ T листа с UTi120S (°C):</label>
+                            <input type="number" step="0.1" name="t_leaf_{i}" value="{t_val}" placeholder="напр. 23.8" style="width:100%; padding:5px; font-size:12px; font-weight:bold; border:1px solid #f59e0b; border-radius:4px; box-sizing:border-box;">
                         </div>
                         <div>
-                            <label style="font-size:10px; font-weight:bold; color:#0284c7; display:block;">?? ????????? ?????, %:</label>
+                            <label style="font-size:10px; font-weight:bold; color:#0284c7; display:block;">💧 Влажность почвы, %:</label>
                             <input type="number" step="0.1" min="0" max="100" name="pct_soil_{i}" value="{p_val}" style="width:100%; padding:5px; font-size:12px; border:1px solid #38bdf8; border-radius:4px; box-sizing:border-box;">
                         </div>
                     </div>
@@ -2003,8 +2003,8 @@ async def index(
         wizard_card = f'''
             <div class="card" style="border: 2px solid #10b981; background: #ffffff;">
                 <div style="text-align:center; padding:6px 0 10px 0;">
-                    <div style="font-size:28px; margin-bottom:2px;">??</div>
-                    <h2 style="margin:0; color:#065f46; font-size:17px;">??? {len(BATCH_STATE.get('sessions', []))} ?????? ??????? ??????? ? ????????!</h2>
+                    <div style="font-size:28px; margin-bottom:2px;">🎉</div>
+                    <h2 style="margin:0; color:#065f46; font-size:17px;">Все {len(BATCH_STATE.get('sessions', []))} кассет успешно отсняты и измерены!</h2>
                     <span style="font-size:12px; color:#047857;">{conf["title"]}</span>
                 </div>
 
@@ -2015,32 +2015,32 @@ async def index(
                     </div>
 
                     <button type="submit" class="btn-confirm" style="width:100%; padding:15px; font-size:16px; background:linear-gradient(135deg, #059669, #00a499); cursor:pointer; box-shadow:0 4px 14px rgba(0,164,153,0.35);">
-                        ? ??? ?????? ? ????????? ??? {len(BATCH_STATE.get('sessions', []))} ?????? ? ?????? (??? ???????????)
+                        ✅ ВСЁ ГОТОВО — СОХРАНИТЬ ВСЕ {len(BATCH_STATE.get('sessions', []))} КАССЕТ В ЖУРНАЛ (БЕЗ ТЕПЛОВИЗОРА)
                     </button>
                 </form>
 
                 <div style="margin-top:14px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; text-align:center;">
-                    <span style="font-size:12px; color:#475569; display:block; margin-bottom:8px;">???? ????????? ?????? ?????? ?????????? ?????????? ??????? ? ????????? ??????????:</span>
+                    <span style="font-size:12px; color:#475569; display:block; margin-bottom:8px;">Есть свободное время? Можете подключить тепловизор кабелем и подтянуть фотоснимки:</span>
                     <form action="/api/batch_link_thermal" method="post">
                         <button type="submit" style="padding:10px 18px; font-size:13px; background:#0284c7; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">
-                            ?? ???????? USB-?????? ??????????? ? ?????????? ????
+                            🔌 Вставить USB-кабель тепловизора и прикрепить фото
                         </button>
                     </form>
                 </div>
 
                 <div style="margin-top:12px; text-align:center;">
-                    <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">? ???????? ??????</a>
+                    <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Отменить сессию</a>
                 </div>
             </div>
         '''
 
     elif stage == 'batch_verify' and BATCH_STATE.get('active') and BATCH_STATE.get('verified_data'):
-        # ???????? ??? 3: ????????? ??????????? ????? ??????
+        # ПАКЕТНЫЙ ШАГ 3: Финальная верификация серии кассет
         stage_key = BATCH_STATE.get('stage_key', 'stage1')
         conf = BATCH_CONFIG.get(stage_key, BATCH_CONFIG['stage1'])
         verified = BATCH_STATE.get('verified_data', [])
 
-        # ??????????? ????? ???????????????? ?????
+        # Комплексный аудит верифицированной серии
         v_det_ids = [item.get('detected_id') for item in verified if item.get('detected_id') is not None]
         v_id_counts = {cid: v_det_ids.count(cid) for cid in set(v_det_ids)}
         v_dup_cids = [cid for cid, cnt in v_id_counts.items() if cnt > 1]
@@ -2049,19 +2049,19 @@ async def index(
 
         verify_warnings_box = ''
         if v_has_dups:
-            v_dup_info = ', '.join([f"#{cid} ({CASSETTE_CATALOG.get(cid, {}).get('name', '???????')})" for cid in v_dup_cids]) if v_dup_cids else f"#{v_det_ids[0]}" if v_det_ids else "?? ?????????"
+            v_dup_info = ', '.join([f"#{cid} ({CASSETTE_CATALOG.get(cid, {}).get('name', 'Кассета')})" for cid in v_dup_cids]) if v_dup_cids else f"#{v_det_ids[0]}" if v_det_ids else "не определен"
             verify_warnings_box += f'''
                 <div style="background:#fffbeb; border:2px solid #f59e0b; border-radius:10px; padding:12px 16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(245,158,11,0.12);">
                     <div style="display:flex; align-items:flex-start; gap:12px;">
-                        <span style="font-size:26px; line-height:1;">??</span>
+                        <span style="font-size:26px; line-height:1;">⚠️</span>
                         <div style="flex:1;">
                             <b style="color:#b45309; font-size:14px; display:block; text-transform:uppercase; letter-spacing:0.3px;">
-                                ????????: ?????????? ????????????? ?????? ????? ???????!
+                                ВНИМАНИЕ: ОБНАРУЖЕНЫ ПОВТОРЯЮЩИЕСЯ СНИМКИ ОДНОЙ КАССЕТЫ!
                             </b>
                             <span style="font-size:12px; color:#92400e; display:block; margin-top:4px; line-height:1.45;">
-                                ? ????? ?? ???????? ??????? ????? ??????? (????????????? ??????? ??????? <b>{v_dup_info}</b>).
-                                ??????? ????????????? ???????????? ??? ????? ?? ????????, ?? ?????????? ?????? ????????? ? ?????? ????????.
-                                ????????? ? ???????????? ?????????? ?????? ? ?????????? ??????? ????? ???????? ???????????!
+                                В боксе не менялась кассета между кадрами (зафиксированы повторы маркера <b>{v_dup_info}</b>).
+                                Станция автоматически распределила эти кадры по когортам, но оптические снимки относятся к одному растению.
+                                Убедитесь в правильности назначения когорт в выпадающих списках перед итоговым сохранением!
                             </span>
                         </div>
                     </div>
@@ -2073,13 +2073,13 @@ async def index(
             verify_warnings_box += f'''
                 <div style="background:#eff6ff; border:2px solid #3b82f6; border-radius:10px; padding:12px 16px; margin-bottom:14px; box-shadow:0 3px 10px rgba(59,130,246,0.12);">
                     <div style="display:flex; align-items:flex-start; gap:12px;">
-                        <span style="font-size:24px; line-height:1;">??</span>
+                        <span style="font-size:24px; line-height:1;">⚖️</span>
                         <div style="flex:1;">
                             <b style="color:#1d4ed8; font-size:14px; display:block; text-transform:uppercase; letter-spacing:0.3px;">
-                                ??? ??????? ?? ??????: ?????? {v_shots_str}!
+                                ВЕС КАССЕТЫ НЕ ВВЕДЕН: ЗАМЕРЫ {v_shots_str}!
                             </b>
                             <span style="font-size:12px; color:#1e40af; display:block; margin-top:4px; line-height:1.45;">
-                                ????????????? ??????? ??????????? ????? ? ??????? ? ???????????? ????? <b>??? ????? ? ??????</b> ???? ????? ??????????? ? ???? ??????.
+                                Рекомендуется указать фактическую массу в граммах в подсвеченных полях <b>«⚖️ Масса с весов»</b> ниже перед сохранением в базу данных.
                             </span>
                         </div>
                     </div>
@@ -2092,24 +2092,24 @@ async def index(
             assigned_id = item['assigned_id']
             detected_id = item.get('detected_id')
             shot_order = item.get('shot_order', i + 1)
-            c_info = CASSETTE_CATALOG.get(assigned_id, {'id': assigned_id, 'name': s.get('group', '???????'), 'color': '#0d9488'})
+            c_info = CASSETTE_CATALOG.get(assigned_id, {'id': assigned_id, 'name': s.get('group', 'Кассета'), 'color': '#0d9488'})
 
             if detected_id:
-                marker_badge = f'<span style="background:#ecfdf5; color:#065f46; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #a7f3d0;">??? ArUco #{detected_id} ????????? (????? #{shot_order}-?)</span>'
+                marker_badge = f'<span style="background:#ecfdf5; color:#065f46; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #a7f3d0;">🏷️ ArUco #{detected_id} распознан (снята #{shot_order}-й)</span>'
             else:
-                marker_badge = f'<span style="background:#fffbeb; color:#b45309; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #fde68a;">?? ArUco ?? ?????? (????? #{shot_order}-?)</span>'
+                marker_badge = f'<span style="background:#fffbeb; color:#b45309; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #fde68a;">⚠️ ArUco не найден (снята #{shot_order}-й)</span>'
 
-            # ?????????? ?????? ?????? ??????? (?? ?????? ?????? ?????????)
+            # Выпадающий список выбора когорты (на случай ручной коррекции)
             options_html = ''
             for cid, cdata in CASSETTE_CATALOG.items():
                 sel = 'selected' if cid == assigned_id else ''
-                options_html += f'<option value="{cid}" {sel}>??????? #{cid}: {cdata["name"]}</option>'
+                options_html += f'<option value="{cid}" {sel}>Кассета #{cid}: {cdata["name"]}</option>'
 
             items_html += f'''
                 <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:8px;">
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <label style="font-weight:bold; font-size:13px; color:#334155;">???????:</label>
+                            <label style="font-weight:bold; font-size:13px; color:#334155;">Когорта:</label>
                             <select name="cassette_id_{i}" style="padding:4px 8px; font-size:13px; font-weight:bold; color:{c_info['color']}; border:1.5px solid #94a3b8; border-radius:6px; background:#f8fafc;">
                                 {options_html}
                             </select>
@@ -2117,17 +2117,17 @@ async def index(
                         <div style="display:flex; gap:6px; align-items:center;">
                             {marker_badge}
                             <span style="background:#ecfdf5; color:#047857; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold;">NDVI: {s['mean_ndvi']}</span>
-                            <span style="background:#f0fdf4; color:#15803d; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #bbf7d0;">?? PLA: {s.get('leaf_area_cm2', '--')} ???</span>
+                            <span style="background:#f0fdf4; color:#15803d; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:bold; border:1px solid #bbf7d0;">🌿 PLA: {s.get('leaf_area_cm2', '--')} см²</span>
                         </div>
                     </div>
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
                         <div style="text-align:center;">
-                            <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">?????? NoIR (???? #{shot_order})</span>
+                            <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">Спектр NoIR (кадр #{shot_order})</span>
                             <img src="/static/{s['opt_file']}?t={t_now}" style="width:100%; height:85px; object-fit:contain; background:#0f172a; border-radius:6px; border:1px solid #e2e8f0;">
                         </div>
                         <div style="text-align:center;">
-                            <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">?????????? ({item['thermal_filename']})</span>
+                            <span style="font-size:10px; color:#64748b; display:block; margin-bottom:2px;">Тепловизор ({item['thermal_filename']})</span>
                             <img src="{item['thermal_thumb_url']}?t={t_now}" style="width:100%; height:85px; object-fit:contain; border-radius:6px; border:1px solid #e2e8f0; background:#f8fafc;">
                         </div>
                     </div>
@@ -2135,32 +2135,32 @@ async def index(
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; align-items:start;">
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                                <label style="font-size:11px; font-weight:700; color:#0f766e; white-space:nowrap; margin:0;">?? ????? (?):</label>
-                                {'' if str(s.get('user_weight', '')).strip() else '<span style="background:#fee2e2; color:#dc2626; border:1px solid #fecdd3; padding:1px 4px; border-radius:3px; font-size:8.5px; font-weight:800;">??? ????</span>'}
+                                <label style="font-size:11px; font-weight:700; color:#0f766e; white-space:nowrap; margin:0;">⚖️ Масса (г):</label>
+                                {'' if str(s.get('user_weight', '')).strip() else '<span style="background:#fee2e2; color:#dc2626; border:1px solid #fecdd3; padding:1px 4px; border-radius:3px; font-size:8.5px; font-weight:800;">НЕТ ВЕСА</span>'}
                             </div>
-                            <input type="text" name="weight_g_{i}" value="{s.get('user_weight', '')}" placeholder="? ????? (?)" style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
-                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; white-space:nowrap;">???? (?????)</div>
+                            <input type="text" name="weight_g_{i}" value="{s.get('user_weight', '')}" placeholder="с весов (г)" style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; white-space:nowrap;">Весы (нетто)</div>
                         </div>
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                                <label style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; margin:0;">?? ????????? (%):</label>
+                                <label style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; margin:0;">💧 Влажность (%):</label>
                             </div>
                             <input type="number" step="0.1" min="0" max="100" name="pct_soil_{i}" value="{s.get('pct_soil', 64.0)}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
-                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">{s.get('pct_soil', 64.0)}% ??</div>
+                            <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">{s.get('pct_soil', 64.0)}% ПВ</div>
                         </div>
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                                <label style="font-size:11px; font-weight:700; color:#334155; white-space:nowrap; margin:0;">??? T ????? (?C):</label>
-                                <span style="font-size:9.5px; color:#0284c7; background:#e0f2fe; padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap;">OCR {item['t_ocr']}?</span>
+                                <label style="font-size:11px; font-weight:700; color:#334155; white-space:nowrap; margin:0;">🌡️ T листа (°C):</label>
+                                <span style="font-size:9.5px; color:#0284c7; background:#e0f2fe; padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap;">OCR {item['t_ocr']}°</span>
                             </div>
                             <input type="number" step="0.1" name="t_leaf_{i}" id="t_leaf_{i}" value="{item['t_ocr']}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
                             <div style="height:22px; margin-top:4px; display:flex; gap:2px;">
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', -1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 1.0?C">-1?</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 0.5?C">-.5?</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 0.1?C">-.1?</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 0.1?C">+.1?</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 0.5?C">+.5?</button>
-                                <button type="button" onclick="adjTemp('t_leaf_{i}', 1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 1.0?C">+1?</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 1.0°C">-1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.5°C">-.5°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', -0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.1°C">-.1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.1°C">+.1°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.5°C">+.5°</button>
+                                <button type="button" onclick="adjTemp('t_leaf_{i}', 1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 1.0°C">+1°</button>
                             </div>
                         </div>
                     </div>
@@ -2170,7 +2170,7 @@ async def index(
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); background: #f8fafc;">
                 <div style="border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
-                    <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">????????? ??????????? ????? (????????????? ?? ArUco)</span>
+                    <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Финальная верификация серии (отсортировано по ArUco)</span>
                     <h2 style="margin:2px 0 0 0; color:var(--sirius-teal-dark); font-size:16px;">{conf["title"]}</h2>
                 </div>
 
@@ -2179,18 +2179,18 @@ async def index(
                     {items_html}
 
                     <button type="submit" class="btn-confirm" style="width:100%; padding:14px; font-size:16px; background:linear-gradient(135deg, #059669, #00a499); box-shadow:0 4px 14px rgba(0,164,153,0.35); margin-top:8px; cursor:pointer;">
-                        ? ??? ? ??????? ? ????????? ??? ????? ? ???? ({len(verified)} ???????)
+                        ✅ ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ ВСЮ СЕРИЮ В БАЗУ ({len(verified)} ЗАМЕРОВ)
                     </button>
 
                     <div style="margin-top:10px; text-align:center;">
-                        <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">? ???????? ??? ??????</a>
+                        <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Отменить эту сессию</a>
                     </div>
                 </form>
             </div>
         '''
 
     elif stage == 'review' and PENDING_SESSION:
-        # ???? 2 ?????????? ??????: ??????????? ? ?????????????
+        # ЭТАП 2 ОДИНОЧНОГО ЗАМЕРА: ВЕРИФИКАЦИЯ И ПОДТВЕРЖДЕНИЕ
         s = PENDING_SESSION
         uti_info = get_file_info_at_index(offset)
 
@@ -2203,52 +2203,52 @@ async def index(
             t_leaf_init = str(uti_info['t_ocr'])
             nav_buttons = f'''
                 <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                    <a href="/?stage=review&offset={offset+1}" style="color:#38bdf8; font-size:12px; text-decoration:none; font-weight:bold;">?? ????? ?????????? ??????</a>
-                    <span style="color:#94a3b8; font-size:11px;">?????? {offset+1} ?? {uti_info['total']}</span>
-                    {f'<a href="/?stage=review&offset={max(0, offset-1)}" style="color:#38bdf8; font-size:12px; text-decoration:none; font-weight:bold;">????????? ??</a>' if offset > 0 else '<span></span>'}
+                    <a href="/?stage=review&offset={offset+1}" style="color:#38bdf8; font-size:12px; text-decoration:none; font-weight:bold;">◀️ Взять предыдущий снимок</a>
+                    <span style="color:#94a3b8; font-size:11px;">Снимок {offset+1} из {uti_info['total']}</span>
+                    {f'<a href="/?stage=review&offset={max(0, offset-1)}" style="color:#38bdf8; font-size:12px; text-decoration:none; font-weight:bold;">Следующий ▶️</a>' if offset > 0 else '<span></span>'}
                 </div>
             '''
         else:
             uti_detected = False
             thumb_url = '/static/last_ndvi.jpg'
             thumb_name = ''
-            fn_show = '?????????? ??? ?? ?????????'
+            fn_show = 'Тепловизор еще не подключен'
             dt_show = '--'
             t_leaf_init = '23.5'
             nav_buttons = '''
                 <div style="margin-top:8px; text-align:center;">
-                    <a href="/?stage=review&offset=0" style="padding:6px 12px; background:#0284c7; color:white; border-radius:6px; text-decoration:none; font-size:12px; font-weight:bold;">?? ????? ?????? ?? ???????????</a>
+                    <a href="/?stage=review&offset=0" style="padding:6px 12px; background:#0284c7; color:white; border-radius:6px; text-decoration:none; font-size:12px; font-weight:bold;">🔄 Найти снимок на тепловизоре</a>
                 </div>
             '''
 
-        aruco_badge = f'<span style="background:#059669; color:white; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; box-shadow:0 1px 4px rgba(5,150,105,0.3); white-space:nowrap;">?? ArUco #{s["aruco_id"]}: {s["group"]}</span>' if s.get('aruco_id') else f'<span style="background:var(--sirius-teal); color:white; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; white-space:nowrap;">{s["group"]}</span>'
+        aruco_badge = f'<span style="background:#059669; color:white; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; box-shadow:0 1px 4px rgba(5,150,105,0.3); white-space:nowrap;">🎯 ArUco #{s["aruco_id"]}: {s["group"]}</span>' if s.get('aruco_id') else f'<span style="background:var(--sirius-teal); color:white; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; white-space:nowrap;">{s["group"]}</span>'
 
         step1_note = f'''
             <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; padding:10px 14px; border-radius:8px; margin-bottom:12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                     <div style="font-size:12px; color:#166534; font-weight:700; display:flex; align-items:center; gap:5px;">
-                        <span>??</span> ArUco-?????? #{s.get('aruco_id', '--')} ?????????: ??????? ?{s['group']}?
+                        <span>🎯</span> ArUco-маркер #{s.get('aruco_id', '--')} распознан: когорта «{s['group']}»
                     </div>
                     <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:5px; font-weight:700; font-size:10.5px;">
                         White Ref k={s.get('k_bal', 1.025)} (PTFE)
                     </span>
                 </div>
                 <div style="margin-top:5px; font-size:11.5px; color:#15803d;">
-                    ?? ??????????? ??????? ?? ???? ? ?????????? ?????????? ??? ????????????? ??????????.
+                    ⚖️ Переставьте кассету на весы и подключите тепловизор для подтверждения параметров.
                 </div>
             </div>
         ''' if s.get('aruco_id') else f'''
             <div style="background:#f0fdfa; border:1.5px solid #ccfbf1; padding:10px 14px; border-radius:8px; margin-bottom:12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                     <div style="font-size:12px; color:#0f766e; font-weight:700;">
-                        ? ???????????? ????? ???????? (???????: ?{s['group']}?)
+                        ✓ Спектральный замер выполнен (когорта: «{s['group']}»)
                     </div>
                     <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:5px; font-weight:700; font-size:10.5px;">
                         White Ref k={s.get('k_bal', 1.025)} (PTFE)
                     </span>
                 </div>
                 <div style="margin-top:5px; font-size:11.5px; color:#0f766e;">
-                    ?? ??????????? ??????? ?? ???? ? ?????????? ?????????? ??? ????????????? ??????????.
+                    ⚖️ Переставьте кассету на весы и подключите тепловизор для подтверждения параметров.
                 </div>
             </div>
         '''
@@ -2257,8 +2257,8 @@ async def index(
             <div class="card" style="border: 2px solid var(--sirius-teal); background: #ffffff;">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px; gap:8px;">
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="background:var(--sirius-teal); color:#ffffff; font-size:10px; font-weight:800; text-transform:uppercase; padding:3px 7px; border-radius:4px; letter-spacing:0.5px;">??? 2</span>
-                        <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:16px; font-weight:800; white-space:nowrap;">????????????? ?????? #{s['id']}</h2>
+                        <span style="background:var(--sirius-teal); color:#ffffff; font-size:10px; font-weight:800; text-transform:uppercase; padding:3px 7px; border-radius:4px; letter-spacing:0.5px;">Шаг 2</span>
+                        <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:16px; font-weight:800; white-space:nowrap;">Подтверждение замера #{s['id']}</h2>
                     </div>
                     {aruco_badge}
                 </div>
@@ -2266,10 +2266,10 @@ async def index(
                 {step1_note}
 
                 <form action="/api/save_final_measurement" method="post">
-                    <!-- ?????? ??????????? -->
+                    <!-- СНИМОК ТЕПЛОВИЗОРА -->
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; text-align:center;">
                         <span style="font-size:12px; color:#475569; display:block; margin-bottom:4px;">
-                            ??????????: <b>{fn_show}</b> ({dt_show})
+                            Тепловизор: <b>{fn_show}</b> ({dt_show})
                         </span>
                         <img src="{thumb_url}?t={t_now}" style="height:140px; border-radius:6px; object-fit:contain; border:1px solid #e2e8f0; background:#f8fafc;">
                         {nav_buttons}
@@ -2278,61 +2278,61 @@ async def index(
                     <input type="hidden" name="thermal_filename" value="{fn_show}">
                     <input type="hidden" name="thermal_thumb" value="{thumb_name}">
 
-                    <!-- ???? ????? (????????? ?? ??????????? ? ?????????) -->
+                    <!-- ПОЛЯ ВВОДА (ВЫРАВНЕНЫ ПО ГОРИЗОНТАЛИ И ВЕРТИКАЛИ) -->
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:12px; align-items:start;">
-                        <!-- ??????? 1: ????? -->
+                        <!-- Колонка 1: Масса -->
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                                <label style="font-size:11px; font-weight:700; color:#0f766e; white-space:nowrap; margin:0;">?? ????? (?):</label>
+                                <label style="font-size:11px; font-weight:700; color:#0f766e; white-space:nowrap; margin:0;">⚖️ Масса (г):</label>
                             </div>
-                            <input type="text" name="weight_g" autofocus placeholder="? ?????, ????. 415.0" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
+                            <input type="text" name="weight_g" autofocus placeholder="с весов, напр. 415.0" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid var(--sirius-teal); border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
                             <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; white-space:nowrap;">
-                                ???? (?????)
+                                Весы (нетто)
                             </div>
                         </div>
 
-                        <!-- ??????? 2: ????????? ????? -->
+                        <!-- Колонка 2: Влажность почвы -->
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                                <label style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; margin:0;">?? ????????? (%):</label>
+                                <label style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; margin:0;">💧 Влажность (%):</label>
                             </div>
                             <input type="number" step="0.1" min="0" max="100" name="pct_soil" value="{s['pct_soil']}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
                             <div style="height:22px; margin-top:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#0284c7; background:#f0f9ff; border:1px solid #bae6fd; border-radius:4px; font-weight:600; white-space:nowrap;">
-                                {s.get('pct_soil', 0.0)}% ??
+                                {s.get('pct_soil', 0.0)}% ПВ
                             </div>
                         </div>
 
-                        <!-- ??????? 3: ??????????? ????? -->
+                        <!-- Колонка 3: Температура листа -->
                         <div style="display:flex; flex-direction:column;">
                             <div style="height:22px; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                                <label style="font-size:11px; font-weight:700; color:#334155; white-space:nowrap; margin:0;">??? T ????? (?C):</label>
-                                <span style="font-size:9.5px; color:#0284c7; background:#e0f2fe; padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap;">OCR {t_leaf_init}?</span>
+                                <label style="font-size:11px; font-weight:700; color:#334155; white-space:nowrap; margin:0;">🌡️ T листа (°C):</label>
+                                <span style="font-size:9.5px; color:#0284c7; background:#e0f2fe; padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap;">OCR {t_leaf_init}°</span>
                             </div>
                             <input type="number" step="0.1" name="t_leaf" id="single_t_leaf" value="{t_leaf_init}" required style="height:38px; width:100%; padding:6px 10px; font-size:13px; font-weight:700; border:1.5px solid #0284c7; border-radius:6px; box-sizing:border-box; text-align:center; background:#ffffff;">
                             <div style="height:22px; margin-top:4px; display:flex; gap:2px;">
-                                <button type="button" onclick="adjTemp('single_t_leaf', -1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 1.0?C">-1?</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', -0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 0.5?C">-.5?</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', -0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 0.1?C">-.1?</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', 0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 0.1?C">+.1?</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', 0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 0.5?C">+.5?</button>
-                                <button type="button" onclick="adjTemp('single_t_leaf', 1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="????????? ?? 1.0?C">+1?</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', -1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 1.0°C">-1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', -0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.5°C">-.5°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', -0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Уменьшить на 0.1°C">-.1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 0.1)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.1°C">+.1°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 0.5)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 0.5°C">+.5°</button>
+                                <button type="button" onclick="adjTemp('single_t_leaf', 1.0)" style="flex:1; font-size:9.5px; font-weight:700; padding:0; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:3px; cursor:pointer;" title="Увеличить на 1.0°C">+1°</button>
                             </div>
                         </div>
                     </div>
 
                     <div style="margin-top:12px; padding:9px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center; color:#334155;">
-                        <span>T ????: <b style="color:#0284c7;">{s['t_air']} ?C</b> (SHT30)</span>
+                        <span>T возд: <b style="color:#0284c7;">{s['t_air']} °C</b> (SHT30)</span>
                         <span>NDVI: <b style="color:#059669;">{s['mean_ndvi']}</b></span>
-                        <span>VPD: <b style="color:#d97706;">{s['vpd']} ???</b></span>
+                        <span>VPD: <b style="color:#d97706;">{s['vpd']} кПа</b></span>
                     </div>
 
                     <button type="submit" class="btn-confirm" style="width:100%; height:46px; background:linear-gradient(135deg, #059669, #00a499); color:white; border:none; border-radius:8px; font-size:15px; font-weight:800; cursor:pointer; margin-top:12px; box-shadow:0 4px 12px rgba(0,164,153,0.3); display:flex; align-items:center; justify-content:center; gap:8px;">
-                        <span>?</span> ??? ? ??????? ? ????????? ? ??????
+                        <span>✅</span> ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ В ЖУРНАЛ
                     </button>
 
                     <div style="margin-top:10px; text-align:center;">
                         <a href="/api/cancel_session" style="color:#64748b; font-size:12px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:4px; transition:all 0.2s;" onmouseover="this.style.color='#ef4444';" onmouseout="this.style.color='#64748b';">
-                            <span>?</span> ???????? ???? ?????
+                            <span>✕</span> Отменить этот замер
                         </a>
                     </div>
                 </form>
@@ -2340,52 +2340,52 @@ async def index(
         '''
 
     else:
-        # ???? IDLE: ????? ?????? ?????? (???????? ????? 5 ?????? 5-?-1 ??? ?????????)
+        # ЭТАП IDLE: ВЫБОР РЕЖИМА ЗАМЕРА (ПАКЕТНЫЙ ЗАМЕР 5 КАССЕТ 5-В-1 ИЛИ ОДИНОЧНЫЙ)
         wizard_card = f'''
             <div class="card" style="border: 2px solid var(--sirius-teal); margin:0;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:15px;">?? ?????? ???????? ????? 5 ?????? (5-?-1)</h2>
-                    <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">1 ??????????? ??????</span>
+                    <h2 style="margin:0; color:var(--sirius-teal-dark); font-size:15px;">🚀 Единый пакетный замер 5 кассет (5-в-1)</h2>
+                    <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">1 подключение кабеля</span>
                 </div>
                 <p style="font-size: 11px; color: #475569; margin: 0 0 10px 0; line-height:1.35;">
-                    ??????? ??????????????? ?????? ??? 5 ?????? (NoIR + ??????? ArUco-???????), ? ?????? ??????????? ???????????? <b>????? ???? ??? ? ????? ?????</b>:
+                    Станция последовательно снимет все 5 кассет (NoIR + цветные ArUco-маркеры), а провод тепловизора подключается <b>всего один раз в конце серии</b>:
                 </p>
 
-                <!-- ??????? ?????? ??????? ?????? 5 ?????? -->
+                <!-- Главная кнопка запуска замера 5 кассет -->
                 <a href="/api/start_batch?stage=batch5" style="text-decoration:none; display:block; background:linear-gradient(135deg, #0d9488 0%, #059669 45%, #2563eb 100%); color:white; padding:12px; border-radius:10px; text-align:center; box-shadow:0 4px 12px rgba(13,148,136,0.3); transition:all 0.2s;">
-                    <span style="font-size:18px; display:block; margin-bottom:2px;">????</span>
-                    <b style="font-size:14px; display:block;">????????? ????? 5 ?????? (5-?-1)</b>
-                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">?? ?1 ???????? ? ?? ?2 ????? ? ?? ?3 ?????? ? ?? ?4 ????????? ? ?? ?5 ???????</span>
+                    <span style="font-size:18px; display:block; margin-bottom:2px;">🌿🔬</span>
+                    <b style="font-size:14px; display:block;">ЗАПУСТИТЬ ЗАМЕР 5 КАССЕТ (5-В-1)</b>
+                    <span style="font-size:10px; opacity:0.95; display:block; margin-top:2px;">🟢 К1 Контроль • 🟣 К2 Осмос • 🔴 К3 Засуха • 🟡 К4 Превенция • 🔵 К5 Реакция</span>
                 </a>
 
-                <!-- ??????? ?? ????????? ???? -->
+                <!-- Памятка по изолятору соли -->
                 <div style="margin-top:8px; padding:6px 10px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; font-size:10px; color:#5b21b6; line-height:1.3;">
-                    ?? <b>???????????????:</b> ??????? 1, 3, 4, 5 ????? ? ????? ?????. ??????? ?2 (?????) ??????????? ? <b>????????? ?????-?????????</b> ??? ?????? ??????? ?? ????????????? ????????????? ???????.
+                    💡 <b>Биобезопасность:</b> Кассеты 1, 3, 4, 5 стоят в общем лотке. Кассета №2 (Осмос) установлена в <b>отдельном лотке-изоляторе</b> для защиты дренажа от перекрестного осмотического влияния.
                 </div>
 
-                <!-- ?????????? ????????? ????? -->
+                <!-- Выпадающий одиночный замер -->
                 <details style="border-top:1px solid #e2e8f0; padding-top:8px; margin-top:8px;">
                     <summary style="cursor:pointer; color:#64748b; font-size:11px; font-weight:bold;">
-                        ?????????? ????????? ????? ????? ???????
+                        Выборочный одиночный замер одной кассеты
                     </summary>
                     <form action="/api/start_spectral" method="post" style="margin-top:8px;">
                         <select name="group_name" style="margin-bottom:6px; font-size:12px;">
-                            <option value="????????">??????? 1: ???????? (??????? 100% ??)</option>
-                            <option value="????????? (NaCl)">??????? 2: ????????? (NaCl 100 ??, ????????)</option>
-                            <option value="???????????? ????????????">??????? 3: ???????????? ???????????? (?????? ????? ?? ?T)</option>
-                            <option value="???????????? ?????????? ????????">??????? 4: ???????????? ?????????? ???????? (?????? ???????)</option>
-                            <option value="???????????? ??????">??????? 5: ???????????? ?????? (???????? ??????)</option>
-                            <option value="?????????? (????? ?0)">??????? 6: ????????????? ????? (????? ?0, ????? 22.09)</option>
+                            <option value="Контроль">Кассета 1: Контроль (Оптимум 100% ПВ)</option>
+                            <option value="Засоление (NaCl)">Кассета 2: Засоление (NaCl 100 мМ, изолятор)</option>
+                            <option value="Превентивная регидратация">Кассета 3: Превентивная регидратация (ранний полив по ΔT)</option>
+                            <option value="Традиционный визуальный контроль">Кассета 4: Традиционный визуальный контроль (потеря тургора)</option>
+                            <option value="Терминальная засуха">Кассета 5: Терминальная засуха (контроль гибели)</option>
+                            <option value="Калибровка (Стенд №0)">Кассета 6: Калибровочный стенд (Стенд №0, посев 22.09)</option>
                         </select>
                         <button type="submit" class="btn-run" style="padding:8px; font-size:12px; margin-top:0;">
-                            ????? ????????? ??????? ? ?????
+                            Снять выбранную кассету в боксе
                         </button>
                     </form>
                 </details>
             </div>
         '''
 
-    # ??????? ??????? ???????? ????? ??????
+    # ТАБЛИЦА ЖУРНАЛА АКТИВНОЙ СЕРИИ ОПЫТОВ
     rows = []
     if os.path.exists(active_csv):
         with open(active_csv, 'r', encoding='utf-8') as f:
@@ -2393,7 +2393,7 @@ async def index(
             if len(all_r) > 1:
                 rows = all_r[1:]
 
-    # ????????-?????????? 5 ??????
+    # Экспресс-статистика 5 когорт
     cnt_ctrl, cnt_salt, cnt_inst, cnt_eye, cnt_term = 0, 0, 0, 0, 0
     ndvis_ctrl, ndvis_salt, ndvis_inst, ndvis_eye, ndvis_term = [], [], [], [], []
 
@@ -2411,19 +2411,19 @@ async def index(
             except (ValueError, TypeError):
                 pass
 
-            if '????????' in grp_l or '??????' in grp_l or '??????' in grp_l:
+            if 'превенци' in grp_l or 'прибор' in grp_l or 'станци' in grp_l:
                 cnt_inst += 1
                 if ndvi_val is not None: ndvis_inst.append(ndvi_val)
-            elif '??????' in grp_l or '????' in grp_l or '??????' in grp_l:
+            elif 'реакци' in grp_l or 'глаз' in grp_l or 'визуал' in grp_l:
                 cnt_eye += 1
                 if ndvi_val is not None: ndvis_eye.append(ndvi_val)
-            elif '?????' in grp_l or '????????' in grp_l or '??????' in grp_l or '??????' in grp_l:
+            elif 'засух' in grp_l or 'терминал' in grp_l or 'гибель' in grp_l or 'некроз' in grp_l:
                 cnt_term += 1
                 if ndvi_val is not None: ndvis_term.append(ndvi_val)
-            elif '?????' in grp_l or '???' in grp_l or 'salin' in grp_l:
+            elif 'осмос' in grp_l or 'сол' in grp_l or 'salin' in grp_l:
                 cnt_salt += 1
                 if ndvi_val is not None: ndvis_salt.append(ndvi_val)
-            elif '?????' in grp_l or 'control' in grp_l or '??????' in grp_l or '???????' in grp_l:
+            elif 'контр' in grp_l or 'control' in grp_l or 'эталон' in grp_l or 'оптимум' in grp_l:
                 cnt_ctrl += 1
                 if ndvi_val is not None: ndvis_ctrl.append(ndvi_val)
 
@@ -2436,10 +2436,10 @@ async def index(
     m_eye_ndvi = mean_s(ndvis_eye, "--")
     m_term_ndvi = mean_s(ndvis_term, "--")
 
-    eff_badge = "100% ??????"
+    eff_badge = "100% тургор"
     if ndvis_inst and ndvis_eye:
         diff_pct = round(((sum(ndvis_inst)/len(ndvis_inst)) - (sum(ndvis_eye)/len(ndvis_eye))) / (sum(ndvis_inst)/len(ndvis_inst)) * 100, 1)
-        eff_badge = f"+{diff_pct}% ???????????" if diff_pct > 0 else "0% ??????"
+        eff_badge = f"+{diff_pct}% сохранность" if diff_pct > 0 else "0% потерь"
 
     filtered_rows = rows
 
@@ -2448,88 +2448,88 @@ async def index(
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <div style="width:4px; height:16px; background:var(--sirius-teal); border-radius:2px;"></div>
-                    <h2 style="margin:0; font-size:14px; font-weight:700; border:none; padding:0; color:var(--sirius-teal-dark); letter-spacing:-0.2px;">?????? ????????????????? ??????</h2>
+                    <h2 style="margin:0; font-size:14px; font-weight:700; border:none; padding:0; color:var(--sirius-teal-dark); letter-spacing:-0.2px;">Сводка экспериментальных когорт</h2>
                 </div>
-                <span style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600;">????? ?????????: {len(rows)}</span>
+                <span style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600;">Всего измерений: {len(rows)}</span>
             </div>
 
-            <!-- ?????? ???: ??? 5 ?????? ?????? ?? ?????????? ??????? 1, 2, 3, 4, 5 -->
+            <!-- ЕДИНЫЙ РЯД: ВСЕ 5 КАССЕТ СТРОГО ПО ПОРЯДКОВЫМ НОМЕРАМ 1, 2, 3, 4, 5 -->
             <div style="display:flex; justify-content:space-between; align-items:stretch; gap:6px; margin-bottom:10px;">
-                <!-- ?1: ???????? -->
+                <!-- К1: Контроль -->
                 <div style="flex:1; background:#ecfdf5; border:1.5px solid #059669; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#065f46; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#059669; display:inline-block;"></span> ?1: ????????
+                        <span style="width:7px; height:7px; border-radius:50%; background:#059669; display:inline-block;"></span> К1: Контроль
                     </div>
-                    <div style="font-size:15px; font-weight:700; color:#047857; margin:2px 0;">{cnt_ctrl} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">???.</span></div>
+                    <div style="font-size:15px; font-weight:700; color:#047857; margin:2px 0;">{cnt_ctrl} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{m_ctrl_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#047857; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #a7f3d0;">??????? (100% ??)</div>
+                    <div style="font-size:8.5px; color:#047857; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #a7f3d0;">Оптимум (100% ПВ)</div>
                 </div>
-                <!-- ?2: ????? -->
+                <!-- К2: Осмос -->
                 <div style="flex:1; background:#f5f3ff; border:1.5px solid #7c3aed; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#5b21b6; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#7c3aed; display:inline-block;"></span> ?2: ?????
+                        <span style="width:7px; height:7px; border-radius:50%; background:#7c3aed; display:inline-block;"></span> К2: Осмос
                     </div>
-                    <div style="font-size:15px; font-weight:700; color:#6d28d9; margin:2px 0;">{cnt_salt} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">???.</span></div>
+                    <div style="font-size:15px; font-weight:700; color:#6d28d9; margin:2px 0;">{cnt_salt} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{m_salt_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#5b21b6; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #ddd6fe;">100 ?? NaCl</div>
+                    <div style="font-size:8.5px; color:#5b21b6; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #ddd6fe;">100 мМ NaCl</div>
                 </div>
-                <!-- ?3: ???????????? ?????? -->
+                <!-- К3: Терминальная засуха -->
                 <div style="flex:1; background:#fff1f2; border:1.5px solid #dc2626; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#9f1239; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#e11d48; display:inline-block;"></span> ?3: ??????
+                        <span style="width:7px; height:7px; border-radius:50%; background:#e11d48; display:inline-block;"></span> К3: Засуха
                     </div>
-                    <div style="font-size:15px; font-weight:700; color:#be123c; margin:2px 0;">{cnt_term} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">???.</span></div>
+                    <div style="font-size:15px; font-weight:700; color:#be123c; margin:2px 0;">{cnt_term} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#dc2626;">{m_term_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#9f1239; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fecdd3;">???????????? ????</div>
+                    <div style="font-size:8.5px; color:#9f1239; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fecdd3;">Терминальная фаза</div>
                 </div>
-                <!-- ?4: ???????????? ????? -->
+                <!-- К4: Предиктивный полив -->
                 <div style="flex:1; background:#fefce8; border:1.5px solid #ca8a04; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#854d0e; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#ca8a04; display:inline-block;"></span> ?4: ?????????
+                        <span style="width:7px; height:7px; border-radius:50%; background:#ca8a04; display:inline-block;"></span> К4: Превенция
                     </div>
-                    <div style="font-size:15px; font-weight:700; color:#a16207; margin:2px 0;">{cnt_inst} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">???.</span></div>
+                    <div style="font-size:15px; font-weight:700; color:#a16207; margin:2px 0;">{cnt_inst} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#ca8a04;">{m_inst_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#854d0e; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fef08a;">?????? ????? (?T)</div>
+                    <div style="font-size:8.5px; color:#854d0e; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fef08a;">Ранний полив (ΔT)</div>
                 </div>
-                <!-- ?5: ????????????????? ????? -->
+                <!-- К5: Органолептический полив -->
                 <div style="flex:1; background:#eff6ff; border:1.5px solid #2563eb; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
                     <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#1e40af; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
-                        <span style="width:7px; height:7px; border-radius:50%; background:#2563eb; display:inline-block;"></span> ?5: ???????
+                        <span style="width:7px; height:7px; border-radius:50%; background:#2563eb; display:inline-block;"></span> К5: Реакция
                     </div>
-                    <div style="font-size:15px; font-weight:700; color:#1d4ed8; margin:2px 0;">{cnt_eye} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">???.</span></div>
+                    <div style="font-size:15px; font-weight:700; color:#1d4ed8; margin:2px 0;">{cnt_eye} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
                     <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#2563eb;">{m_eye_ndvi}</b></div>
-                    <div style="font-size:8.5px; color:#1e40af; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #bfdbfe;">?????? ???????</div>
+                    <div style="font-size:8.5px; color:#1e40af; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #bfdbfe;">Потеря тургора</div>
                 </div>
             </div>
 
-            <!-- ?????????????? ?????? ?????????????? ??????? ?4 VS ?5 -->
+            <!-- ИНФОРМАЦИОННАЯ ПЛАШКА СРАВНИТЕЛЬНОГО АНАЛИЗА К4 VS К5 -->
             <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:7px 12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="background:#e0f2fe; color:#0369a1; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:3px; text-transform:uppercase; letter-spacing:0.5px;">?????????</span>
+                    <span style="background:#e0f2fe; color:#0369a1; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:3px; text-transform:uppercase; letter-spacing:0.5px;">Сравнение</span>
                     <span style="font-size:11px; color:#1e293b; font-weight:600;">
-                        <b>???????????? ?????????????:</b> ?4 (????? ?? ??????? ?????? ???????) vs ?5 (????? ?? ?????????? ?????????)
+                        <b>Предиктивная эффективность:</b> К4 (полив по раннему алерту станции) vs К5 (полив по визуальным признакам)
                     </span>
                 </div>
-                <span style="background:#ecfdf5; color:#047857; font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:4px; border:1px solid #a7f3d0; white-space:nowrap;">???????????: {eff_badge}</span>
+                <span style="background:#ecfdf5; color:#047857; font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:4px; border:1px solid #a7f3d0; white-space:nowrap;">Сохранность: {eff_badge}</span>
             </div>
 
-            <!-- 4 ?????? ????????: ?????? ?????????? ?????? 38px, ???????????? 2x2 ??? ?????????? -->
+            <!-- 4 КНОПКИ ДЕЙСТВИЙ: СТРОГО ОДИНАКОВАЯ ВЫСОТА 38px, РАСПОЛОЖЕНИЕ 2x2 БЕЗ НАПОЛЗАНИЯ -->
             <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px;">
                 <a href="/download/csv" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:6px; color:#334155; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='#334155';this.style.borderColor='#cbd5e1';">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    <span>??????? ?????? (.CSV)</span>
+                    <span>Экспорт данных (.CSV)</span>
                 </a>
                 <a href="/download/images_zip" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:6px; color:#15803d; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#10b981';this.style.color='#fff';this.style.borderColor='#10b981';" onmouseout="this.style.background='#f0fdf4';this.style.color='#15803d';this.style.borderColor='#bbf7d0';">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                    <span>????? ?????? (.ZIP)</span>
+                    <span>Архив кадров (.ZIP)</span>
                 </a>
                 <a href="/download/aruco_pdf" target="_blank" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:6px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';this.style.borderColor='#00a499';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';this.style.borderColor='#99f6e4';">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/></svg>
-                    <span>??????? ArUco (.PDF)</span>
+                    <span>Маркеры ArUco (.PDF)</span>
                 </a>
                 <a href="/download/presentation" target="_blank" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:6px; color:#1d4ed8; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#2563eb';this.style.color='#fff';this.style.borderColor='#2563eb';" onmouseout="this.style.background='#eff6ff';this.style.color='#1d4ed8';this.style.borderColor='#bfdbfe';">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                    <span>??????????? (.PDF)</span>
+                    <span>Презентация (.PDF)</span>
                 </a>
             </div>
         </div>
@@ -2537,18 +2537,18 @@ async def index(
 
     def get_cohort_order(r):
         grp = str(r[2] if len(r) > 2 else '').lower()
-        if '?????' in grp or 'control' in grp or '#1' in grp or '??????' in grp: return 1
-        if '?????' in grp or '???' in grp or 'osmo' in grp or '#2' in grp: return 2
-        if '?????' in grp or 'drought' in grp or '????????' in grp or '#3' in grp: return 3
-        if '????????' in grp or 'prevent' in grp or '??????' in grp or '??????' in grp or '?????????' in grp or '#4' in grp: return 4
-        if '??????' in grp or 'react' in grp or '????' in grp or '??????' in grp or '??????????' in grp or '#5' in grp: return 5
-        if '??????' in grp or '?????' in grp or '#6' in grp: return 6
+        if 'контр' in grp or 'control' in grp or '#1' in grp or 'эталон' in grp: return 1
+        if 'осмос' in grp or 'сол' in grp or 'osmo' in grp or '#2' in grp: return 2
+        if 'засух' in grp or 'drought' in grp or 'терминал' in grp or '#3' in grp: return 3
+        if 'превенци' in grp or 'prevent' in grp or 'прибор' in grp or 'станци' in grp or 'предиктив' in grp or '#4' in grp: return 4
+        if 'реакци' in grp or 'react' in grp or 'глаз' in grp or 'визуал' in grp or 'органолепт' in grp or '#5' in grp: return 5
+        if 'калибр' in grp or 'стенд' in grp or '#6' in grp: return 6
         return 99
 
     def parse_row_dt(r):
         ts_str = str(r[1] if len(r) > 1 else '')
-        ru_m = {'??????': 1, '???????': 2, '?????': 3, '??????': 4, '???': 5, '????': 6,
-                '????': 7, '???????': 8, '????????': 9, '???????': 10, '??????': 11, '???????': 12}
+        ru_m = {'января': 1, 'февраля': 2, 'марта': 3, 'апреля': 4, 'мая': 5, 'июня': 6,
+                'июля': 7, 'августа': 8, 'сентября': 9, 'октября': 10, 'ноября': 11, 'декабря': 12}
         try:
             p = ts_str.replace(',', '').split()
             day = int(p[0])
@@ -2581,7 +2581,7 @@ async def index(
         sess_sorted = sorted([item[0] for item in sess], key=get_cohort_order)
         ordered_table_rows.extend(sess_sorted)
 
-    # ????? ??? ??? ??????? ??????????? ??????????? ???? ?????? ???? (??? ? Excel)
+    # Карта дат для мягкого визуального чередования фона блоков дней (как в Excel)
     unique_dates = []
     for r in ordered_table_rows:
         ts = r[1] if len(r) > 1 else ''
@@ -2597,29 +2597,29 @@ async def index(
         leaf_area_val = "--"
         if len(r) >= 25:
             m_id, ts, grp = r[0], r[1], r[2]
-            wt = f"{r[3]} ?" if r[3] else "--"
+            wt = f"{r[3]} г" if r[3] else "--"
             if r[4] and r[5]:
-                t_air_str = f'<span style="white-space:nowrap;font-size:11px;color:#334155;">{r[4]}?C <span style="color:#cbd5e1;">?</span> <span style="color:#059669;font-weight:600;">{r[5]}%</span></span>'
+                t_air_str = f'<span style="white-space:nowrap;font-size:11px;color:#334155;">{r[4]}°C <span style="color:#cbd5e1;">·</span> <span style="color:#059669;font-weight:600;">{r[5]}%</span></span>'
             else:
                 t_air_str = '<span style="color:#94a3b8;">--</span>'
             pct = f"{r[7]}%" if r[7] else "--"
-            t_show = f"{r[8]} ?C" if r[8] else "--"
-            delta_str = f"{r[9]}?C" if r[9] else "--"
-            ndvi_txt = f"{r[11]}?{r[12]}" if len(r)>12 else "--"
-            leaf_area_val = f"{r[13]} ???" if r[13] else "--"
+            t_show = f"{r[8]} °C" if r[8] else "--"
+            delta_str = f"{r[9]}°C" if r[9] else "--"
+            ndvi_txt = f"{r[11]}±{r[12]}" if len(r)>12 else "--"
+            leaf_area_val = f"{r[13]} см²" if r[13] else "--"
             th_name = r[15] if len(r)>15 else ""
 
             if r[9]:
                 try:
                     dt_val = float(r[9])
                     if dt_val <= -0.5:
-                        stress_badge = f'<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (?????)</span>'
+                        stress_badge = f'<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Норма)</span>'
                     elif dt_val <= 0.5:
-                        stress_badge = f'<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (???. ??????)</span>'
+                        stress_badge = f'<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Нач. стресс)</span>'
                     elif dt_val <= 1.8:
-                        stress_badge = f'<span style="background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (???? ????????)</span>'
+                        stress_badge = f'<span style="background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ОКНО СПАСЕНИЯ)</span>'
                     else:
-                        stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (????? ??????????)</span>'
+                        stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ТОЧКА НЕВОЗВРАТА)</span>'
                 except Exception:
                     stress_badge = f'<span style="white-space:nowrap;font-weight:600;">{delta_str}</span>'
             else:
@@ -2627,33 +2627,33 @@ async def index(
 
         elif len(r) >= 24:
             m_id, ts, grp = r[0], r[1], r[2]
-            wt = f"{r[3]} ?" if r[3] else "--"
+            wt = f"{r[3]} г" if r[3] else "--"
             if r[4] and r[5]:
-                t_air_str = f'<span style="white-space:nowrap;font-size:11px;color:#334155;">{r[4]}?C <span style="color:#cbd5e1;">?</span> <span style="color:#059669;font-weight:600;">{r[5]}%</span></span>'
+                t_air_str = f'<span style="white-space:nowrap;font-size:11px;color:#334155;">{r[4]}°C <span style="color:#cbd5e1;">·</span> <span style="color:#059669;font-weight:600;">{r[5]}%</span></span>'
             else:
                 t_air_str = '<span style="color:#94a3b8;">--</span>'
             pct = f"{r[7]}%" if r[7] else "--"
-            t_show = f"{r[8]} ?C" if r[8] else "--"
-            delta_str = f"{r[9]}?C" if r[9] else "--"
-            ndvi_txt = f"{r[11]}?{r[12]}" if len(r)>12 else "--"
+            t_show = f"{r[8]} °C" if r[8] else "--"
+            delta_str = f"{r[9]}°C" if r[9] else "--"
+            ndvi_txt = f"{r[11]}±{r[12]}" if len(r)>12 else "--"
             if '.jpg' in r[13] or '.png' in r[13]:
                 leaf_area_val = "--"
                 th_name = r[14] if len(r)>14 else ""
             else:
-                leaf_area_val = f"{r[13]} ???"
+                leaf_area_val = f"{r[13]} см²"
                 th_name = r[15] if len(r)>15 else ""
 
             if r[9]:
                 try:
                     dt_val = float(r[9])
                     if dt_val <= -0.5:
-                        stress_badge = f'<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (?????)</span>'
+                        stress_badge = f'<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Норма)</span>'
                     elif dt_val <= 0.5:
-                        stress_badge = f'<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (???. ??????)</span>'
+                        stress_badge = f'<span style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (Нач. стресс)</span>'
                     elif dt_val <= 1.8:
-                        stress_badge = f'<span style="background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (???? ????????)</span>'
+                        stress_badge = f'<span style="background:#f0fdfa;color:#0f766e;border:1px solid #99f6e4;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ОКНО СПАСЕНИЯ)</span>'
                     else:
-                        stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (????? ??????????)</span>'
+                        stress_badge = f'<span style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:3px 7px;border-radius:4px;font-size:11px;white-space:nowrap;font-weight:600;">{delta_str} (ТОЧКА НЕВОЗВРАТА)</span>'
                 except Exception:
                     stress_badge = f'<span style="white-space:nowrap;font-weight:600;">{delta_str}</span>'
             else:
@@ -2661,12 +2661,12 @@ async def index(
 
         elif len(r) >= 20:
             m_id, ts, grp = r[0], r[1], r[2]
-            wt = f"{r[3]} ?" if r[3] else "--"
+            wt = f"{r[3]} г" if r[3] else "--"
             t_air_str = '<span style="color:#94a3b8;">--</span>'
             pct = f"{r[5]}%" if r[5] else "--"
-            t_show = f"{r[6]} ?C" if r[6] else "--"
+            t_show = f"{r[6]} °C" if r[6] else "--"
             stress_badge = '<span style="color:#94a3b8;">--</span>'
-            ndvi_txt = f"{r[7]}?{r[8]}" if len(r)>8 else "--"
+            ndvi_txt = f"{r[7]}±{r[8]}" if len(r)>8 else "--"
             leaf_area_val = "--"
             th_name = r[10] if len(r)>10 else ""
         else:
@@ -2674,16 +2674,16 @@ async def index(
             wt = "--"
             t_air_str = '<span style="color:#94a3b8;">--</span>'
             pct = f"{r[4]}%" if len(r)>4 else "--"
-            t_show = f"{r[5]} ?C" if len(r)>5 else "--"
+            t_show = f"{r[5]} °C" if len(r)>5 else "--"
             stress_badge = '<span style="color:#94a3b8;">--</span>'
-            ndvi_txt = f"{r[6]}?{r[7]}" if len(r)>7 else "--"
+            ndvi_txt = f"{r[6]}±{r[7]}" if len(r)>7 else "--"
             leaf_area_val = "--"
             th_name = r[9] if len(r)>9 else ""
 
-        # ?????????? ?????? NDVI
+        # Оптический снимок NDVI
         opt_f = r[14] if (len(r) >= 25 and r[14]) else (r[13] if (len(r) == 24 and '.jpg' in r[13]) else '')
         if opt_f and os.path.exists(os.path.join(STATIC_DIR, opt_f)):
-            ndvi_cell = f'<a href="/static/{opt_f}" target="_blank" title="??????? ????? NDVI #{m_id}" style="color:var(--sirius-teal-dark);text-decoration:none;font-weight:600;"><span style="white-space:nowrap;font-family:monospace;font-size:11px;">{ndvi_txt}</span> ??</a>'
+            ndvi_cell = f'<a href="/static/{opt_f}" target="_blank" title="Открыть карту NDVI #{m_id}" style="color:var(--sirius-teal-dark);text-decoration:none;font-weight:600;"><span style="white-space:nowrap;font-family:monospace;font-size:11px;">{ndvi_txt}</span> 🔍</a>'
         else:
             ndvi_cell = f'<span style="white-space:nowrap;font-family:monospace;font-size:11px;color:#334155;">{ndvi_txt}</span>'
 
@@ -2692,11 +2692,11 @@ async def index(
             clean_th = m_th.group(1) if m_th else th_name
             th_file_path = os.path.join(STATIC_DIR, th_name)
             if os.path.exists(th_file_path):
-                th_stat = f'<a href="/static/{th_name}" target="_blank" title="??????? ??????????? #{m_id}" style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;text-decoration:none;">? {clean_th} ??</a>'
+                th_stat = f'<a href="/static/{th_name}" target="_blank" title="Открыть термограмму #{m_id}" style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;text-decoration:none;">✓ {clean_th} 🔍</a>'
             else:
-                th_stat = f'<span style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;">? {clean_th}</span>'
+                th_stat = f'<span style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;">✓ {clean_th}</span>'
         else:
-            th_stat = '<span style="color:#d97706;font-size:11px;white-space:nowrap;font-weight:600;">? ???????</span>'
+            th_stat = '<span style="color:#d97706;font-size:11px;white-space:nowrap;font-weight:600;">⏳ Ожидает</span>'
 
         d_str, t_str = format_ru_date_and_time(ts)
         d_idx = date_idx_map.get(d_str, 0)
@@ -2709,17 +2709,17 @@ async def index(
         time_cell = f'<div style="white-space:nowrap;font-size:11px;font-weight:600;color:#0f172a;">{d_str}</div><div style="font-size:10px;color:#64748b;white-space:nowrap;">{t_str}</div>'
         grp_badge = format_group_badge(grp)
         if t_show != '--' and 'none' not in t_show.lower():
-            t_leaf_html = f'''<span onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="cursor:pointer; color:#d97706; font-weight:bold; white-space:nowrap; padding:2px 5px; border-radius:4px; border-bottom:1.5px dashed #f59e0b; background:#fffbeb;" title="???????, ????? ??????????????? T ????? ?????? #{m_id} ({grp})">{t_show} <span style="font-size:10px;">??</span></span>'''
+            t_leaf_html = f'''<span onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="cursor:pointer; color:#d97706; font-weight:bold; white-space:nowrap; padding:2px 5px; border-radius:4px; border-bottom:1.5px dashed #f59e0b; background:#fffbeb;" title="Нажмите, чтобы скорректировать T листа замера #{m_id} ({grp})">{t_show} <span style="font-size:10px;">✏️</span></span>'''
         else:
-            t_leaf_html = f'''<span onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="cursor:pointer; color:#dc2626; font-weight:bold; white-space:nowrap; padding:2px 6px; border-radius:4px; border:1.5px dashed #ef4444; background:#fef2f2;" title="T ????? ?? ??????????! ???????, ????? ?????????">{t_show} <span style="font-size:10px;">??</span></span>'''
+            t_leaf_html = f'''<span onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="cursor:pointer; color:#dc2626; font-weight:bold; white-space:nowrap; padding:2px 6px; border-radius:4px; border:1.5px dashed #ef4444; background:#fef2f2;" title="T листа не распознана! Нажмите, чтобы исправить">{t_show} <span style="font-size:10px;">✏️</span></span>'''
 
-        del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('??????? ???????????? #{m_id} ({grp})?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="??????? ????? #{m_id}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">?</button></form>'''
-        edit_btn = f'''<button type="button" onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; border-radius:4px; padding:2px 5px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1; margin-right:3px;" title="??????????????? ????? #{m_id} ({grp})" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#e0f2fe';this.style.color='#0369a1';">??</button>'''
+        del_btn = f'''<form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{m_id} ({grp})?');"><input type="hidden" name="meas_id" value="{m_id}"><button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{m_id}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">✕</button></form>'''
+        edit_btn = f'''<button type="button" onclick="openEditModal('{m_id}', '{grp}', '{ts}', '{t_show}', '{wt}', '{pct}')" style="background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; border-radius:4px; padding:2px 5px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1; margin-right:3px;" title="Скорректировать замер #{m_id} ({grp})" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#e0f2fe';this.style.color='#0369a1';">✏️</button>'''
 
         table_html += f'<tr class="{row_cls}"><td><b style="color:#64748b;">#{m_id}</b></td><td>{time_cell}</td><td>{grp_badge}</td><td><b style="color:#0284c7;white-space:nowrap;">{wt}</b></td><td>{t_air_str}</td><td>{t_leaf_html}</td><td>{stress_badge}</td><td>{ndvi_cell}</td><td><b style="color:#047857;white-space:nowrap;font-size:11px;">{leaf_area_val}</b></td><td><span style="white-space:nowrap;font-weight:500;color:#334155;">{pct}</span></td><td>{th_stat}</td><td class="col-actions" style="white-space:nowrap;">{edit_btn}{del_btn}</td></tr>'
 
     if not table_html:
-        table_html = '<tr><td colspan="12" style="text-align:center; padding:35px 20px; color:#64748b; font-size:14px;">?? <b>?????? ??????????????? ??????? ????.</b><br><span style="font-size:12px; color:#94a3b8;">????????? ???????? ????? ?????? 1?5, ????? ?????? ???????? ?????? ?????? ????????????.</span></td></tr>'
+        table_html = '<tr><td colspan="12" style="text-align:center; padding:35px 20px; color:#64748b; font-size:14px;">🌱 <b>Журнал физиологических замеров пуст.</b><br><span style="font-size:12px; color:#94a3b8;">Запустите пакетный замер кассет 1–5, чтобы начать фиксацию данных нового эксперимента.</span></td></tr>'
 
     grid_top_content = f'''
         <div style="display:flex; flex-direction:column; gap:12px;">
@@ -2727,22 +2727,22 @@ async def index(
             {summary_card}
         </div>
         <div class="card" style="display:flex; flex-direction:column; margin:0; justify-content:space-between;">
-            <h2>?? ?????????????????? ??????? ????????????</h2>
+            <h2>🔬 Мультиспектральная матрица исследования</h2>
             <div class="channels" style="flex:1; gap:10px;">
                 <div class="ch-box">
-                    <div style="color:#dc2626; font-size:11px; font-weight:700; margin-bottom:4px;">????? 1: 660 ?? (Deep Red)</div>
+                    <div style="color:#dc2626; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 1: 660 нм (Deep Red)</div>
                     <img src="/static/last_red.jpg?t={t_now}" class="preview-img" style="height:175px;">
                 </div>
                 <div class="ch-box">
-                    <div style="color:#4f46e5; font-size:11px; font-weight:700; margin-bottom:4px;">????? 2: 850 ?? (NIR ????????????)</div>
+                    <div style="color:#4f46e5; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 2: 850 нм (NIR Инфракрасный)</div>
                     <img src="/static/last_nir.jpg?t={t_now}" class="preview-img" style="height:175px;">
                 </div>
                 <div class="ch-box">
-                    <div style="color:#0d9488; font-size:11px; font-weight:700; margin-bottom:4px;">????? 3: ????? NDVI (????? 3?3)</div>
+                    <div style="color:#0d9488; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 3: Карта NDVI (Сетка 3×3)</div>
                     <img src="/static/last_ndvi.jpg?t={t_now}" class="preview-img" style="height:175px;">
                 </div>
                 <div class="ch-box">
-                    <div style="color:#d97706; font-size:11px; font-weight:700; margin-bottom:4px;">????? 4: ??????????? (UNI-T UTi120S)</div>
+                    <div style="color:#d97706; font-size:11px; font-weight:700; margin-bottom:4px;">Канал 4: Термограмма (UNI-T UTi120S)</div>
                     <img src="/static/last_thermal.jpg?t={t_now}" class="preview-img" style="height:175px;">
                 </div>
             </div>
@@ -2751,11 +2751,11 @@ async def index(
     
     main_content = grid_top_content + f'''
     <div class="card" style="margin-top:20px;">
-        <h2>?? ?????? ??????????????? ????????????</h2>
+        <h2>📊 Журнал физиологических исследований</h2>
         <div style="overflow-x:auto;">
             <table>
                 <tr>
-                    <th>ID</th><th>???? ? ?????</th><th>???????</th><th>???(?)</th><th>T ????.</th><th>T ?????</th><th>??????</th><th>NDVI_avg</th><th>???????</th><th>?????</th><th>???????????</th><th>????????</th>
+                    <th>ID</th><th>Дата и Время</th><th>Выборка</th><th>Вес(г)</th><th>T возд.</th><th>T листа</th><th>Статус</th><th>NDVI_avg</th><th>Площадь</th><th>Почва</th><th>Термограмма</th><th>Действия</th>
                 </tr>
                 {table_html}
             </table>
@@ -2789,48 +2789,56 @@ async def index(
     })
 @app.get('/download/pdf')
 def download_pdf():
-    pdf_path = os.path.join(STATIC_DIR, '??????????_??????_???????_??????_????????_?????.pdf')
+    pdf_path = os.path.join(STATIC_DIR, 'Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf')
     if not os.path.exists(pdf_path):
         pdf_path = os.path.join(STATIC_DIR, 'analysis_report.pdf')
     if os.path.exists(pdf_path):
-        return FileResponse(pdf_path, filename='??????????_??????_???????_??????_????????_?????.pdf', media_type='application/pdf')
-    return HTMLResponse('????? ???? ?? ???????????')
+        return FileResponse(pdf_path, filename='Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Отчет пока не сформирован')
 
 @app.get('/download/paper')
 def download_paper():
-    pdf_path = os.path.join(STATIC_DIR, '??????????_??????_???????_??????_????????_?????.pdf')
+    pdf_path = os.path.join(STATIC_DIR, 'Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf')
     if os.path.exists(pdf_path):
-        return FileResponse(pdf_path, filename='??????????_??????_???????_??????_????????_?????.pdf', media_type='application/pdf')
-    return HTMLResponse('???? ?????? ?? ??????')
+        return FileResponse(pdf_path, filename='Конкурсная_работа_Большие_Вызовы_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл работы не найден')
 
 @app.get('/download/research_paper')
 def download_research_paper():
-    pdf_path = os.path.join(STATIC_DIR, '??????_?????????????????_??????_????????_?????.pdf')
+    pdf_path = os.path.join(STATIC_DIR, 'Научно_исследовательская_работа_Ковалева_Алиса.pdf')
     if not os.path.exists(pdf_path):
-        pdf_path = os.path.join(DOCS_DIR, '??????_?????????????????_??????_????????_?????.pdf')
+        pdf_path = os.path.join(DOCS_DIR, 'Научно_исследовательская_работа_Ковалева_Алиса.pdf')
     if os.path.exists(pdf_path):
-        return FileResponse(pdf_path, filename='??????_?????????????????_??????_????????_?????.pdf', media_type='application/pdf')
-    return HTMLResponse('???? ??????-????????????????? ?????? ???? ?? ???????????')
+        return FileResponse(pdf_path, filename='Научно_исследовательская_работа_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл научно-исследовательской статьи пока не сформирован')
 
+@app.get('/download/review_note')
+def download_review_note():
+    pdf_path = os.path.join(STATIC_DIR, 'Краткая_записка_для_рецензирования_Ковалева_Алиса.pdf')
+    if not os.path.exists(pdf_path):
+        pdf_path = os.path.join(DOCS_DIR, 'Краткая_записка_для_рецензирования_Ковалева_Алиса.pdf')
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, filename='Краткая_записка_для_рецензирования_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл записки для рецензирования пока не найден')
 
 @app.get('/download/presentation')
 @app.get('/download/presentation_pdf')
 def download_presentation():
-    pdf_path = os.path.join(STATIC_DIR, '???????????_???????_??????_2026_????????_?????.pdf')
+    pdf_path = os.path.join(STATIC_DIR, 'Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pdf')
     if not os.path.exists(pdf_path):
-        pdf_path = os.path.join(DOCS_DIR, '???????????_???????_??????_2026_????????_?????.pdf')
+        pdf_path = os.path.join(DOCS_DIR, 'Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pdf')
     if os.path.exists(pdf_path):
-        return FileResponse(pdf_path, filename='???????????_???????_??????_2026_????????_?????.pdf', media_type='application/pdf')
-    return HTMLResponse('???? ??????????? ??????? ???? ?? ???????????')
+        return FileResponse(pdf_path, filename='Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pdf', media_type='application/pdf')
+    return HTMLResponse('Файл презентации проекта пока не сформирован')
 
 @app.get('/download/presentation_pptx')
 def download_presentation_pptx():
-    pptx_path = os.path.join(STATIC_DIR, '???????????_???????_??????_2026_????????_?????.pptx')
+    pptx_path = os.path.join(STATIC_DIR, 'Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pptx')
     if not os.path.exists(pptx_path):
-        pptx_path = os.path.join(DOCS_DIR, '???????????_???????_??????_2026_????????_?????.pptx')
+        pptx_path = os.path.join(DOCS_DIR, 'Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pptx')
     if os.path.exists(pptx_path):
-        return FileResponse(pptx_path, filename='???????????_???????_??????_2026_????????_?????.pptx', media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
-    return HTMLResponse('???? PPTX ??????????? ???? ?? ???????????')
+        return FileResponse(pptx_path, filename='Презентация_Большие_Вызовы_2026_Ковалева_Алиса.pptx', media_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+    return HTMLResponse('Файл PPTX презентации пока не сформирован')
 @app.get('/download/aruco_pdf')
 def download_aruco_pdf():
     pdf_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.pdf')
@@ -2839,11 +2847,11 @@ def download_aruco_pdf():
     html_path = os.path.join(STATIC_DIR, 'aruco_markers_sheet.html')
     if os.path.exists(html_path):
         return FileResponse(html_path, filename='aruco_markers_cassettes.html', media_type='text/html')
-    return HTMLResponse('???? ???????? ?? ??????')
+    return HTMLResponse('Лист маркеров не найден')
 
 @app.post('/api/experiment/switch')
 async def handle_experiment_switch(request: Request):
-    """???????????? ???????? ????? ??????."""
+    """Переключение активной серии опытов."""
     form = await request.form()
     exp_id = form.get('exp_id', '').strip()
     if exp_id:
@@ -2853,7 +2861,7 @@ async def handle_experiment_switch(request: Request):
 
 @app.post('/api/experiment/create')
 async def handle_experiment_create(request: Request):
-    """???????? ????? ????? ?????? ? ?? ?????????."""
+    """Создание новой серии опытов и её активация."""
     form = await request.form()
     name = form.get('name', '').strip()
     plant = form.get('plant', '').strip()
@@ -2865,7 +2873,7 @@ async def handle_experiment_create(request: Request):
 
 @app.get('/download/experiment_zip')
 def download_experiment_zip():
-    """?????????? ??????? ?????? ???????? ????? ?????? (CSV + ??????)."""
+    """Скачивание полного архива активной серии опытов (CSV + снимки)."""
     exp_mgr = get_experiment_manager(DATA_DIR)
     active_exp = exp_mgr.get_active_experiment()
     exp_id = active_exp.get('id', 'exp_1')
@@ -2874,22 +2882,22 @@ def download_experiment_zip():
     exp_mgr.generate_zip(exp_id, out_zip)
     if os.path.exists(out_zip):
         return FileResponse(out_zip, filename=f"{exp_name}_export.zip", media_type='application/zip')
-    return HTMLResponse('?????? ???????????? ?????? ?????')
+    return HTMLResponse('Ошибка формирования архива серии')
 
 @app.get('/download/csv')
 def download_active_csv():
-    """?????????? CSV ??????? ???????? ????? ??????."""
+    """Скачивание CSV журнала активной серии опытов."""
     exp_mgr = get_experiment_manager(DATA_DIR)
     active_csv = exp_mgr.get_active_csv_path()
     active_exp = exp_mgr.get_active_experiment()
     exp_name = active_exp.get('name', 'measurements').replace(' ', '_')
     if os.path.exists(active_csv):
         return FileResponse(active_csv, filename=f"{exp_name}.csv", media_type='text/csv')
-    return HTMLResponse('???? CSV ?? ??????')
+    return HTMLResponse('Файл CSV не найден')
 
 @app.get('/download/images_zip')
 def download_images_zip():
-    """?????????? ?????? ??????? ???????? ?????."""
+    """Скачивание архива снимков активной серии."""
     exp_mgr = get_experiment_manager(DATA_DIR)
     active_exp = exp_mgr.get_active_experiment()
     exp_id = active_exp.get('id', 'exp_1')
@@ -2897,10 +2905,9 @@ def download_images_zip():
     exp_mgr.generate_zip(exp_id, out_zip)
     if os.path.exists(out_zip):
         return FileResponse(out_zip, filename=f"images_{exp_id}.zip", media_type='application/zip')
-    return HTMLResponse('????? ??????? ?? ??????')
+    return HTMLResponse('Архив снимков не найден')
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=8000)
-
