@@ -87,3 +87,4 @@ archive_*/
 scratch/
 scripts/scratch/
 
+!tests/test_*.py
