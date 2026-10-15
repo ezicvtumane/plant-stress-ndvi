@@ -126,6 +126,78 @@ class ExperimentStatistics:
 
         return p_val_d_ndvi, p_val_d_dt, p_val_s_ndvi, p_val_s_dt
 
+
+    def compute_one_way_anova(self, day: int = 4) -> dict:
+        """
+        Computes One-Way ANOVA across Control, Drought, and Salinity groups (n=10 per group, total n=30)
+        for Delta_T, NDVI, and Soil Moisture on a specified day.
+        Returns dictionary with F-statistics, p-values, and group means/stds.
+        """
+        if self.df is None:
+            self.load_or_generate_dataset()
+
+        d_slice = self.df[self.df["day"] == day]
+        ctrl = d_slice[d_slice["group"] == "Control"]
+        drought = d_slice[d_slice["group"] == "Drought"]
+        salt = d_slice[d_slice["group"] == "Salinity"]
+
+        f_dt, p_dt = stats.f_oneway(ctrl["delta_t_celsius"], drought["delta_t_celsius"], salt["delta_t_celsius"])
+        f_ndvi, p_ndvi = stats.f_oneway(ctrl["ndvi_mean"], drought["ndvi_mean"], salt["ndvi_mean"])
+        f_sm, p_sm = stats.f_oneway(ctrl["soil_moisture_a0_pct"], drought["soil_moisture_a0_pct"], salt["soil_moisture_a0_pct"])
+
+        # Pairwise Tukey HSD for Delta_T and NDVI
+        tukey_dt = stats.tukey_hsd(ctrl["delta_t_celsius"], drought["delta_t_celsius"], salt["delta_t_celsius"])
+        tukey_ndvi = stats.tukey_hsd(ctrl["ndvi_mean"], drought["ndvi_mean"], salt["ndvi_mean"])
+
+        res = {
+            "day": day,
+            "f_dt": float(f_dt), "p_dt": float(p_dt),
+            "f_ndvi": float(f_ndvi), "p_ndvi": float(p_ndvi),
+            "f_sm": float(f_sm), "p_sm": float(p_sm),
+            "tukey_dt": tukey_dt,
+            "tukey_ndvi": tukey_ndvi,
+            "means": {
+                "ctrl_dt": float(ctrl["delta_t_celsius"].mean()), "ctrl_dt_std": float(ctrl["delta_t_celsius"].std()),
+                "dr_dt": float(drought["delta_t_celsius"].mean()), "dr_dt_std": float(drought["delta_t_celsius"].std()),
+                "salt_dt": float(salt["delta_t_celsius"].mean()), "salt_dt_std": float(salt["delta_t_celsius"].std()),
+                "ctrl_ndvi": float(ctrl["ndvi_mean"].mean()), "ctrl_ndvi_std": float(ctrl["ndvi_mean"].std()),
+                "dr_ndvi": float(drought["ndvi_mean"].mean()), "dr_ndvi_std": float(drought["ndvi_mean"].std()),
+                "salt_ndvi": float(salt["ndvi_mean"].mean()), "salt_ndvi_std": float(salt["ndvi_mean"].std()),
+                "ctrl_sm": float(ctrl["soil_moisture_a0_pct"].mean()), "ctrl_sm_std": float(ctrl["soil_moisture_a0_pct"].std()),
+                "dr_sm": float(drought["soil_moisture_a0_pct"].mean()), "dr_sm_std": float(drought["soil_moisture_a0_pct"].std()),
+                "salt_sm": float(salt["soil_moisture_a0_pct"].mean()), "salt_sm_std": float(salt["soil_moisture_a0_pct"].std()),
+            }
+        }
+        logger.info("ANOVA Day %d: Delta_T F=%.1f (p=%.2e), NDVI F=%.1f (p=%.2e)", day, f_dt, p_dt, f_ndvi, p_ndvi)
+        return res
+
+    def compute_full_7days_anova(self) -> pd.DataFrame:
+        """
+        Runs One-Way ANOVA for all 7 days of the biological experiment.
+        Returns a structured DataFrame suitable for publication / reporting.
+        """
+        if self.df is None:
+            self.load_or_generate_dataset()
+
+        rows = []
+        for day in sorted(self.df["day"].unique()):
+            res = self.compute_one_way_anova(day=int(day))
+            m = res["means"]
+            rows.append({
+                "Day": day,
+                "Control_DeltaT": f"{m['ctrl_dt']:+.2f} ± {m['ctrl_dt_std']:.2f}",
+                "Drought_DeltaT": f"{m['dr_dt']:+.2f} ± {m['dr_dt_std']:.2f}",
+                "Salinity_DeltaT": f"{m['salt_dt']:+.2f} ± {m['salt_dt_std']:.2f}",
+                "F_DeltaT": f"{res['f_dt']:.1f}",
+                "p_DeltaT": "< 0.001***" if res["p_dt"] < 0.001 else f"{res['p_dt']:.4f}",
+                "Control_NDVI": f"{m['ctrl_ndvi']:.3f} ± {m['ctrl_ndvi_std']:.3f}",
+                "Drought_NDVI": f"{m['dr_ndvi']:.3f} ± {m['dr_ndvi_std']:.3f}",
+                "Salinity_NDVI": f"{m['salt_ndvi']:.3f} ± {m['salt_ndvi_std']:.3f}",
+                "F_NDVI": f"{res['f_ndvi']:.1f}",
+                "p_NDVI": "< 0.001***" if res["p_ndvi"] < 0.001 else f"{res['p_ndvi']:.4f}",
+            })
+        return pd.DataFrame(rows)
+
     def plot_time_series_with_confidence_intervals(self, output_file: Optional[str] = None):
         """
         Plots NDVI, Delta_T, and Soil Moisture dynamics with 95% Confidence Intervals (Error Bars).
