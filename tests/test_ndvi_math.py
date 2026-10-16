@@ -11,19 +11,19 @@ from src.sensors_ads1115 import SoilMoistureReader
 from src.statistical_analysis import ExperimentStatistics
 
 def test_soil_moisture_two_point_calibration():
-    """Verify linear interpolation between V_DRY (3.00V) and V_WET (1.20V)."""
-    reader = SoilMoistureReader()  # Defaults to 3.00V and 1.20V
+    """Verify linear interpolation between V_DRY (2.03V) and V_WET (0.44V)."""
+    reader = SoilMoistureReader()  # Defaults to config 2.03V and 0.44V
     
     # Boundary conditions
-    assert reader.voltage_to_percentage(3.00) == pytest.approx(0.0, abs=1e-2)
-    assert reader.voltage_to_percentage(1.20) == pytest.approx(100.0, abs=1e-2)
+    assert reader.voltage_to_percentage(2.03) == pytest.approx(0.0, abs=1e-2)
+    assert reader.voltage_to_percentage(0.44) == pytest.approx(100.0, abs=1e-2)
     
-    # Midpoint (2.10 V -> 50%)
-    assert reader.voltage_to_percentage(2.10) == pytest.approx(50.0, abs=0.5)
+    # Midpoint (1.235 V -> 50%)
+    assert reader.voltage_to_percentage(1.235) == pytest.approx(50.0, abs=0.5)
 
-    # Clamping checks
-    assert reader.voltage_to_percentage(3.20) == 0.0
-    assert reader.voltage_to_percentage(1.00) == 100.0
+    # Clamping and grounded checks
+    assert reader.voltage_to_percentage(2.50) == 0.0
+    assert reader.voltage_to_percentage(0.10) == 0.0  # Grounded pin returns 0.0%
 
 def test_k_factor_gray_card_calibration():
     """Verify that k = Red / NIR on 18% gray card with background subtraction."""
