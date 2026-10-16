@@ -97,8 +97,8 @@ def run_measurement(sample_id: str, group_name: str, k_factor: float = config.DE
             "heatmap_file": heatmap_path.name
         }
 
-        # Append to master ledger CSV
-        ledger_path = config.DATA_DIR / "measurements_ledger.csv"
+        # Append to pipeline log CSV
+        ledger_path = config.DATA_DIR / "measurements_pipeline.csv"
         df_new = pd.DataFrame([record])
         if ledger_path.exists():
             df_new.to_csv(ledger_path, mode="a", header=False, index=False)

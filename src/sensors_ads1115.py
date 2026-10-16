@@ -11,11 +11,11 @@ from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Calibration defaults for Capacitive Soil Moisture Sensor v1.2
-# Air / dry substrate: ~2.03 V (0.0% ПВ)
-# Submerged in water / soaked substrate: ~0.44 V (100.0% ПВ)
-V_DRY_DEFAULT = 2.03
-V_WET_DEFAULT = 0.44
+# Calibration defaults for Capacitive Soil Moisture Sensor v1.2 (Peat Substrate)
+# Air / dry substrate: ~3.00 V (0.0% ПВ)
+# Saturated peat substrate: ~1.20 V (100.0% ПВ)
+V_DRY_DEFAULT = 3.00
+V_WET_DEFAULT = 1.20
 _LAST_VALID_SOIL = None
 
 
