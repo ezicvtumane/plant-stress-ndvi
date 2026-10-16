@@ -33,37 +33,20 @@ def generate_triptych(
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / output_filename
 
-    # Load or generate mock panels
-    def load_or_mock(path, default_color):
+    # Load panels from files
+    def load_panel(path, label):
         if path and Path(path).exists():
             img = cv2.imread(str(path))
-            return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # Create aesthetic mock image
-        canvas = np.zeros((480, 640, 3), dtype=np.uint8)
-        if default_color == "green":
-            # Realistic green plant
-            cv2.ellipse(canvas, (320, 240), (140, 190), 20, 0, 360, (34, 139, 34), -1)
-            cv2.ellipse(canvas, (240, 280), (90, 130), -35, 0, 360, (46, 170, 46), -1)
-        elif default_color == "jet":
-            # NDVI heatmap showing stress (yellow / green instead of dark red)
-            dummy = np.zeros((480, 640), dtype=np.uint8)
-            cv2.ellipse(dummy, (320, 240), (140, 190), 20, 0, 360, 150, -1)
-            cv2.ellipse(dummy, (240, 280), (90, 130), -35, 0, 360, 120, -1)
-            jet = cv2.applyColorMap(dummy, cv2.COLORMAP_JET)
-            jet[dummy == 0] = [0, 0, 0]
-            canvas = cv2.cvtColor(jet, cv2.COLOR_BGR2RGB)
-        elif default_color == "thermal":
-            # Thermal image with warm leaf (24 °C)
-            dummy = np.full((480, 640), 100, dtype=np.uint8)  # Air ~ 21 C
-            cv2.ellipse(dummy, (320, 240), (140, 190), 20, 0, 360, 190, -1) # Leaf ~ 24 C
-            cv2.ellipse(dummy, (240, 280), (90, 130), -35, 0, 360, 185, -1)
-            therm = cv2.applyColorMap(dummy, cv2.COLORMAP_INFERNO)
-            canvas = cv2.cvtColor(therm, cv2.COLOR_BGR2RGB)
+            if img is not None:
+                return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        canvas = np.full((480, 640, 3), 35, dtype=np.uint8)
+        cv2.putText(canvas, f"File not found: {label}", (40, 240),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 200), 1, cv2.LINE_AA)
         return canvas
 
-    img_rgb = load_or_mock(rgb_path, "green")
-    img_ndvi = load_or_mock(ndvi_heatmap_path, "jet")
-    img_therm = load_or_mock(thermal_path, "thermal")
+    img_rgb = load_panel(rgb_path, "RGB")
+    img_ndvi = load_panel(ndvi_heatmap_path, "NDVI Heatmap")
+    img_therm = load_panel(thermal_path, "Thermal UTi120S")
 
     fig, axes = plt.subplots(1, 3, figsize=(16, 6))
 

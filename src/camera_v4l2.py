@@ -60,8 +60,7 @@ class CameraV4L2:
         to guarantee instant optical response.
         """
         if not self.is_connected or self.cap is None:
-            # Return synthetic test frame (720x1280)
-            return self._generate_mock_frame()
+            raise RuntimeError(f"V4L2 camera {self.camera_idx} is not connected or initialized.")
 
         # Flush buffer
         for _ in range(flush_frames):
@@ -69,20 +68,9 @@ class CameraV4L2:
 
         ret, frame = self.cap.read()
         if not ret or frame is None:
-            logger.error("Failed to read frame from camera.")
-            return self._generate_mock_frame()
+            raise RuntimeError(f"Failed to read valid frame from camera device {self.camera_idx}.")
 
         return frame
-
-    def _generate_mock_frame(self) -> np.ndarray:
-        """Generates realistic synthetic 3-channel leaf frame for dry-run testing."""
-        h, w = config.CAMERA_HEIGHT, config.CAMERA_WIDTH
-        # 3-channel BGR background
-        mock = np.full((h, w, 3), 10, dtype=np.uint8)
-        # Draw mock leaf in center
-        cv2.ellipse(mock, (w // 2, h // 2), (180, 260), 30, 0, 360, (30, 180, 40), -1)
-        cv2.ellipse(mock, (w // 2 - 80, h // 2 + 50), (120, 180), -45, 0, 360, (25, 160, 35), -1)
-        return mock
 
     def release(self):
         """Releases the camera device."""

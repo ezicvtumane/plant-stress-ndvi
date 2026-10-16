@@ -348,41 +348,6 @@ def get_next_id() -> int:
         _f.write(str(next_id))
     return next_id
 
-def _read_moisture_i2c_sync():
-    import smbus2
-    with smbus2.SMBus(0) as bus:
-        bus.write_i2c_block_data(0x48, 0x01, [0xC3, 0x83])
-        time.sleep(0.04)
-        return bus.read_i2c_block_data(0x48, 0x00, 2)
-
-def read_moisture_mock(group_name: str = ''):
-    """Чтение АЦП ADS1115 через выделенный I2C-пул."""
-    try:
-        c = i2c_executor.submit(_read_moisture_i2c_sync).result()
-        raw = (c[0] << 8) | c[1]
-        if raw > 32767:
-            raw -= 65536
-        v = float(raw * 0.000125)
-        # Расчет влажности субстрата (% ПВ)
-        pct = max(0.0, min(100.0, (2.03 - v) / (2.03 - 0.57) * 100.0))
-        return round(v, 3), round(pct, 1)
-    except Exception as e:
-        gn = group_name.lower() if group_name else ''
-        if 'засух' in gn or 'drought' in gn:
-            v_base, pct_base = 2.45, 30.5
-        elif 'поздн' in gn or 'late' in gn:
-            v_base, pct_base = 2.41, 32.8
-        elif 'соль' in gn or 'nacl' in gn or 'salin' in gn:
-            v_base, pct_base = 1.62, 76.5
-        elif 'ранн' in gn or 'early' in gn:
-            v_base, pct_base = 1.78, 67.8
-        else:
-            v_base, pct_base = 1.85, 63.9
-        jitter = round(float(np.random.uniform(-0.6, 0.6)), 1)
-        pct_final = round(max(0.0, min(100.0, pct_base + jitter)), 1)
-        v_final = round(3.0 - (pct_final / 100.0) * 1.8, 2)
-        return v_final, pct_final
-
 def extract_temperature_from_thermal(img_path: str):
     """
     OCR-распознавание температуры центральной точки из термограммы UTi120S.
