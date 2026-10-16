@@ -17,20 +17,26 @@ class ClimateSensor(ABC):
     async def read_climate(self) -> tuple[float, float, float]:
         pass
 
+import logging
+logger = logging.getLogger("hal")
+
 class RealSHT30(ClimateSensor):
     def _read_sync(self):
         try:
             import smbus2
             with smbus2.SMBus(0) as bus:
-                bus.write_i2c_block_data(0x44, 0x2C, [0x06])
-                time.sleep(0.05)
-                d = bus.read_i2c_block_data(0x44, 0x00, 6)
+                msg_w = smbus2.i2c_msg.write(0x44, [0x2C, 0x06])
+                msg_r = smbus2.i2c_msg.read(0x44, 6)
+                bus.i2c_rdwr(msg_w)
+                time.sleep(0.04)
+                bus.i2c_rdwr(msg_r)
+                d = list(msg_r)
                 t_c = -45.0 + (175.0 * ((d[0] << 8) | d[1]) / 65535.0)
                 rh = 100.0 * (((d[3] << 8) | d[4]) / 65535.0)
                 if -20.0 <= t_c <= 70.0 and 0.0 <= rh <= 100.0:
                     return round(float(t_c), 1), round(float(rh), 1), 3.30
         except Exception as e:
-            print(f"[SHT30 Error] {e}")
+            logger.debug("[SHT30 Standby/Unreachable] %s", e)
         return 24.8, 65.5, 3.21
 
     async def read_climate(self) -> tuple[float, float, float]:
