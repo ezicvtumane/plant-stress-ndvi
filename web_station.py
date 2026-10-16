@@ -113,11 +113,13 @@ def get_agronomic_ndvi_lut() -> np.ndarray:
 AGRONOMIC_NDVI_LUT = get_agronomic_ndvi_lut()
 
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
+DOCS_DIR = os.path.join(BASE_DIR, 'docs')
 TH_CACHE_DIR = os.path.join(STATIC_DIR, 'uti_cache')
 UTI_DIR = '/media/uti120s/Images'
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
+os.makedirs(DOCS_DIR, exist_ok=True)
 os.makedirs(TH_CACHE_DIR, exist_ok=True)
 
 CSV_LOG = os.path.join(DATA_DIR, 'measurements.csv')
@@ -347,41 +349,6 @@ def get_next_id() -> int:
     with open(counter_path, 'w') as _f:
         _f.write(str(next_id))
     return next_id
-
-def _read_moisture_i2c_sync():
-    import smbus2
-    with smbus2.SMBus(0) as bus:
-        bus.write_i2c_block_data(0x48, 0x01, [0xC3, 0x83])
-        time.sleep(0.04)
-        return bus.read_i2c_block_data(0x48, 0x00, 2)
-
-def read_moisture_mock(group_name: str = ''):
-    """Чтение АЦП ADS1115 через выделенный I2C-пул."""
-    try:
-        c = i2c_executor.submit(_read_moisture_i2c_sync).result()
-        raw = (c[0] << 8) | c[1]
-        if raw > 32767:
-            raw -= 65536
-        v = float(raw * 0.000125)
-        # Расчет влажности субстрата (% ПВ)
-        pct = max(0.0, min(100.0, (2.03 - v) / (2.03 - 0.57) * 100.0))
-        return round(v, 3), round(pct, 1)
-    except Exception as e:
-        gn = group_name.lower() if group_name else ''
-        if 'засух' in gn or 'drought' in gn:
-            v_base, pct_base = 2.45, 30.5
-        elif 'поздн' in gn or 'late' in gn:
-            v_base, pct_base = 2.41, 32.8
-        elif 'соль' in gn or 'nacl' in gn or 'salin' in gn:
-            v_base, pct_base = 1.62, 76.5
-        elif 'ранн' in gn or 'early' in gn:
-            v_base, pct_base = 1.78, 67.8
-        else:
-            v_base, pct_base = 1.85, 63.9
-        jitter = round(float(np.random.uniform(-0.6, 0.6)), 1)
-        pct_final = round(max(0.0, min(100.0, pct_base + jitter)), 1)
-        v_final = round(3.0 - (pct_final / 100.0) * 1.8, 2)
-        return v_final, pct_final
 
 def extract_temperature_from_thermal(img_path: str):
     """
@@ -2382,11 +2349,11 @@ async def index(
                     <form action="/api/start_spectral" method="post" style="margin-top:8px;">
                         <select name="group_name" style="margin-bottom:6px; font-size:12px;">
                             <option value="Контроль">Кассета 1: Контроль (Оптимум 100% ПВ)</option>
-                            <option value="Засоление (NaCl)">Кассета 2: Засоление (NaCl 100 мМ, изолятор)</option>
-                            <option value="Превентивная регидратация">Кассета 3: Превентивная регидратация (ранний полив по ΔT)</option>
-                            <option value="Традиционный визуальный контроль">Кассета 4: Традиционный визуальный контроль (потеря тургора)</option>
-                            <option value="Терминальная засуха">Кассета 5: Терминальная засуха (контроль гибели)</option>
-                            <option value="Калибровка (Стенд №0)">Кассета 6: Калибровочный стенд (Стенд №0, посев 22.09)</option>
+                            <option value="Осмос">Кассета 2: Осмос (100 мМ NaCl, изолятор)</option>
+                            <option value="Засуха">Кассета 3: Засуха (Контроль гибели, 96+ ч)</option>
+                            <option value="Превенция">Кассета 4: Превенция (Ранний полив по ΔT > +0.8°C)</option>
+                            <option value="Реакция">Кассета 5: Реакция (Традиционный визуальный контроль)</option>
+                            <option value="Калибровка (Стенд №0)">Стенд №0: Калибровка (Юстировка оптики, посев 22.09)</option>
                         </select>
                         <button type="submit" class="btn-run" style="padding:8px; font-size:12px; margin-top:0;">
                             Снять выбранную кассету в боксе
