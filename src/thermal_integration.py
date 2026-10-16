@@ -5,16 +5,18 @@ Project: Plant Stress Active Phenotyping System
 """
 
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
+from pathlib import Path
 import cv2
 import numpy as np
 from src import config
 
 logger = logging.getLogger(__name__)
 
+
 class ThermalAnalyzer:
     """
-    Analyzes thermograms from UNI-T UTi120S (NETD < 0.06 °C, e = 0.98).
+    Analyzes thermograms and thermal metrics from UNI-T UTi120S (NETD < 0.06 °C, e = 0.98).
     Calculates:
       1. Leaf-to-air temperature differential: Delta_T = T_leaf - T_air
       2. Crop Water Stress Index (CWSI):
@@ -23,6 +25,7 @@ class ThermalAnalyzer:
          - CWSI ~ 0.0: Fully open stomata, optimal transpiration.
          - CWSI ~ 1.0: Complete stomatal closure, acute stress.
     """
+
     def __init__(self, emissivity: float = config.LEAF_EMISSIVITY):
         self.emissivity = emissivity
 
@@ -48,36 +51,18 @@ class ThermalAnalyzer:
         raw_cwsi = (t_leaf - tw) / (td - tw)
         return float(np.clip(raw_cwsi, 0.0, 1.0))
 
-    def parse_thermal_frame(
+    def analyze_thermal_data(
         self,
-        thermal_image_path: str,
-        leaf_roi: Optional[Tuple[int, int, int, int]] = None,
-        air_roi: Optional[Tuple[int, int, int, int]] = None,
-        manual_t_air: Optional[float] = None,
-        manual_t_wet: Optional[float] = None,
-        manual_t_dry: Optional[float] = None
-    ) -> Dict[str, float]:
+        t_leaf: float,
+        t_air: float,
+        t_wet: Optional[float] = None,
+        t_dry: Optional[float] = None
+    ) -> Dict[str, Any]:
         """
-        Extracts thermal readings and computes both Delta_T and CWSI.
+        Computes Delta_T and CWSI from calibrated radiometer readings and SHT30 air metrics.
         """
-        img = cv2.imread(thermal_image_path)
-        if img is None:
-            raise FileNotFoundError(f"Thermal image not found or unreadable: {thermal_image_path}")
-        
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        if leaf_roi:
-            x, y, w, h = leaf_roi
-            leaf_sub = gray[y:y+h, x:x+w]
-        else:
-            leaf_sub = gray
-
-        # Map pixel intensity [0, 255] to realistic temperature span [15.0, 35.0 C]
-        t_min, t_max = 15.0, 35.0
-        t_leaf = float(np.mean(leaf_sub) / 255.0 * (t_max - t_min) + t_min)
-        t_air = manual_t_air if manual_t_air is not None else 22.5
-
         delta_t = t_leaf - t_air
-        cwsi = self.compute_cwsi(t_leaf, t_air, manual_t_wet, manual_t_dry)
+        cwsi = self.compute_cwsi(t_leaf, t_air, t_wet, t_dry)
         is_transpiration_depressed = cwsi >= 0.45 or delta_t >= -0.5
 
         return {
@@ -88,3 +73,34 @@ class ThermalAnalyzer:
             "transpiration_depressed": is_transpiration_depressed,
             "emissivity": self.emissivity
         }
+
+    def parse_thermal_frame(
+        self,
+        thermal_image_path: str,
+        t_leaf: Optional[float] = None,
+        t_air: Optional[float] = None,
+        manual_t_wet: Optional[float] = None,
+        manual_t_dry: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Validates thermal image file existence and integrity, and computes
+        stomatic and CWSI indices using calibrated thermal telemetry.
+        """
+        path = Path(thermal_image_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Thermal image not found: {thermal_image_path}")
+
+        img = cv2.imread(str(path))
+        if img is None:
+            raise ValueError(f"Thermal image unreadable: {thermal_image_path}")
+
+        if t_leaf is None or t_air is None:
+            raise ValueError(
+                "Calibrated radiometric T_leaf and ambient T_air must be provided "
+                "from station telemetry / UTi120S spot readings. Raw pixel intensity "
+                "cannot be used for uncalibrated thermal inference."
+            )
+
+        res = self.analyze_thermal_data(t_leaf, t_air, manual_t_wet, manual_t_dry)
+        res["frame_shape"] = img.shape[:2]
+        return res
