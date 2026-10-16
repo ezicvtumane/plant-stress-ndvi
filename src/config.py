@@ -52,10 +52,10 @@ THERMAL_COLORMAP = "COLORMAP_INFERNO" # High-contrast palette for infrared therm
 
 # Soil Moisture Sensor Calibration (ADS1115 v1.2 Capacitive Sensor)
 # Calibrated for peat substrate in standard seedling cassettes:
-# V_DRY = ~2.03 V (air / dry peat substrate, 0.0% ПВ)
-# V_WET = ~0.44 V (water / fully saturated substrate, 100.0% ПВ)
-V_DRY = 2.03
-V_WET = 0.44
+# V_DRY = ~2.072 V (air / dry peat substrate, 0.0% ПВ)
+# V_WET = ~1.857 V (water / fully saturated substrate, 100.0% ПВ)
+V_DRY = 2.072
+V_WET = 1.857
 ADS1115_I2C_ADDRESS = 0x48
 ADS1115_I2C_BUS = 0  # /dev/i2c-0 (sun60i-a733-i2c0 overlay)
 
