@@ -62,21 +62,19 @@ class ThermalAnalyzer:
         """
         img = cv2.imread(thermal_image_path)
         if img is None:
-            logger.warning("Could not load thermal image %s. Generating mock data.", thermal_image_path)
-            t_leaf = 23.8
-            t_air = 22.0
+            raise FileNotFoundError(f"Thermal image not found or unreadable: {thermal_image_path}")
+        
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if leaf_roi:
+            x, y, w, h = leaf_roi
+            leaf_sub = gray[y:y+h, x:x+w]
         else:
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            if leaf_roi:
-                x, y, w, h = leaf_roi
-                leaf_sub = gray[y:y+h, x:x+w]
-            else:
-                leaf_sub = gray
+            leaf_sub = gray
 
-            # Map pixel intensity [0, 255] to realistic temperature span [15.0, 35.0 C]
-            t_min, t_max = 15.0, 35.0
-            t_leaf = float(np.mean(leaf_sub) / 255.0 * (t_max - t_min) + t_min)
-            t_air = manual_t_air if manual_t_air is not None else 22.5
+        # Map pixel intensity [0, 255] to realistic temperature span [15.0, 35.0 C]
+        t_min, t_max = 15.0, 35.0
+        t_leaf = float(np.mean(leaf_sub) / 255.0 * (t_max - t_min) + t_min)
+        t_air = manual_t_air if manual_t_air is not None else 22.5
 
         delta_t = t_leaf - t_air
         cwsi = self.compute_cwsi(t_leaf, t_air, manual_t_wet, manual_t_dry)

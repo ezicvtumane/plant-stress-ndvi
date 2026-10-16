@@ -16,8 +16,7 @@ logger = logging.getLogger(__name__)
 # Submerged in water / soaked substrate: ~0.44 V (100.0% ПВ)
 V_DRY_DEFAULT = 2.03
 V_WET_DEFAULT = 0.44
-
-_LAST_VALID_SOIL = (1.85, 64.0)
+_LAST_VALID_SOIL = None
 
 
 def recover_i2c_bus():
@@ -116,11 +115,10 @@ class SoilMoistureReader:
                     bus.close()
                 except Exception:
                     pass
-            recover_i2c_bus()
-            # Simulation fallback for development / testing environments
+            # Sensor offline / disconnected fallback
             for ch_name in self.channels_map.keys():
                 ch_num = ch_name.replace('A', '')
-                res[ch_name] = {'voltage_V': 1.85, 'moisture_percent': 64.0}
+                res[ch_name] = {'voltage_V': 0.0, 'moisture_percent': 0.0}
                 res[f'channel_{ch_num}'] = res[ch_name]
 
         return res
@@ -169,8 +167,8 @@ class SoilMoistureReader:
                     _LAST_VALID_SOIL = (v, c.get('moisture_percent', 0.0))
                     return _LAST_VALID_SOIL
 
-        # If all channels read ~0V or fail, return last valid reading to prevent data corruption
-        return _LAST_VALID_SOIL
+        # If all channels read ~0V or fail, return None to indicate no active sensor
+        return (None, None)
 
     def read_for_group(self, group_name: str) -> Tuple[float, float]:
         """Backward-compatible wrapper for get_active_moisture."""
