@@ -46,6 +46,12 @@ DELTA_T_OPTIMUM_MAX = 0.0    # Normal transpiration: leaf is cooler than air (De
 DELTA_T_ALERT_THRESHOLD = 0.8 # Early alert threshold: Delta_T >= +0.8 C (stomata closing)
 CWSI_ALERT_THRESHOLD = 0.5   # Empirical Crop Water Stress Index alert
 
+# Empirical Idso NWSB (Non-Water-Stressed Baseline) parameters for Pisum sativum (Stand #0)
+# Delta_T_wet = IDSO_NWSB_INTERCEPT - IDSO_NWSB_SLOPE * VPD
+IDSO_NWSB_INTERCEPT = 0.24
+IDSO_NWSB_SLOPE = 1.20
+IDSO_DELTA_T_DRY = 1.50  # Calibrated via Oleum Vaselini stomatal block on Stand #0
+
 # Thermal & NDVI False-Color Palettes
 NDVI_COLORMAP = "COLORMAP_JET"      # Standard OpenCV palette for NDVI thermal representation
 THERMAL_COLORMAP = "COLORMAP_INFERNO" # High-contrast palette for infrared thermography

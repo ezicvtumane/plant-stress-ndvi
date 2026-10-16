@@ -34,16 +34,30 @@ class ThermalAnalyzer:
         t_leaf: float,
         t_air: float,
         t_wet: Optional[float] = None,
-        t_dry: Optional[float] = None
+        t_dry: Optional[float] = None,
+        vpd: Optional[float] = None
     ) -> float:
         """
         Calculates normalized Crop Water Stress Index (CWSI in [0.0, 1.0]).
         If reference targets are not measured directly:
-          T_wet = T_air - 3.2 °C (maximum evaporative cooling baseline)
-          T_dry = T_air + 2.0 °C (non-transpiring boundary layer baseline)
+          - If VPD is available: dynamic Idso NWSB baseline calibrated on Stand #0:
+            Delta_T_wet = IDSO_NWSB_INTERCEPT - IDSO_NWSB_SLOPE * VPD
+            T_wet = T_air + Delta_T_wet
+          - Otherwise: T_wet = T_air - 3.2 °C (standard fallback baseline)
+          - T_dry = T_air + IDSO_DELTA_T_DRY (+1.50 °C from Oleum Vaselini stomatal block)
         """
-        tw = t_wet if t_wet is not None else (t_air - 3.2)
-        td = t_dry if t_dry is not None else (t_air + 2.0)
+        if t_wet is not None:
+            tw = t_wet
+        elif vpd is not None:
+            delta_t_wet = config.IDSO_NWSB_INTERCEPT - config.IDSO_NWSB_SLOPE * vpd
+            tw = t_air + delta_t_wet
+        else:
+            tw = t_air - 3.2
+
+        if t_dry is not None:
+            td = t_dry
+        else:
+            td = t_air + getattr(config, "IDSO_DELTA_T_DRY", 1.50)
 
         if td <= tw:
             return 0.0
@@ -56,13 +70,14 @@ class ThermalAnalyzer:
         t_leaf: float,
         t_air: float,
         t_wet: Optional[float] = None,
-        t_dry: Optional[float] = None
+        t_dry: Optional[float] = None,
+        vpd: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Computes Delta_T and CWSI from calibrated radiometer readings and SHT30 air metrics.
         """
         delta_t = t_leaf - t_air
-        cwsi = self.compute_cwsi(t_leaf, t_air, t_wet, t_dry)
+        cwsi = self.compute_cwsi(t_leaf, t_air, t_wet, t_dry, vpd=vpd)
         is_transpiration_depressed = cwsi >= 0.45 or delta_t >= -0.5
 
         return {
