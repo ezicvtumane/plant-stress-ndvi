@@ -1,6 +1,9 @@
 import os
 import time
-import resource
+try:
+    import resource
+except ImportError:
+    resource = None
 import logging
 from functools import wraps
 import asyncio
@@ -17,25 +20,25 @@ def profile_performance(func):
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             start_time = time.perf_counter()
-            start_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            start_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else 0
             try:
                 return await func(*args, **kwargs)
             finally:
                 elapsed = (time.perf_counter() - start_time) * 1000
-                end_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-                delta_rss = (end_rss - start_rss) / 1024.0 # on Linux ru_maxrss is in KB
+                end_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else 0
+                delta_rss = (end_rss - start_rss) / 1024.0
                 logger.info(f"[PROFILER] {func.__name__} (async) | Время: {elapsed:.2f} мс | RSS пик: {end_rss/1024.0:.2f} МБ (Δ {delta_rss:.2f} МБ)")
         return async_wrapper
     else:
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             start_time = time.perf_counter()
-            start_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            start_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else 0
             try:
                 return func(*args, **kwargs)
             finally:
                 elapsed = (time.perf_counter() - start_time) * 1000
-                end_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                end_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else 0
                 delta_rss = (end_rss - start_rss) / 1024.0
                 logger.info(f"[PROFILER] {func.__name__} | Время: {elapsed:.2f} мс | RSS пик: {end_rss/1024.0:.2f} МБ (Δ {delta_rss:.2f} МБ)")
         return sync_wrapper

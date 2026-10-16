@@ -55,16 +55,15 @@ def test_ndvi_pixelwise_calculation():
     assert metrics["healthy_percent"] == 100.0
     assert metrics["latent_stress_percent"] == 0.0
 
-def test_statistical_significance_computation():
-    """Verify synthetic dataset generates p < 0.01 for drought vs control on Day 4."""
+def test_real_experiment_statistics():
+    """Verify statistical analytics on real measurements.csv dataset."""
     stats_eng = ExperimentStatistics()
-    df = stats_eng.load_or_generate_dataset()
-    assert len(df) == 30 * 7  # 30 plants over 7 days
-
-    p_ndvi, p_dt, p_sal_ndvi, p_sal_dt = stats_eng.compute_student_t_test(day=4)
-    # On Day 4, stress is pronounced and statistically significant
-    assert p_ndvi < 0.01
-    assert p_dt < 0.01
+    df = stats_eng.load_dataset()
+    assert len(df) > 0
+    assert "Group" in df.columns
+    comp = stats_eng.compare_groups("Контроль", "Засуха")
+    assert "delta_t" in comp and "ndvi" in comp
+    assert comp["n_a"] > 0 and comp["n_b"] > 0
 
 def test_bayer_demultiplexing_3channel():
     """Verify physical Bayer demultiplexing extracts pure Red channel and averaged NIR."""
