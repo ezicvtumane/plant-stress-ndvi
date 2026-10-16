@@ -7,15 +7,16 @@ Project: Plant Stress Active Phenotyping System
 import logging
 import time
 import subprocess
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
+from src import config
 
 logger = logging.getLogger(__name__)
 
-# Calibration defaults for Capacitive Soil Moisture Sensor v1.2 (Peat Substrate)
-# Air / dry substrate: ~3.00 V (0.0% ПВ)
-# Saturated peat substrate: ~1.20 V (100.0% ПВ)
-V_DRY_DEFAULT = 3.00
-V_WET_DEFAULT = 1.20
+# Calibration defaults for Capacitive Soil Moisture Sensor v1.2 (3.3V supply)
+# Air / dry substrate: ~2.03 V (0.0% ПВ)
+# Saturated peat substrate / water: ~0.44 V (100.0% ПВ)
+V_DRY_DEFAULT = config.V_DRY
+V_WET_DEFAULT = config.V_WET
 _LAST_VALID_SOIL = None
 
 
@@ -38,17 +39,21 @@ class SoilMoistureReader:
     """
     Manages 16-bit ADC ADS1115 communication over I2C (Bus 0) and converts
     raw voltages from capacitive soil moisture sensors into calibrated volumetric moisture (0-100%).
-    Supports dynamic multi-channel detection (A0..A3) and automatic bus unsticking.
+    
+    Hardware architecture:
+    - The screening box has a single 3-pin quick-disconnect connector wired directly to Channel A0.
+    - Cassettes K1 (Контроль), K2 (Осмос), and K3 (Засуха) connect their probe to A0 upon insertion.
+    - Channels A1..A3 are reserved / tied to GND to prevent floating input noise.
     """
 
-    def __init__(self, v_dry: float = V_DRY_DEFAULT, v_wet: float = V_WET_DEFAULT):
+    def __init__(self, v_dry: float = config.V_DRY, v_wet: float = config.V_WET):
         self.v_dry = v_dry
         self.v_wet = v_wet
         self.channels_map = {
-            'A0': 0xC3,  # Single-ended AIN0, +/-4.096V
-            'A1': 0xD3,  # Single-ended AIN1, +/-4.096V
-            'A2': 0xE3,  # Single-ended AIN2, +/-4.096V
-            'A3': 0xF3,  # Single-ended AIN3, +/-4.096V
+            'A0': 0xC3,  # Single-ended AIN0, +/-4.096V (Active box sensor connector)
+            'A1': 0xD3,  # Single-ended AIN1, +/-4.096V (Reserved / tied to GND)
+            'A2': 0xE3,  # Single-ended AIN2, +/-4.096V (Reserved / tied to GND)
+            'A3': 0xF3,  # Single-ended AIN3, +/-4.096V (Reserved / tied to GND)
         }
         self.is_hardware_available = False
         self._check_hardware()
@@ -57,7 +62,6 @@ class SoilMoistureReader:
         try:
             import smbus2
             with smbus2.SMBus(0) as bus:
-                # Quick non-destructive check on address 0x48
                 bus.write_quick(0x48)
             self.is_hardware_available = True
         except Exception:
@@ -69,7 +73,10 @@ class SoilMoistureReader:
         Capacitive sensor voltage drops as moisture rises:
           V >= v_dry -> 0%
           V <= v_wet -> 100%
+        Grounded or disconnected channels (< 0.20V) return 0.0%.
         """
+        if voltage < 0.20:
+            return 0.0
         if self.v_dry == self.v_wet:
             return 0.0
         percentage = ((self.v_dry - voltage) / (self.v_dry - self.v_wet)) * 100.0
@@ -115,7 +122,6 @@ class SoilMoistureReader:
                     bus.close()
                 except Exception:
                     pass
-            # Sensor offline / disconnected fallback
             for ch_name in self.channels_map.keys():
                 ch_num = ch_name.replace('A', '')
                 res[ch_name] = {'voltage_V': 0.0, 'moisture_percent': 0.0}
@@ -123,54 +129,40 @@ class SoilMoistureReader:
 
         return res
 
-    def get_active_moisture(self, group_name: str = '') -> Tuple[float, float]:
+    def get_active_moisture(self, group_name: str = '') -> Tuple[Optional[float], Optional[float]]:
         """
-        Dynamically finds the connected soil moisture sensor:
-        1. If group_name maps to a channel (контроль->A0, осмос/соль->A1, засуха->A2)
-           and that channel has a valid sensor voltage (0.35V - 2.80V), use it.
-        2. Otherwise, scans all channels (A0..A3) to pick whichever channel has a live sensor
-           connected (valid voltage in range 0.35V - 2.80V).
-        3. If no channel is active, returns the last known good reading instead of zeroing out.
+        Reads soil moisture for the cassette currently placed in the screening box.
+        
+        Hardware architecture:
+        - The optical box features a single quick-disconnect plug routed to ADC Channel A0.
+        - Cassettes K1 (Контроль), K2 (Осмос), and K3 (Засуха) connect their probe to A0.
+        - Cohorts K4 (Превенция) and K5 (Реакция) do not use soil probes (gravimetric tracking).
         """
         global _LAST_VALID_SOIL
         gn = (group_name or '').lower()
-        ch_data = self.read_channels()
 
-        # Когорты №4 (Превенция) и №5 (Реакция) физически не оснащены емкостными датчиками почвы
-        # (задействованы только 3 входа АЦП: A0=Контроль, A1=Осмос, A2=Засуха).
-        # Влажность в них измеряется гравиметрическим методом (весы Ground Truth).
+        # Cohorts K4 and K5 do not have embedded probes
         if any(k in gn for k in ['превен', 'реакц', 'визуал', 'prevent', 'react']):
             return (None, None)
 
-        preferred_channel = None
-        if any(k in gn for k in ['контр', 'control']):
-            preferred_channel = 'A0'
-        elif any(k in gn for k in ['осмос', 'соль', 'засол', 'osmo', 'salt', 'nacl']):
-            preferred_channel = 'A1'
-        elif any(k in gn for k in ['засух', 'термин', 'drought']):
-            preferred_channel = 'A2'
+        ch_data = self.read_channels()
 
-        # Check preferred channel first
-        if preferred_channel and preferred_channel in ch_data:
-            c = ch_data[preferred_channel]
+        # Primary reading from the active box connector on Channel A0
+        if 'A0' in ch_data:
+            c = ch_data['A0']
             v = c.get('voltage_V', 0.0)
             if 0.35 <= v <= 2.80:
-                _LAST_VALID_SOIL = (v, c.get('moisture_percent', 0.0))
-                return _LAST_VALID_SOIL
+                pct = c.get('moisture_percent', 0.0)
+                _LAST_VALID_SOIL = (v, pct)
+                return (v, pct)
 
-        # If preferred channel is invalid or empty, auto-detect any channel with active sensor
-        for ch_key in ['A0', 'A1', 'A2']:
-            if ch_key in ch_data:
-                c = ch_data[ch_key]
-                v = c.get('voltage_V', 0.0)
-                if 0.35 <= v <= 2.80:
-                    _LAST_VALID_SOIL = (v, c.get('moisture_percent', 0.0))
-                    return _LAST_VALID_SOIL
+        # Fallback to last valid reading if A0 is temporarily unseated or disconnected
+        if _LAST_VALID_SOIL is not None:
+            return _LAST_VALID_SOIL
 
-        # If all channels read ~0V or fail, return None to indicate no active sensor
         return (None, None)
 
-    def read_for_group(self, group_name: str) -> Tuple[float, float]:
+    def read_for_group(self, group_name: str) -> Tuple[Optional[float], Optional[float]]:
         """Backward-compatible wrapper for get_active_moisture."""
         return self.get_active_moisture(group_name)
 
