@@ -1,12 +1,13 @@
+# -*- coding: utf-8 -*-
 """
-Statistical Processing, SciPy Hypothesis Testing & Time-Series Analytics
+Statistical Processing, SciPy Hypothesis Testing & Experimental Analytics
 Author: Alisa Kovaleva
-Project: Plant Stress Active Dual-Wavelength Spectrophotometry Complex
+Project: Plant Stress Active Dual-Wavelength Spectrophotometry & Thermometry Station
 """
 
 import logging
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, Any
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -15,246 +16,94 @@ from src import config
 
 logger = logging.getLogger(__name__)
 
+
 class ExperimentStatistics:
     """
-    Performs statistical validation of the biological experiment (n = 30):
-    - Control (n = 10)
-    - Drought (n = 10)
-    - Osmotic Stress / Salinity (n = 10)
-    
-    Verifies the hypothesis: NDVI & thermal response precede visible wilting by 36-54 hours (p < 0.01).
+    Performs statistical validation and physiological analytics
+    on real experimental time-series from measurements.csv.
+    Cohorts: Контроль, Засуха, Осмос, Превенция, Реакция.
     """
     def __init__(self, data_file: Optional[str] = None):
-        self.data_file = Path(data_file) if data_file else config.DATA_DIR / "validation_dataset_7days.csv"
+        if data_file:
+            self.data_file = Path(data_file)
+        else:
+            exp_csv = config.DATA_DIR / "experiments/exp_1791463544/measurements.csv"
+            root_csv = config.DATA_DIR / "measurements.csv"
+            self.data_file = exp_csv if exp_csv.exists() else root_csv
         self.df = None
 
-    def load_or_generate_dataset(self) -> pd.DataFrame:
-        """Loads experimental data or generates synthetic 7-day biological data."""
-        if self.data_file.exists():
-            # Оптимизация памяти (MemoryError Prevention): чтение массивных датасетов батчами (chunksize)
-            chunk_iter = pd.read_csv(self.data_file, chunksize=10000)
-            self.df = pd.concat((chunk for chunk in chunk_iter), ignore_index=True)
-            logger.info("Loaded %d records from %s using chunking", len(self.df), self.data_file)
-        else:
-            logger.info("No existing dataset found at %s. Generating synthetic 7-day validation dataset...", self.data_file)
-            self.df = self._generate_synthetic_7day_dataset()
-            self.df.to_csv(self.data_file, index=False)
+    def load_dataset(self) -> pd.DataFrame:
+        """Loads experimental data strictly from existing measurements.csv log."""
+        if not self.data_file.exists():
+            raise FileNotFoundError(f"Experimental data file not found: {self.data_file}")
+
+        self.df = pd.read_csv(self.data_file)
+        logger.info("Loaded %d experimental records from %s", len(self.df), self.data_file)
         return self.df
 
-    def _generate_synthetic_7day_dataset(self) -> pd.DataFrame:
+    def get_cohort_summary(self) -> pd.DataFrame:
+        """Returns descriptive statistics (mean, std) for each cohort."""
+        if self.df is None:
+            self.load_dataset()
+
+        summary = self.df.groupby("Group").agg({
+            "Delta_T_C": ["count", "mean", "std"],
+            "NDVI_Mean": ["mean", "std"],
+            "Moisture_Pct": ["mean", "std"],
+            "Weight_g": ["mean", "std"]
+        })
+        return summary
+
+    def compare_groups(self, group_a: str = "Контроль", group_b: str = "Засуха") -> Dict[str, Any]:
         """
-        Generates realistic physiological time-series data:
-        - Control: stable NDVI ~0.76, soil moisture 75%, leaf cooler than air (Delta_T ~ -2.2 C)
-        - Drought: soil drops 75% -> 12%, stomata close on Day 2 (Delta_T rises), NDVI drops on Day 3, visual wilt on Day 5!
-        - Salinity (1.5% NaCl): soil moisture remains 80%, but osmotic block triggers stomatal closure Day 2 and NDVI drop Day 3.5!
-        """
-        np.random.seed(42)
-        records = []
-        days = list(range(1, 8))
-        groups = {
-            "Control": {"n": 10, "base_ndvi": 0.76, "base_moist": 76.0, "base_dt": -2.2},
-            "Drought": {"n": 10, "base_ndvi": 0.76, "base_moist": 75.0, "base_dt": -2.1},
-            "Salinity": {"n": 10, "base_ndvi": 0.75, "base_moist": 78.0, "base_dt": -2.0}
-        }
-
-        for day in days:
-            for grp_name, cfg in groups.items():
-                for plant_i in range(1, cfg["n"] + 1):
-                    plant_id = f"{grp_name}_{plant_i:02d}"
-                    noise = np.random.normal(0, 0.015)
-
-                    if grp_name == "Control":
-                        ndvi = cfg["base_ndvi"] + noise
-                        moist = cfg["base_moist"] + np.random.normal(0, 2.5)
-                        dt = cfg["base_dt"] + np.random.normal(0, 0.2)
-                        wilted = False
-                    elif grp_name == "Drought":
-                        # Moisture drops rapidly
-                        moist = max(5.0, cfg["base_moist"] - (day - 1) * 11.5 + np.random.normal(0, 2.0))
-                        # Stomata close by day 2-3 (Delta T rises to 0 and above)
-                        dt = min(1.8, cfg["base_dt"] + (day - 1) * 0.7 + np.random.normal(0, 0.25))
-                        # NDVI drops significantly starting day 3
-                        drop = max(0.0, (day - 2.5) * 0.085) if day >= 3 else 0.0
-                        ndvi = max(0.28, cfg["base_ndvi"] - drop + noise)
-                        wilted = day >= 5  # Visual wilting only noticeable on Day 5!
-                    else:  # Salinity
-                        # Soil moisture stays high! (Water is physically present)
-                        moist = 78.0 + np.random.normal(0, 2.0)
-                        # But osmotic stress causes physiological drought (stomata close)
-                        dt = min(1.5, cfg["base_dt"] + (day - 1) * 0.65 + np.random.normal(0, 0.25))
-                        drop = max(0.0, (day - 2.8) * 0.075) if day >= 3 else 0.0
-                        ndvi = max(0.35, cfg["base_ndvi"] - drop + noise)
-                        wilted = day >= 5.5
-
-                    records.append({
-                        "day": day,
-                        "sample_id": plant_id,
-                        "group": grp_name,
-                        "ndvi_mean": round(float(ndvi), 4),
-                        "soil_moisture_a0_pct": round(float(moist), 2),
-                        "delta_t_celsius": round(float(dt), 2),
-                        "visual_wilting_observed": wilted
-                    })
-        return pd.DataFrame(records)
-
-    def compute_student_t_test(self, day: int = 3) -> Tuple[float, float, float, float]:
-        """
-        Computes Student's independent t-test for NDVI and Delta_T on a given day
-        comparing Control vs Drought, and Control vs Salinity.
-        Returns:
-            (p_val_drought_ndvi, p_val_drought_dt, p_val_salinity_ndvi, p_val_salinity_dt)
+        Compares two cohorts using Student's t-test and Mann-Whitney U test
+        for Delta_T and NDVI.
         """
         if self.df is None:
-            self.load_or_generate_dataset()
+            self.load_dataset()
 
-        d_slice = self.df[self.df["day"] == day]
-        ctrl = d_slice[d_slice["group"] == "Control"]
-        drought = d_slice[d_slice["group"] == "Drought"]
-        salinity = d_slice[d_slice["group"] == "Salinity"]
+        sub_a = self.df[self.df["Group"] == group_a]
+        sub_b = self.df[self.df["Group"] == group_b]
 
-        t_stat_d_ndvi, p_val_d_ndvi = stats.ttest_ind(ctrl["ndvi_mean"], drought["ndvi_mean"])
-        t_stat_d_dt, p_val_d_dt = stats.ttest_ind(ctrl["delta_t_celsius"], drought["delta_t_celsius"])
+        if len(sub_a) == 0 or len(sub_b) == 0:
+            raise ValueError(f"Cohort {group_a} or {group_b} has no records in dataset")
 
-        t_stat_s_ndvi, p_val_s_ndvi = stats.ttest_ind(ctrl["ndvi_mean"], salinity["ndvi_mean"])
-        t_stat_s_dt, p_val_s_dt = stats.ttest_ind(ctrl["delta_t_celsius"], salinity["delta_t_celsius"])
+        # Delta T
+        t_dt, p_dt_t = stats.ttest_ind(sub_a["Delta_T_C"].dropna(), sub_b["Delta_T_C"].dropna())
+        u_dt, p_dt_u = stats.mannwhitneyu(sub_a["Delta_T_C"].dropna(), sub_b["Delta_T_C"].dropna())
 
-        logger.info("--- Day %d Statistical Test (Control vs Stressed Cohorts) ---", day)
-        logger.info("Control vs Drought NDVI: p = %.2e", p_val_d_ndvi)
-        logger.info("Control vs Drought Delta_T: p = %.2e", p_val_d_dt)
-        logger.info("Control vs Salinity NDVI: p = %.2e", p_val_s_ndvi)
-        logger.info("Control vs Salinity Delta_T: p = %.2e", p_val_s_dt)
+        # NDVI
+        t_ndvi, p_ndvi_t = stats.ttest_ind(sub_a["NDVI_Mean"].dropna(), sub_b["NDVI_Mean"].dropna())
+        u_ndvi, p_ndvi_u = stats.mannwhitneyu(sub_a["NDVI_Mean"].dropna(), sub_b["NDVI_Mean"].dropna())
 
-        return p_val_d_ndvi, p_val_d_dt, p_val_s_ndvi, p_val_s_dt
-
-
-    def compute_one_way_anova(self, day: int = 4) -> dict:
-        """
-        Computes One-Way ANOVA across Control, Drought, and Salinity groups (n=10 per group, total n=30)
-        for Delta_T, NDVI, and Soil Moisture on a specified day.
-        Returns dictionary with F-statistics, p-values, and group means/stds.
-        """
-        if self.df is None:
-            self.load_or_generate_dataset()
-
-        d_slice = self.df[self.df["day"] == day]
-        ctrl = d_slice[d_slice["group"] == "Control"]
-        drought = d_slice[d_slice["group"] == "Drought"]
-        salt = d_slice[d_slice["group"] == "Salinity"]
-
-        f_dt, p_dt = stats.f_oneway(ctrl["delta_t_celsius"], drought["delta_t_celsius"], salt["delta_t_celsius"])
-        f_ndvi, p_ndvi = stats.f_oneway(ctrl["ndvi_mean"], drought["ndvi_mean"], salt["ndvi_mean"])
-        f_sm, p_sm = stats.f_oneway(ctrl["soil_moisture_a0_pct"], drought["soil_moisture_a0_pct"], salt["soil_moisture_a0_pct"])
-
-        # Pairwise Tukey HSD for Delta_T and NDVI
-        tukey_dt = stats.tukey_hsd(ctrl["delta_t_celsius"], drought["delta_t_celsius"], salt["delta_t_celsius"])
-        tukey_ndvi = stats.tukey_hsd(ctrl["ndvi_mean"], drought["ndvi_mean"], salt["ndvi_mean"])
-
-        res = {
-            "day": day,
-            "f_dt": float(f_dt), "p_dt": float(p_dt),
-            "f_ndvi": float(f_ndvi), "p_ndvi": float(p_ndvi),
-            "f_sm": float(f_sm), "p_sm": float(p_sm),
-            "tukey_dt": tukey_dt,
-            "tukey_ndvi": tukey_ndvi,
-            "means": {
-                "ctrl_dt": float(ctrl["delta_t_celsius"].mean()), "ctrl_dt_std": float(ctrl["delta_t_celsius"].std()),
-                "dr_dt": float(drought["delta_t_celsius"].mean()), "dr_dt_std": float(drought["delta_t_celsius"].std()),
-                "salt_dt": float(salt["delta_t_celsius"].mean()), "salt_dt_std": float(salt["delta_t_celsius"].std()),
-                "ctrl_ndvi": float(ctrl["ndvi_mean"].mean()), "ctrl_ndvi_std": float(ctrl["ndvi_mean"].std()),
-                "dr_ndvi": float(drought["ndvi_mean"].mean()), "dr_ndvi_std": float(drought["ndvi_mean"].std()),
-                "salt_ndvi": float(salt["ndvi_mean"].mean()), "salt_ndvi_std": float(salt["ndvi_mean"].std()),
-                "ctrl_sm": float(ctrl["soil_moisture_a0_pct"].mean()), "ctrl_sm_std": float(ctrl["soil_moisture_a0_pct"].std()),
-                "dr_sm": float(drought["soil_moisture_a0_pct"].mean()), "dr_sm_std": float(drought["soil_moisture_a0_pct"].std()),
-                "salt_sm": float(salt["soil_moisture_a0_pct"].mean()), "salt_sm_std": float(salt["soil_moisture_a0_pct"].std()),
+        return {
+            "group_a": group_a, "group_b": group_b,
+            "n_a": len(sub_a), "n_b": len(sub_b),
+            "delta_t": {
+                "mean_a": float(sub_a["Delta_T_C"].mean()),
+                "mean_b": float(sub_b["Delta_T_C"].mean()),
+                "t_stat": float(t_dt), "p_ttest": float(p_dt_t),
+                "u_stat": float(u_dt), "p_mannwhitney": float(p_dt_u),
+            },
+            "ndvi": {
+                "mean_a": float(sub_a["NDVI_Mean"].mean()),
+                "mean_b": float(sub_b["NDVI_Mean"].mean()),
+                "t_stat": float(t_ndvi), "p_ttest": float(p_ndvi_t),
+                "u_stat": float(u_ndvi), "p_mannwhitney": float(p_ndvi_u),
             }
         }
-        logger.info("ANOVA Day %d: Delta_T F=%.1f (p=%.2e), NDVI F=%.1f (p=%.2e)", day, f_dt, p_dt, f_ndvi, p_ndvi)
-        return res
 
-    def compute_full_7days_anova(self) -> pd.DataFrame:
-        """
-        Runs One-Way ANOVA for all 7 days of the biological experiment.
-        Returns a structured DataFrame suitable for publication / reporting.
-        """
-        if self.df is None:
-            self.load_or_generate_dataset()
-
-        rows = []
-        for day in sorted(self.df["day"].unique()):
-            res = self.compute_one_way_anova(day=int(day))
-            m = res["means"]
-            rows.append({
-                "Day": day,
-                "Control_DeltaT": f"{m['ctrl_dt']:+.2f} ± {m['ctrl_dt_std']:.2f}",
-                "Drought_DeltaT": f"{m['dr_dt']:+.2f} ± {m['dr_dt_std']:.2f}",
-                "Salinity_DeltaT": f"{m['salt_dt']:+.2f} ± {m['salt_dt_std']:.2f}",
-                "F_DeltaT": f"{res['f_dt']:.1f}",
-                "p_DeltaT": "< 0.001***" if res["p_dt"] < 0.001 else f"{res['p_dt']:.4f}",
-                "Control_NDVI": f"{m['ctrl_ndvi']:.3f} ± {m['ctrl_ndvi_std']:.3f}",
-                "Drought_NDVI": f"{m['dr_ndvi']:.3f} ± {m['dr_ndvi_std']:.3f}",
-                "Salinity_NDVI": f"{m['salt_ndvi']:.3f} ± {m['salt_ndvi_std']:.3f}",
-                "F_NDVI": f"{res['f_ndvi']:.1f}",
-                "p_NDVI": "< 0.001***" if res["p_ndvi"] < 0.001 else f"{res['p_ndvi']:.4f}",
-            })
-        return pd.DataFrame(rows)
-
-    def plot_time_series_with_confidence_intervals(self, output_file: Optional[str] = None):
-        """
-        Plots NDVI, Delta_T, and Soil Moisture dynamics with 95% Confidence Intervals (Error Bars).
-        Highlights the 48-hour pre-visual detection window.
-        """
-        if self.df is None:
-            self.load_or_generate_dataset()
-
-        fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
-        colors = {"Control": "#2ca02c", "Drought": "#d62728", "Salinity": "#1f77b4"}
-        labels_ru = {"Control": "Контроль", "Drought": "Засуха", "Salinity": "Засоление"}
-
-        # 1. NDVI Dynamics
-        for grp in ["Control", "Drought", "Salinity"]:
-            sub = self.df[self.df["group"] == grp]
-            stats_df = sub.groupby("day")["ndvi_mean"].agg(["mean", "sem"])
-            axes[0].errorbar(stats_df.index, stats_df["mean"], yerr=stats_df["sem"] * 1.96,
-                             label=labels_ru[grp], color=colors[grp], marker="o", capsize=4, linewidth=2)
-        
-        axes[0].axvspan(3, 5, color="orange", alpha=0.18, label="Окно ранней индикации (36–54 ч)")
-        axes[0].set_ylabel("NDVI листовой пластины", fontsize=11)
-        axes[0].set_title("Динамика NDVI и транспирации при стрессе (n = 30)", fontsize=13, fontweight="bold")
-        axes[0].grid(True, linestyle="--", alpha=0.6)
-        axes[0].legend(loc="lower left", framealpha=0.9)
-
-        # 2. Transpiration Delta_T (T_leaf - T_air)
-        for grp in ["Control", "Drought", "Salinity"]:
-            sub = self.df[self.df["group"] == grp]
-            stats_df = sub.groupby("day")["delta_t_celsius"].agg(["mean", "sem"])
-            axes[1].errorbar(stats_df.index, stats_df["mean"], yerr=stats_df["sem"] * 1.96,
-                             label=labels_ru[grp], color=colors[grp], marker="s", capsize=4, linewidth=2)
-        
-        axes[1].axhline(0, color="gray", linestyle=":", label=r"$T_{\mathrm{лист}} = T_{\mathrm{возд}}$ (остановка транспирации)")
-        axes[1].set_ylabel(r"$\Delta T = T_{\mathrm{лист}} - T_{\mathrm{возд}}$, °C", fontsize=11)
-        axes[1].grid(True, linestyle="--", alpha=0.6)
-        axes[1].legend(loc="upper left", framealpha=0.9)
-
-        # 3. Soil Moisture
-        for grp in ["Control", "Drought", "Salinity"]:
-            sub = self.df[self.df["group"] == grp]
-            stats_df = sub.groupby("day")["soil_moisture_a0_pct"].agg(["mean", "sem"])
-            axes[2].errorbar(stats_df.index, stats_df["mean"], yerr=stats_df["sem"] * 1.96,
-                             label=labels_ru[grp], color=colors[grp], marker="^", capsize=4, linewidth=2)
-        
-        axes[2].set_ylabel("Влажность субстрата, %", fontsize=11)
-        axes[2].set_xlabel("Дни биологического эксперимента", fontsize=11)
-        axes[2].grid(True, linestyle="--", alpha=0.6)
-        axes[2].legend(loc="center left", framealpha=0.9)
-
-        plt.tight_layout()
-        out_path = Path(output_file) if output_file else config.PROCESSED_DATA_DIR / "statistical_validation_plot.png"
-        plt.savefig(str(out_path), dpi=300)
-        plt.close()
-        logger.info("Statistical plot saved to %s", out_path)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     stats_runner = ExperimentStatistics()
-    stats_runner.load_or_generate_dataset()
-    stats_runner.compute_student_t_test(day=3)
-    stats_runner.plot_time_series_with_confidence_intervals()
+    try:
+        df = stats_runner.load_dataset()
+        print("=== СВОДНЫЕ ДАННЫЕ РЕАЛЬНОГО ЭКСПЕРИМЕНТА ===")
+        print(stats_runner.get_cohort_summary())
+        print("\n=== СРАВНЕНИЕ: КОНТРОЛЬ VS ЗАСУХА ===")
+        comp = stats_runner.compare_groups("Контроль", "Засуха")
+        print(f"Delta_T: Контроль={comp['delta_t']['mean_a']:.2f}°C, Засуха={comp['delta_t']['mean_b']:.2f}°C (p={comp['delta_t']['p_ttest']:.4f})")
+        print(f"NDVI: Контроль={comp['ndvi']['mean_a']:.3f}, Засуха={comp['ndvi']['mean_b']:.3f} (p={comp['ndvi']['p_ttest']:.4f})")
+    except Exception as e:
+        logger.error("Error processing dataset: %s", e)
