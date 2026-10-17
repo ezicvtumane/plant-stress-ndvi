@@ -9,14 +9,14 @@ import time
 import subprocess
 from typing import Dict, Tuple, Optional
 from src import config
+from src.config import V_DRY, V_WET
 
 logger = logging.getLogger(__name__)
 
-# Calibration defaults for Capacitive Soil Moisture Sensor v1.2 (3.3V supply)
-# Air / dry substrate: ~2.03 V (0.0% ПВ)
-# Saturated peat substrate / water: ~0.44 V (100.0% ПВ)
-V_DRY_DEFAULT = config.V_DRY
-V_WET_DEFAULT = config.V_WET
+# Calibration defaults for Capacitive Soil Moisture Sensor v1.2 in peat substrate (3.3V supply)
+# V_DRY = 2.072 V (0.0% ПВ), V_WET = 1.923 V (100.0% ПВ), Delta_V = 0.149 V
+V_DRY_DEFAULT = V_DRY
+V_WET_DEFAULT = V_WET
 _LAST_VALID_SOIL = None
 
 
@@ -46,7 +46,7 @@ class SoilMoistureReader:
     - Channels A1..A3 are reserved / tied to GND to prevent floating input noise.
     """
 
-    def __init__(self, v_dry: float = config.V_DRY, v_wet: float = config.V_WET):
+    def __init__(self, v_dry: float = V_DRY, v_wet: float = V_WET):
         self.v_dry = v_dry
         self.v_wet = v_wet
         self.channels_map = {

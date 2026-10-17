@@ -57,11 +57,11 @@ NDVI_COLORMAP = "COLORMAP_JET"      # Standard OpenCV palette for NDVI thermal r
 THERMAL_COLORMAP = "COLORMAP_INFERNO" # High-contrast palette for infrared thermography
 
 # Soil Moisture Sensor Calibration (ADS1115 v1.2 Capacitive Sensor)
-# Calibrated for peat substrate in standard seedling cassettes (3.3V supply):
-# V_DRY = ~2.03 V (air / dry peat substrate, 0.0% ПВ)
-# V_WET = ~0.44 V (water / fully saturated substrate, 100.0% ПВ, Delta_V = 1.59 V)
-V_DRY = 2.03
-V_WET = 0.44
+# Two-point linear calibration for peat substrate (0% ПВ and 70% ПВ reference at 3.3V supply):
+# V_DRY = 2.072 V (dry sensor / 0.0% ПВ)
+# V_WET = 1.923 V (extrapolated 100.0% ПВ from 1.968 V at 70% ПВ)
+V_DRY = 2.072
+V_WET = 1.923
 ADS1115_I2C_ADDRESS = 0x48
 ADS1115_I2C_BUS = 0  # /dev/i2c-0 (sun60i-a733-i2c0 overlay)
 

@@ -11,15 +11,13 @@ from src.sensors_ads1115 import SoilMoistureReader
 from src.statistical_analysis import ExperimentStatistics
 
 def test_soil_moisture_two_point_calibration():
-    """Verify linear interpolation between V_DRY (2.03V) and V_WET (0.44V)."""
-    reader = SoilMoistureReader()  # Defaults to config 2.03V and 0.44V
+    """Verify linear interpolation between V_DRY (2.072V) and V_WET (1.923V)."""
+    reader = SoilMoistureReader()  # Defaults to config 2.072V and 1.923V
     
-    # Boundary conditions
-    assert reader.voltage_to_percentage(2.03) == pytest.approx(0.0, abs=1e-2)
-    assert reader.voltage_to_percentage(0.44) == pytest.approx(100.0, abs=1e-2)
-    
-    # Midpoint (1.235 V -> 50%)
-    assert reader.voltage_to_percentage(1.235) == pytest.approx(50.0, abs=0.5)
+    # Boundary and reference calibration conditions
+    assert reader.voltage_to_percentage(2.072) == pytest.approx(0.0, abs=1e-2)
+    assert reader.voltage_to_percentage(1.923) == pytest.approx(100.0, abs=1e-2)
+    assert reader.voltage_to_percentage(1.968) == pytest.approx(70.0, abs=0.5)
 
     # Clamping and grounded checks
     assert reader.voltage_to_percentage(2.50) == 0.0
