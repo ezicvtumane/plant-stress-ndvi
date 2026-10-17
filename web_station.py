@@ -694,12 +694,6 @@ def do_hardware_spectral_capture(group_name: str):
     leaf_mask[:, :margin_side] = 0
     leaf_mask[:, w_f - margin_side:] = 0
 
-    # Исключение нижних угловых зон с 3D-печатными PETG-ложементами магнитных упоров
-    corner_bot_h = int(h_f * 0.12)
-    corner_bot_w = int(w_f * 0.18)
-    leaf_mask[h_f - corner_bot_h:, :corner_bot_w] = 0
-    leaf_mask[h_f - corner_bot_h:, w_f - corner_bot_w:] = 0
-
     # 3. Морфологическая фильтрация: удаление мелкого точечного шума матрицы (ядро 3x3)
     kernel_noise = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     leaf_mask = cv2.morphologyEx(leaf_mask, cv2.MORPH_OPEN, kernel_noise)
