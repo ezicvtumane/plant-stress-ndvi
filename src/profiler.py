@@ -9,10 +9,10 @@ from functools import wraps
 import asyncio
 
 logger = logging.getLogger("Profiler")
-PROFILE_ENABLED = os.environ.get("AGY_PROFILE", "0") == "1"
+PROFILE_ENABLED = os.environ.get("NDVI_PROFILE", "0") == "1"
 
 def profile_performance(func):
-    """Zero-overhead декоратор профилирования. Включается через AGY_PROFILE=1."""
+    """Zero-overhead декоратор профилирования. Включается через NDVI_PROFILE=1."""
     if not PROFILE_ENABLED:
         return func
 
