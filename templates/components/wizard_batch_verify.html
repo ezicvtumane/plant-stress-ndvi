@@ -1,0 +1,20 @@
+<div class="card" style="border: 2px solid var(--sirius-teal); background: #f8fafc;">
+    <div style="border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
+        <span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Финальная верификация серии (отсортировано по ArUco)</span>
+        <h2 style="margin:2px 0 0 0; color:var(--sirius-teal-dark); font-size:16px;">{{ batch_verify_view.conf_title }}</h2>
+    </div>
+
+    {{ batch_verify_view.verify_warnings_box | safe }}
+
+    <form action="/api/batch_save_final" method="post">
+        {{ batch_verify_view.items_html | safe }}
+
+        <button type="submit" class="btn-confirm" style="width:100%; padding:14px; font-size:16px; background:linear-gradient(135deg, #059669, #00a499); box-shadow:0 4px 14px rgba(0,164,153,0.35); margin-top:8px; cursor:pointer;">
+            ✅ ВСЁ В ПОРЯДКЕ — СОХРАНИТЬ ВСЮ СЕРИЮ В БАЗУ ({{ batch_verify_view.verified_count }} ЗАМЕРОВ)
+        </button>
+
+        <div style="margin-top:10px; text-align:center;">
+            <a href="/api/cancel_batch" style="color:#94a3b8; font-size:12px; text-decoration:none;">❌ Отменить эту сессию</a>
+        </div>
+    </form>
+</div>

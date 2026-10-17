@@ -1,0 +1,89 @@
+<div class="card" style="margin-top: 0; padding:14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:4px; height:16px; background:var(--sirius-teal); border-radius:2px;"></div>
+            <h2 style="margin:0; font-size:14px; font-weight:700; border:none; padding:0; color:var(--sirius-teal-dark); letter-spacing:-0.2px;">Сводка экспериментальных когорт</h2>
+        </div>
+        <span style="background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600;">Всего измерений: {{ rows_count }}</span>
+    </div>
+
+    <!-- ЕДИНЫЙ РЯД: ВСЕ 5 КАССЕТ СТРОГО ПО ПОРЯДКОВЫМ НОМЕРАМ 1, 2, 3, 4, 5 -->
+    <div style="display:flex; justify-content:space-between; align-items:stretch; gap:6px; margin-bottom:10px;">
+        <!-- К1: Контроль -->
+        <div style="flex:1; background:#ecfdf5; border:1.5px solid #059669; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
+            <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#065f46; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
+                <span style="width:7px; height:7px; border-radius:50%; background:#059669; display:inline-block;"></span> К1: Контроль
+            </div>
+            <div style="font-size:15px; font-weight:700; color:#047857; margin:2px 0;">{{ summary_stats.cnt_ctrl }} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
+            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#059669;">{{ summary_stats.m_ctrl_ndvi }}</b></div>
+            <div style="font-size:8.5px; color:#047857; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #a7f3d0;">Оптимум (100% ПВ)</div>
+        </div>
+        <!-- К2: Осмос -->
+        <div style="flex:1; background:#f5f3ff; border:1.5px solid #7c3aed; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
+            <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#5b21b6; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
+                <span style="width:7px; height:7px; border-radius:50%; background:#7c3aed; display:inline-block;"></span> К2: Осмос
+            </div>
+            <div style="font-size:15px; font-weight:700; color:#6d28d9; margin:2px 0;">{{ summary_stats.cnt_salt }} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
+            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#7c3aed;">{{ summary_stats.m_salt_ndvi }}</b></div>
+            <div style="font-size:8.5px; color:#5b21b6; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #ddd6fe;">100 мМ NaCl</div>
+        </div>
+        <!-- К3: Терминальная засуха -->
+        <div style="flex:1; background:#fff1f2; border:1.5px solid #dc2626; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
+            <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#9f1239; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
+                <span style="width:7px; height:7px; border-radius:50%; background:#e11d48; display:inline-block;"></span> К3: Засуха
+            </div>
+            <div style="font-size:15px; font-weight:700; color:#be123c; margin:2px 0;">{{ summary_stats.cnt_term }} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
+            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#dc2626;">{{ summary_stats.m_term_ndvi }}</b></div>
+            <div style="font-size:8.5px; color:#9f1239; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fecdd3;">Терминальная фаза</div>
+        </div>
+        <!-- К4: Предиктивный полив -->
+        <div style="flex:1; background:#fefce8; border:1.5px solid #ca8a04; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
+            <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#854d0e; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
+                <span style="width:7px; height:7px; border-radius:50%; background:#ca8a04; display:inline-block;"></span> К4: Превенция
+            </div>
+            <div style="font-size:15px; font-weight:700; color:#a16207; margin:2px 0;">{{ summary_stats.cnt_inst }} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
+            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#ca8a04;">{{ summary_stats.m_inst_ndvi }}</b></div>
+            <div style="font-size:8.5px; color:#854d0e; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #fef08a;">Ранний полив (ΔT)</div>
+        </div>
+        <!-- К5: Органолептический полив -->
+        <div style="flex:1; background:#eff6ff; border:1.5px solid #2563eb; border-radius:8px; padding:8px 4px; text-align:center; display:flex; flex-direction:column; min-height:86px; box-sizing:border-box;">
+            <div style="font-size:9.5px; white-space:nowrap; letter-spacing:-0.2px; color:#1e40af; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; height:24px; min-height:24px; flex-shrink:0; line-height:1;">
+                <span style="width:7px; height:7px; border-radius:50%; background:#2563eb; display:inline-block;"></span> К5: Реакция
+            </div>
+            <div style="font-size:15px; font-weight:700; color:#1d4ed8; margin:2px 0;">{{ summary_stats.cnt_eye }} <span style="font-size:9.5px; font-weight:normal; color:#64748b;">изм.</span></div>
+            <div style="font-size:10px; color:#475569;">NDVI: <b style="color:#2563eb;">{{ summary_stats.m_eye_ndvi }}</b></div>
+            <div style="font-size:8.5px; color:#1e40af; font-weight:600; margin-top:auto; padding-top:4px; border-top:1px dashed #bfdbfe;">Потеря тургора</div>
+        </div>
+    </div>
+
+    <!-- ИНФОРМАЦИОННАЯ ПЛАШКА СРАВНИТЕЛЬНОГО АНАЛИЗА К4 VS К5 -->
+    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:7px 12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span style="background:#e0f2fe; color:#0369a1; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:3px; text-transform:uppercase; letter-spacing:0.5px;">Сравнение</span>
+            <span style="font-size:11px; color:#1e293b; font-weight:600;">
+                <b>Предиктивная эффективность:</b> К4 (полив по раннему алерту станции) vs К5 (полив по визуальным признакам)
+            </span>
+        </div>
+        <span style="background:#ecfdf5; color:#047857; font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:4px; border:1px solid #a7f3d0; white-space:nowrap;">Сохранность: {{ summary_stats.eff_badge }}</span>
+    </div>
+
+    <!-- 4 КНОПКИ ДЕЙСТВИЙ: СТРОГО ОДИНАКОВАЯ ВЫСОТА 38px, РАСПОЛОЖЕНИЕ 2x2 БЕЗ НАПОЛЗАНИЯ -->
+    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px;">
+        <a href="/download/csv" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:6px; color:#334155; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='var(--sirius-teal)';this.style.color='#fff';this.style.borderColor='var(--sirius-teal)';" onmouseout="this.style.background='#f8fafc';this.style.color='#334155';this.style.borderColor='#cbd5e1';">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Экспорт данных (.CSV)</span>
+        </a>
+        <a href="/download/images_zip" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:6px; color:#15803d; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#10b981';this.style.color='#fff';this.style.borderColor='#10b981';" onmouseout="this.style.background='#f0fdf4';this.style.color='#15803d';this.style.borderColor='#bbf7d0';">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <span>Архив кадров (.ZIP)</span>
+        </a>
+        <a href="/download/aruco_pdf" target="_blank" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:6px; color:#0f766e; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#00a499';this.style.color='#fff';this.style.borderColor='#00a499';" onmouseout="this.style.background='#f0fdfa';this.style.color='#0f766e';this.style.borderColor='#99f6e4';">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/></svg>
+            <span>Маркеры ArUco (.PDF)</span>
+        </a>
+        <a href="/download/presentation" target="_blank" style="height:38px; display:flex; align-items:center; justify-content:center; gap:6px; padding:0 8px; box-sizing:border-box; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:6px; color:#1d4ed8; text-decoration:none; font-size:11px; font-weight:600; white-space:nowrap; transition:all 0.2s;" onmouseover="this.style.background='#2563eb';this.style.color='#fff';this.style.borderColor='#2563eb';" onmouseout="this.style.background='#eff6ff';this.style.color='#1d4ed8';this.style.borderColor='#bfdbfe';">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>Презентация (.PDF)</span>
+        </a>
+    </div>
+</div>

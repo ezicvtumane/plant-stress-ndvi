@@ -83,6 +83,7 @@ static/thermal_uploads/
 # Archives, backups and scratch
 *.tar.gz
 *.bak
+*.monolith_bak
 archive_*/
 scratch/
 scripts/scratch/
