@@ -1,11 +1,13 @@
 import os
 try:
-    from pydantic_settings import BaseSettings
+    from pydantic_settings import BaseSettings, SettingsConfigDict
 except ImportError:
     try:
         from pydantic import BaseSettings
+        SettingsConfigDict = None
     except ImportError:
         from pydantic.v1 import BaseSettings
+        SettingsConfigDict = None
 
 class Settings(BaseSettings):
     # Relay Config
@@ -19,8 +21,12 @@ class Settings(BaseSettings):
     DATA_DIR: str = os.path.join(BASE_DIR, "data")
     CSV_LOG: str = os.path.join(DATA_DIR, "measurements.csv")
 
-    class Config:
-        env_file = ".env"
+    if SettingsConfigDict is not None:
+        model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    else:
+        class Config:
+            env_file = ".env"
+            extra = "ignore"
 
 settings = Settings()
 os.makedirs(settings.STATIC_DIR, exist_ok=True)
