@@ -68,13 +68,13 @@ class ExperimentStatistics:
         if len(sub_a) == 0 or len(sub_b) == 0:
             raise ValueError(f"Cohort {group_a} or {group_b} has no records in dataset")
 
-        # Delta T
-        t_dt, p_dt_t = stats.ttest_ind(sub_a["Delta_T_C"].dropna(), sub_b["Delta_T_C"].dropna())
-        u_dt, p_dt_u = stats.mannwhitneyu(sub_a["Delta_T_C"].dropna(), sub_b["Delta_T_C"].dropna())
+        # Delta T (Welch t-test for unequal variances + two-sided Mann-Whitney U)
+        t_dt, p_dt_t = stats.ttest_ind(sub_a["Delta_T_C"].dropna(), sub_b["Delta_T_C"].dropna(), equal_var=False)
+        u_dt, p_dt_u = stats.mannwhitneyu(sub_a["Delta_T_C"].dropna(), sub_b["Delta_T_C"].dropna(), alternative="two-sided")
 
-        # NDVI
-        t_ndvi, p_ndvi_t = stats.ttest_ind(sub_a["NDVI_Mean"].dropna(), sub_b["NDVI_Mean"].dropna())
-        u_ndvi, p_ndvi_u = stats.mannwhitneyu(sub_a["NDVI_Mean"].dropna(), sub_b["NDVI_Mean"].dropna())
+        # NDVI (Welch t-test + two-sided Mann-Whitney U)
+        t_ndvi, p_ndvi_t = stats.ttest_ind(sub_a["NDVI_Mean"].dropna(), sub_b["NDVI_Mean"].dropna(), equal_var=False)
+        u_ndvi, p_ndvi_u = stats.mannwhitneyu(sub_a["NDVI_Mean"].dropna(), sub_b["NDVI_Mean"].dropna(), alternative="two-sided")
 
         return {
             "group_a": group_a, "group_b": group_b,
@@ -82,13 +82,13 @@ class ExperimentStatistics:
             "delta_t": {
                 "mean_a": float(sub_a["Delta_T_C"].mean()),
                 "mean_b": float(sub_b["Delta_T_C"].mean()),
-                "t_stat": float(t_dt), "p_ttest": float(p_dt_t),
+                "t_stat": float(t_dt), "p_ttest": float(p_dt_t), "p_welch": float(p_dt_t),
                 "u_stat": float(u_dt), "p_mannwhitney": float(p_dt_u),
             },
             "ndvi": {
                 "mean_a": float(sub_a["NDVI_Mean"].mean()),
                 "mean_b": float(sub_b["NDVI_Mean"].mean()),
-                "t_stat": float(t_ndvi), "p_ttest": float(p_ndvi_t),
+                "t_stat": float(t_ndvi), "p_ttest": float(p_ndvi_t), "p_welch": float(p_ndvi_t),
                 "u_stat": float(u_ndvi), "p_mannwhitney": float(p_ndvi_u),
             }
         }
