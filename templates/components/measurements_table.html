@@ -1,0 +1,36 @@
+{% if table_rows %}
+    {% for r in table_rows %}
+    <tr class="{{ r.row_cls }}">
+        <td><b style="color:#64748b;">#{{ r.m_id }}</b></td>
+        <td>
+            <div style="white-space:nowrap;font-size:11px;font-weight:600;color:#0f172a;">{{ r.d_str }}</div>
+            <div style="font-size:10px;color:#64748b;white-space:nowrap;">{{ r.t_str }}</div>
+        </td>
+        <td>{{ r.grp_badge | safe }}</td>
+        <td><b style="color:#0284c7;white-space:nowrap;">{{ r.wt }}</b></td>
+        <td>{{ r.t_air_str | safe }}</td>
+        <td>{{ r.t_leaf_html | safe }}</td>
+        <td>{{ r.stress_badge | safe }}</td>
+        <td>{{ r.ndvi_cell | safe }}</td>
+        <td><b style="color:#047857;white-space:nowrap;font-size:11px;">{{ r.leaf_area_val }}</b></td>
+        <td><span style="white-space:nowrap;font-weight:500;color:#334155;">{{ r.pct }}</span></td>
+        <td>{{ r.th_stat | safe }}</td>
+        <td class="col-actions" style="white-space:nowrap;">
+            <button type="button" onclick="openEditModal('{{ r.m_id }}', '{{ r.grp }}', '{{ r.ts }}', '{{ r.t_show }}', '{{ r.wt }}', '{{ r.pct }}')" style="background:#e0f2fe; border:1px solid #bae6fd; color:#0369a1; border-radius:4px; padding:2px 5px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1; margin-right:3px;" title="Скорректировать замер #{{ r.m_id }} ({{ r.grp }})" onmouseover="this.style.background='#0284c7';this.style.color='#fff';" onmouseout="this.style.background='#e0f2fe';this.style.color='#0369a1';">✏️</button>
+            <form action="/api/delete_measurement" method="post" style="margin:0;display:inline;" onsubmit="return confirm('Удалить исследование #{{ r.m_id }} ({{ r.grp }})?');">
+                <input type="hidden" name="meas_id" value="{{ r.m_id }}">
+                <button type="submit" style="background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:11px; font-weight:bold; line-height:1;" title="Удалить замер #{{ r.m_id }}" onmouseover="this.style.background='#dc2626';this.style.color='#fff';" onmouseout="this.style.background='#fee2e2';this.style.color='#dc2626';">✕</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+{% elif table_html %}
+    {{ table_html | safe }}
+{% else %}
+    <tr>
+        <td colspan="12" style="text-align:center; padding:35px 20px; color:#64748b; font-size:14px;">
+            🌱 <b>Журнал физиологических замеров пуст.</b><br>
+            <span style="font-size:12px; color:#94a3b8;">Запустите пакетный замер кассет 1–5, чтобы начать фиксацию данных нового эксперимента.</span>
+        </td>
+    </tr>
+{% endif %}
