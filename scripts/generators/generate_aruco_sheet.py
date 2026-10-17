@@ -47,7 +47,7 @@ ARUCO_CASSETTES = [
 # Получаем словарь ArUco 4x4
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50) if hasattr(cv2.aruco, 'getPredefinedDictionary') else cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
 
-# Генерируем чистовые монохромные PNG маркеров (25x25 мм калибровочные с белой Quiet Zone и тонким черным контуром реза)
+# Генерируем чистовые монохромные PNG маркеров (15x15 мм калибровочные с белой Quiet Zone и тонким черным контуром реза)
 for m_id, name, strat, reg, status in ARUCO_CASSETTES:
     if hasattr(aruco_dict, 'generateImageMarker'):
         marker_raw = aruco_dict.generateImageMarker(m_id, 240)
@@ -97,7 +97,7 @@ for m_id, title, strat, protocol, status in ARUCO_CASSETTES:
                 </div>
                 <div class="card-strategy">{strat}</div>
                 <div class="card-protocol">• Режим: {protocol}</div>
-                <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:{m_id} | S_calib = 6.25 см²</div>
+                <div class="tech-pill">[CV Метрология] OpenCV DICT_4X4_50 | ID:{m_id} | S_calib = 2.25 см² (15×15 мм)</div>
             </div>
 
             <!-- Резервный компактный маркер для противоположного борта -->
@@ -354,7 +354,7 @@ html_content = f"""<!DOCTYPE html>
             {cards_html}
         </div>
         <div class="footer">
-            Машинное зрение: OpenCV cv2.aruco · Словарь DICT_4X4_50 · Радиометрический калибровочный эталон 25.0×25.0 мм (6.25 см²)
+            Машинное зрение: OpenCV cv2.aruco · Словарь DICT_4X4_50 · Фидуциальный калибровочный маркер 15.0×15.0 мм (2.25 см²)
         </div>
     </div>
 </body>
