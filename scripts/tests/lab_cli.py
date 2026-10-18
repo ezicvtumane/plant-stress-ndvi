@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import time
 import json
@@ -79,14 +79,13 @@ def capture_single(group_name: str, t_leaf: float):
     cells = []
     annotated = frame_flash.copy()
 
-    base_ndvi = 0.74 if 'контр' in group_name.lower() else (0.46 if 'засух' in group_name.lower() else 0.51)
-
     for r in range(3):
         for c in range(3):
-            val = round(base_ndvi + np.random.uniform(-0.025, 0.025), 3)
-            cells.append(val)
             y1, y2 = r * ch, (r + 1) * ch
             x1, x2 = c * cw, (c + 1) * cw
+            cell_roi = frame_flash[y1:y2, x1:x2]
+            val = round(float(np.mean(cell_roi)) / 255.0, 3)
+            cells.append(val)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(annotated, f'#{r*3+c+1}: {val}', (x1 + 15, y1 + 35),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
