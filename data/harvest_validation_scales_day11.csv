@@ -1,0 +1,6 @@
+Cohort_ID,Cohort_Name,ArUco_ID,Icon_Symbol,Fresh_Weight_g,Scale_Precision_g,Tare_Weight_g,Scale_Photo_Filename,Physiological_Status
+K1,Контроль,1,Hand,0.73,0.01,0.00,day11_scale_k1_control_0_73g.jpg,optimal_turgor_maximum_biomass
+K2,Осмотический стресс (100 мМ NaCl),2,Drops,0.55,0.01,0.00,day11_scale_k2_osmotic_0_55g.jpg,osmotic_stunting_reduced_elongation
+K3,Засуха (перманентная),3,Skull,0.35,0.01,0.00,day11_scale_k3_drought_0_35g.jpg,severe_desiccation_necrosis
+K4,Превенция (полив при CWSI>0.45),4,Gear,0.65,0.01,0.00,day11_scale_k4_prevention_0_65g.jpg,preserved_turgor_high_yield
+K5,Реакция (полив по увяданию),5,Eye,0.49,0.01,0.00,day11_scale_k5_reaction_0_49g.jpg,post_wilting_kink_artifacts_yield_loss
