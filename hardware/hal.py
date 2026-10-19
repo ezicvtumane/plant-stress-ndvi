@@ -1,6 +1,5 @@
 import os
 import platform
-import random
 import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -44,8 +43,8 @@ class RealSHT30(ClimateSensor):
 
 class MockSHT30(ClimateSensor):
     async def read_climate(self) -> tuple[float, float, float]:
-        # Эмуляция реальных данных
-        return round(24.0 + random.uniform(-1, 1), 1), round(60.0 + random.uniform(-5, 5), 1), 3.30
+        # Детерминированный стендовый режим для отладки UI без записи в исследовательский датасет
+        return 24.0, 60.0, 3.30
 
 
 # --- Soil Sensor ---
@@ -69,9 +68,10 @@ class RealADS1115(SoilSensor):
 
 class MockADS1115(SoilSensor):
     async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
-        v = round(1.5 + random.uniform(-0.5, 0.5), 2)
-        pct = 100.0 * (2.03 - v) / (2.03 - 0.44)
-        return v, round(max(0.0, min(100.0, pct)), 1)
+        # Детерминированная константа поверки АЦП без псевдослучайных колебаний
+        v = 1.85
+        pct = 64.0
+        return v, pct
 
 # Получение синглтонов
 def get_climate_sensor() -> ClimateSensor:
