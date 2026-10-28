@@ -45,11 +45,11 @@
 
 > [!TIP]
 > **Фотофиксация лабораторного процесса и личного вклада автора (25–28 октября 2026 г.):**  
-> 1. [`02_calibrated_seeds_radicles.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/02_calibrated_seeds_radicles.jpg) — Отбор и калибровка семян на влажной подложке (длина зародышевого корешка 1.0–1.5 см для исключения временного дрифта всхожести).  
-> 2. [`03_alice_gravimetric_taring_40g.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/03_alice_gravimetric_taring_40g.jpg) — Алиса лично проводит пошаговое взвешивание базового слоя грунта на электронных весах (на дисплее: **40.1 г**, погрешность $< 0.25\%$).  
-> 3. [`05_alice_seed_planting_60g_total.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/05_alice_seed_planting_60g_total.jpg) — Раскладка калиброванных проростков строго по 1 шт. на горшок корешком вниз и засыпка покровного слоя до суммарной навески **60.0 г** сухого субстрата (на дисплее: **58.6 г**).  
-> 4. [`04_synchronous_emergence_20pots.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/04_synchronous_emergence_20pots.jpg) — Зафиксированы 100% дружные всходы во всех 20 горшках (2 поддона по 10 растений) на 28 октября 2026 г. Раскрытие семядолей, прямой гипокотиль, отсутствие вытягивания.  
-> 5. [`01_substrate_prep_cat_inspector.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/01_substrate_prep_cat_inspector.jpg) — Подготовка кассетного блока и контроль однородности питательного субстрата.
+> 1. [`02_calibrated_seeds_radicles.jpg`](images/02_calibrated_seeds_radicles.jpg) — Отбор и калибровка семян на влажной подложке (длина зародышевого корешка 1.0–1.5 см для исключения временного дрифта всхожести).  
+> 2. [`03_alice_gravimetric_taring_40g.jpg`](images/03_alice_gravimetric_taring_40g.jpg) — Алиса лично проводит пошаговое взвешивание базового слоя грунта на электронных весах (на дисплее: **40.1 г**, погрешность $< 0.25\%$).  
+> 3. [`05_alice_seed_planting_60g_total.jpg`](images/05_alice_seed_planting_60g_total.jpg) — Раскладка калиброванных проростков строго по 1 шт. на горшок корешком вниз и засыпка покровного слоя до суммарной навески **60.0 г** сухого субстрата (на дисплее: **58.6 г**).  
+> 4. [`04_synchronous_emergence_20pots.jpg`](images/04_synchronous_emergence_20pots.jpg) — Зафиксированы 100% дружные всходы во всех 20 горшках (2 поддона по 10 растений) на 28 октября 2026 г. Раскрытие семядолей, прямой гипокотиль, отсутствие вытягивания.  
+> 5. [`01_substrate_prep_cat_inspector.jpg`](images/01_substrate_prep_cat_inspector.jpg) — Подготовка кассетного блока и контроль однородности питательного субстрата.
 
 ### 2.2. Микроклимат и теплоизоляция
 * **Освещение:** Фитолампа полного спектра 60 Вт. Фотопериод: 14 ч день / 10 ч ночь. Высота подвеса: 25–30 см над верхушками растений.

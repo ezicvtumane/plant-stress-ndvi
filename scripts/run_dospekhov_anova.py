@@ -233,7 +233,7 @@ def calculate_tukey_hsd_posthoc(df_balanced: pd.DataFrame, trait: str, anova_res
         
     return pd.DataFrame(summary_rows), pd.DataFrame(comparisons)
 
-def generate_dospekhov_plots(df: pd.DataFrame, out_path: str):
+def generate_dospekhov_plots(df: pd.DataFrame, out_path: str, is_synthetic: bool = False):
     """
     Генерация академических графиков по стандартам ВАК и конкурса «Большие вызовы».
     Четырехпанельная диаграмма: FW, DW, WC, WUE с отображением точек повторностей,
@@ -317,9 +317,11 @@ def generate_dospekhov_plots(df: pd.DataFrame, out_path: str):
         if idx == 0 and len(df_epin) > 0:
             ax.legend(loc='lower right', frameon=True, fontsize=10)
 
-    fig.suptitle("Дисперсионный анализ эффекта предиктивной защиты растений огурца (GRCBD по Доспехову)\n"
-                 "Разные буквы (a, b, c) обозначают статистически значимые различия по тесту Тьюки (p < 0.05)",
-                 fontsize=14, fontweight='bold', y=0.99)
+    title_main = "Дисперсионный анализ эффекта предиктивной защиты растений огурца (GRCBD по Доспехову)\n" \
+                 "Разные буквы (a, b, c) обозначают статистически значимые различия по тесту Тьюки (p < 0.05)"
+    if is_synthetic:
+        title_main = "⚠️ ТЕСТОВЫЙ ВАЛИДАЦИОННЫЙ ШАБЛОН (MOCK DATA ДО СБОРА УРОЖАЯ)\n" + title_main
+    fig.suptitle(title_main, fontsize=13, fontweight='bold', y=0.99)
     plt.tight_layout()
     plt.subplots_adjust(top=0.91)
     
@@ -328,7 +330,7 @@ def generate_dospekhov_plots(df: pd.DataFrame, out_path: str):
     plt.close()
     print(f"[OK] Академический график успешно сохранен: {out_path}")
 
-def format_anova_report(df: pd.DataFrame) -> str:
+def format_anova_report(df: pd.DataFrame, is_synthetic: bool = False) -> str:
     """
     Формирование полного академического протокола дисперсионного анализа по Доспехову.
     """
@@ -344,6 +346,14 @@ def format_anova_report(df: pd.DataFrame) -> str:
     }
     
     rep = []
+    if is_synthetic:
+        rep.append("=" * 82)
+        rep.append("ВНИМАНИЕ: СИНТЕТИЧЕСКИЙ ТЕСТОВЫЙ ШАБЛОН ДЛЯ ВАЛИДАЦИИ СТАТИСТИЧЕСКОГО ПАЙПЛАЙНА")
+        rep.append("(PIPELINE VALIDATION / MOCK DATA ONLY — НЕ ЯВЛЯЕТСЯ РЕЗУЛЬТАТОМ СБОРА УРОЖАЯ!)")
+        rep.append("Настоящий биологический сбор урожая Волны 2 (огурец «Каскад») состоится по завершении")
+        rep.append("стрессовой серии (посев 25.10.2026, всходы семядолей 28.10.2026).")
+        rep.append("=" * 82)
+        rep.append("")
     rep.append("=" * 82)
     rep.append("ПРОТОКОЛ ДВУХФАКТОРНОГО ДИСПЕРСИОННОГО АНАЛИЗА ПО Б.А. ДОСПЕХОВУ (GRCBD)")
     rep.append("Проект: Мультимодальное оптико-термальное фенотипирование водного стресса (Волна 2)")
@@ -426,8 +436,9 @@ def main():
         df.to_csv(template_csv, index=False, encoding='utf-8')
         print(f"[OK] Шаблон для занесения данных среза сохранен: {template_csv}")
         
+    is_synthetic = (args.input is None or not os.path.exists(str(args.input)))
     # Формирование отчета
-    report_text = format_anova_report(df)
+    report_text = format_anova_report(df, is_synthetic=is_synthetic)
     report_path = os.path.join(args.outdir, "DOSPEKHOV_ANOVA_REPORT.txt")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report_text)
@@ -435,7 +446,7 @@ def main():
     
     # Генерация графиков Тьюки
     plot_path = os.path.join(args.outdir, "DOSPEKHOV_ANOVA_TUKEY_PLOTS.png")
-    generate_dospekhov_plots(df, plot_path)
+    generate_dospekhov_plots(df, plot_path, is_synthetic=is_synthetic)
     
     # Печать отчета в консоль
     print("\n" + report_text)

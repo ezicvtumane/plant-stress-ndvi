@@ -47,6 +47,9 @@ TURGOR_SCALE = {
 
 # Каталог 20 горшков (3 поддона по 6 штук + 1 малый лоток пилота)
 POTS_CATALOG: Dict[str, Dict[str, Any]] = {
+    # ХОЛОСТОЙ ЛИЗИМЕТР (Контроль испарения почвы E по FAO-56)
+    "X0": {"id": "X0", "cohort": "Lysimeter_Blank", "block": 0, "color": "#64748b", "badge": "⚖️ Лизиметр Х0 (FAO-56)", "target_weight": 80.0, "has_probe": False},
+
     # БЛОК 1 (Поддон 1)
     "K1": {"id": "K1", "cohort": "Control", "block": 1, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 80.0, "has_probe": True},
     "K2": {"id": "K2", "cohort": "Control", "block": 1, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 80.0, "has_probe": False},
@@ -78,6 +81,8 @@ POTS_CATALOG: Dict[str, Dict[str, Any]] = {
 
 # Порядок очереди конвейера по когортам: Контроль -> Реакция -> Превенция -> Пилот
 BATCH_QUEUE_WAVE2 = [
+    # 0. Холостой лизиметр FAO-56 (Х0)
+    "X0",
     # 1. Контроль (К1–К6)
     "K1", "K2", "K3", "K4", "K5", "K6",
     # 2. Реакция (Р1–Р6)
