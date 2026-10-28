@@ -44,6 +44,6 @@
 
 Метод двух реперных точек (сухой воздух / дистиллированная вода):
 * **Сухой датчик на воздухе (Air Dry)**: $V_{\text{dry}} = 2.03\ \text{В}$ (0.0% ПВ);
-* **Полное погружение в воду (Water Submerged)**: $V_{\text{water}} = 0.57\ \text{В}$ (100.0% ПВ);
+* **Полное погружение в воду (Water Submerged)**: $V_{\text{water}} = 0.44\ \text{В}$ (100.0% ПВ);
 * **Формула расчета**:
-  $$W_{\text{soil}} = \max\left(0.0,\ \min\left(100.0,\ \frac{2.03 - V_{\text{soil}}}{2.03 - 0.57} \times 100\%\right)\right)$$
+  $$W_{\text{soil}} = \max\left(0.0,\ \min\left(100.0,\ \frac{2.03 - V_{\text{soil}}}{1.59} \times 100\%\right)\right)$$

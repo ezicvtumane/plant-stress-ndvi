@@ -89,3 +89,4 @@ scratch/
 scripts/scratch/
 
 !tests/test_*.py
+!scripts/run_dospekhov_anova.py

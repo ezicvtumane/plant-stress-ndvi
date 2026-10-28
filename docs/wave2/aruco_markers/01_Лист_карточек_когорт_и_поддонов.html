@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лист 1: Карточки когорт для поддонов</title>
+    <style>
+        
+    @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+    }
+    * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #0f172a;
+        background: #ffffff;
+        margin: 0;
+        padding: 0;
+        line-height: 1.25;
+    }
+    .page {
+        width: 100%;
+        max-width: 190mm;
+        margin: 0 auto;
+        page-break-after: always;
+        position: relative;
+    }
+    .page:last-child {
+        page-break-after: avoid;
+    }
+    .page-header {
+        border-bottom: 2px solid #0f172a;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+    .header-titles h1 {
+        font-size: 14px;
+        font-weight: 900;
+        margin: 0 0 2px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #0f172a;
+    }
+    .header-titles p {
+        font-size: 9px;
+        color: #475569;
+        margin: 0;
+    }
+    .page-badge {
+        font-size: 9.5px;
+        font-weight: 700;
+        background: #0f172a;
+        color: #ffffff;
+        padding: 3px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+    .print-btn-bar {
+        text-align: center;
+        margin-bottom: 12px;
+    }
+    .print-btn {
+        background: #0f172a;
+        color: #ffffff;
+        border: none;
+        padding: 10px 24px;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 6px;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        transition: background 0.2s;
+    }
+    .print-btn:hover {
+        background: #2563eb;
+    }
+    .info-callout {
+        border: 1px dashed #64748b;
+        background: #f8fafc;
+        border-radius: 6px;
+        padding: 6px 10px;
+        margin-bottom: 10px;
+        font-size: 8.5px;
+        color: #334155;
+        line-height: 1.35;
+    }
+    .ruler-test {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 8px;
+        font-family: monospace;
+    }
+    .ruler-bar {
+        width: 50mm;
+        height: 5mm;
+        border: 1px solid #000;
+        background: repeating-linear-gradient(
+            to right,
+            #000 0, #000 0.2mm,
+            transparent 0.2mm, transparent 1mm
+        );
+        position: relative;
+    }
+    .page-footer {
+        margin-top: 8px;
+        padding-top: 4px;
+        border-top: 1px solid #cbd5e1;
+        font-size: 8px;
+        color: #64748b;
+        display: flex;
+        justify-content: space-between;
+    }
+    @media print {
+        .print-btn-bar { display: none; }
+        body { padding: 0; }
+    }
+
+    </style>
+</head>
+<body>
+    <div class="print-btn-bar">
+        <button class="print-btn" onclick="window.print()">🖨️ РАСПЕЧАТАТЬ НА ПРИНТЕРЕ (A4, Ctrl + P)</button>
+    </div>
+    
+    <div class="page">
+        <div class="page-header">
+            <div class="header-titles">
+                <h1>Лист 1: Карточки-шильдики когорт для поддонов (Wave 2)</h1>
+                <p>Огурец «Каскад» · GRCBD схема (3 блока × 3 когорты + Пилот Эпин) · ArUco DICT_4X4_50</p>
+            </div>
+            <div class="page-badge">ЛИСТ 1 ИЗ 3</div>
+        </div>
+
+        <div class="info-callout">
+            <b>Инструкция по маркировке поддонов:</b><br>
+            1. Распечатайте в масштабе <b>100% (без масштабирования)</b> на офисном принтере.<br>
+            2. Вырежьте карточку по внешнему контуру и закрепите на лицевой борт поддона когорты (камера NoIR считывает маркер слева, оператор видит крупный цветной буквенный код <b>К, П, Р, Э</b>).<br>
+            3. Квадратный маркер справа (20×20 мм) наклейте на противоположный (тыльный) борт поддона для считывания при развороте на 180°.<br>
+            4. Защитите карточки полоской прозрачного скотча от попадания брызг воды при поливе.
+            <div class="ruler-test">
+                <span>Контрольная шкала 50 мм:</span>
+                <div class="ruler-bar"></div>
+                <span>(измерьте линейкой: должно быть ровно 5.0 см)</span>
+            </div>
+        </div>
+
+        <div>
+            
+        <div style="border: 2px solid #059669; border-radius: 8px; padding: 7px 10px; margin-bottom: 8px; background: #ffffff; display: flex; align-items: center; gap: 12px; height: 58mm; position: relative;">
+            
+            <!-- Левый блок: Основной ArUco-маркер для камеры (32х32 мм) -->
+            <div style="display: flex; flex-direction: column; align-items: center; width: 36mm; flex-shrink: 0;">
+                <img src="data:image/png;base64,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" style="width: 32mm; height: 32mm; image-rendering: pixelated; border: 1px solid #cbd5e1; border-radius: 2px;" alt="ArUco #1">
+                <div style="font-size: 8.5px; font-weight: 800; font-family: monospace; margin-top: 3px; color: #059669;">
+                    ARUCO #1
+                </div>
+                <div style="font-size: 7px; color: #64748b; font-family: monospace;">DICT_4X4_50</div>
+            </div>
+
+            <!-- Центральный блок: Буквенный код и перечень горшков -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 28mm; height: 46mm; border: 2.5px solid #059669; border-radius: 8px; background: #ecfdf5; flex-shrink: 0;">
+                <div style="font-size: 8px; font-weight: 800; color: #475569; letter-spacing: 0.5px;">КОГОРТА</div>
+                <div style="font-size: 40px; font-weight: 900; line-height: 1; color: #059669; margin: 2px 0;">К</div>
+                <div style="font-size: 8px; font-weight: 700; color: #0f172a; text-align: center;">Контроль</div>
+                <div style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #059669; padding: 1px 5px; border-radius: 4px; margin-top: 3px;">
+                    💧 Зонд: К1
+                </div>
+            </div>
+
+            <!-- Правый блок: Научный регламент и триггер вмешательства -->
+            <div style="flex: 1; min-width: 0; padding-right: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <div style="font-size: 11px; font-weight: 900; color: #059669; text-transform: uppercase;">
+                        КОНТРОЛЬ (ФИЗИОЛОГИЧЕСКИЙ ЭТАЛОН)
+                    </div>
+                    <div style="font-size: 9px; font-weight: 800; color: #0f172a; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                        M<sub>цель</sub> = 80.0 г
+                    </div>
+                </div>
+
+                <div style="font-size: 9px; font-weight: 700; color: #1e293b; margin-bottom: 2px;">
+                    • Растения: <span style="font-family: monospace; font-weight: 900; color: #059669;">К1, К2, К3, К4, К5, К6</span> (N = 6)
+                </div>
+
+                <div style="font-size: 8px; color: #334155; margin-bottom: 2px; line-height: 1.25;">
+                    • <b>Регламент:</b> Ежедневный возвратный полив чистой водой шприцем до целевой массы 80.0 г.
+                </div>
+
+                <div style="font-size: 8px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 3px 6px; border-radius: 4px; border-left: 3px solid #059669; line-height: 1.25;">
+                    Триггер отсутствует — стабильный контроль.
+                </div>
+            </div>
+
+            <!-- Крайний правый блок: Резервный компактный маркер (20х20 мм) для тыла поддона -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25mm; flex-shrink: 0; border-left: 1px dashed #cbd5e1; padding-left: 8px;">
+                <div style="font-size: 7px; font-weight: 700; color: #64748b; margin-bottom: 2px;">ТЫЛ (РЕЗЕРВ)</div>
+                <img src="data:image/png;base64,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" style="width: 20mm; height: 20mm; image-rendering: pixelated; border: 1px solid #94a3b8;" alt="Резерв">
+                <div style="font-size: 8px; font-weight: 800; font-family: monospace; color: #0f172a; margin-top: 2px;">
+                    К #1
+                </div>
+            </div>
+
+        </div>
+        
+        <div style="border: 2px solid #d97706; border-radius: 8px; padding: 7px 10px; margin-bottom: 8px; background: #ffffff; display: flex; align-items: center; gap: 12px; height: 58mm; position: relative;">
+            
+            <!-- Левый блок: Основной ArUco-маркер для камеры (32х32 мм) -->
+            <div style="display: flex; flex-direction: column; align-items: center; width: 36mm; flex-shrink: 0;">
+                <img src="data:image/png;base64,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" style="width: 32mm; height: 32mm; image-rendering: pixelated; border: 1px solid #cbd5e1; border-radius: 2px;" alt="ArUco #4">
+                <div style="font-size: 8.5px; font-weight: 800; font-family: monospace; margin-top: 3px; color: #d97706;">
+                    ARUCO #4
+                </div>
+                <div style="font-size: 7px; color: #64748b; font-family: monospace;">DICT_4X4_50</div>
+            </div>
+
+            <!-- Центральный блок: Буквенный код и перечень горшков -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 28mm; height: 46mm; border: 2.5px solid #d97706; border-radius: 8px; background: #fffbeb; flex-shrink: 0;">
+                <div style="font-size: 8px; font-weight: 800; color: #475569; letter-spacing: 0.5px;">КОГОРТА</div>
+                <div style="font-size: 40px; font-weight: 900; line-height: 1; color: #d97706; margin: 2px 0;">П</div>
+                <div style="font-size: 8px; font-weight: 700; color: #0f172a; text-align: center;">Превенция</div>
+                <div style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #d97706; padding: 1px 5px; border-radius: 4px; margin-top: 3px;">
+                    💧 Зонд: П1
+                </div>
+            </div>
+
+            <!-- Правый блок: Научный регламент и триггер вмешательства -->
+            <div style="flex: 1; min-width: 0; padding-right: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <div style="font-size: 11px; font-weight: 900; color: #d97706; text-transform: uppercase;">
+                        ПРЕВЕНЦИЯ (ПРЕДИКТИВНЫЙ ПОЛИВ)
+                    </div>
+                    <div style="font-size: 9px; font-weight: 800; color: #0f172a; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                        M<sub>цель</sub> = 80.0 г
+                    </div>
+                </div>
+
+                <div style="font-size: 9px; font-weight: 700; color: #1e293b; margin-bottom: 2px;">
+                    • Растения: <span style="font-family: monospace; font-weight: 900; color: #d97706;">П1, П2, П3, П4, П5, П6</span> (N = 6)
+                </div>
+
+                <div style="font-size: 8px; color: #334155; margin-bottom: 2px; line-height: 1.25;">
+                    • <b>Регламент:</b> Блокировка полива со старта стресс-фазы. Разовый возвратный полив водой до 80.0 г строго в вечер срабатывания триггера. Далее ежедневно как Контроль.
+                </div>
+
+                <div style="font-size: 8px; font-weight: 700; color: #d97706; background: #fffbeb; padding: 3px 6px; border-radius: 4px; border-left: 3px solid #d97706; line-height: 1.25;">
+                    ТРИГГЕР: скачок ΔT ≥ +0.6 °C минимум у 4 из 6 растений (закрытые устьица).
+                </div>
+            </div>
+
+            <!-- Крайний правый блок: Резервный компактный маркер (20х20 мм) для тыла поддона -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25mm; flex-shrink: 0; border-left: 1px dashed #cbd5e1; padding-left: 8px;">
+                <div style="font-size: 7px; font-weight: 700; color: #64748b; margin-bottom: 2px;">ТЫЛ (РЕЗЕРВ)</div>
+                <img src="data:image/png;base64,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" style="width: 20mm; height: 20mm; image-rendering: pixelated; border: 1px solid #94a3b8;" alt="Резерв">
+                <div style="font-size: 8px; font-weight: 800; font-family: monospace; color: #0f172a; margin-top: 2px;">
+                    П #4
+                </div>
+            </div>
+
+        </div>
+        
+        <div style="border: 2px solid #2563eb; border-radius: 8px; padding: 7px 10px; margin-bottom: 8px; background: #ffffff; display: flex; align-items: center; gap: 12px; height: 58mm; position: relative;">
+            
+            <!-- Левый блок: Основной ArUco-маркер для камеры (32х32 мм) -->
+            <div style="display: flex; flex-direction: column; align-items: center; width: 36mm; flex-shrink: 0;">
+                <img src="data:image/png;base64,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" style="width: 32mm; height: 32mm; image-rendering: pixelated; border: 1px solid #cbd5e1; border-radius: 2px;" alt="ArUco #5">
+                <div style="font-size: 8.5px; font-weight: 800; font-family: monospace; margin-top: 3px; color: #2563eb;">
+                    ARUCO #5
+                </div>
+                <div style="font-size: 7px; color: #64748b; font-family: monospace;">DICT_4X4_50</div>
+            </div>
+
+            <!-- Центральный блок: Буквенный код и перечень горшков -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 28mm; height: 46mm; border: 2.5px solid #2563eb; border-radius: 8px; background: #eff6ff; flex-shrink: 0;">
+                <div style="font-size: 8px; font-weight: 800; color: #475569; letter-spacing: 0.5px;">КОГОРТА</div>
+                <div style="font-size: 40px; font-weight: 900; line-height: 1; color: #2563eb; margin: 2px 0;">Р</div>
+                <div style="font-size: 8px; font-weight: 700; color: #0f172a; text-align: center;">Реакция</div>
+                <div style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #2563eb; padding: 1px 5px; border-radius: 4px; margin-top: 3px;">
+                    💧 Зонд: Р1
+                </div>
+            </div>
+
+            <!-- Правый блок: Научный регламент и триггер вмешательства -->
+            <div style="flex: 1; min-width: 0; padding-right: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <div style="font-size: 11px; font-weight: 900; color: #2563eb; text-transform: uppercase;">
+                        РЕАКЦИЯ (ТРАДИЦИОННЫЙ ПОЛИВ)
+                    </div>
+                    <div style="font-size: 9px; font-weight: 800; color: #0f172a; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                        M<sub>цель</sub> = 80.0 г
+                    </div>
+                </div>
+
+                <div style="font-size: 9px; font-weight: 700; color: #1e293b; margin-bottom: 2px;">
+                    • Растения: <span style="font-family: monospace; font-weight: 900; color: #2563eb;">Р1, Р2, Р3, Р4, Р5, Р6</span> (N = 6)
+                </div>
+
+                <div style="font-size: 8px; color: #334155; margin-bottom: 2px; line-height: 1.25;">
+                    • <b>Регламент:</b> Блокировка полива со старта стресс-фазы. Реанимационный полив водой до 80.0 г строго в вечер срабатывания триггера. Далее ежедневно как Контроль.
+                </div>
+
+                <div style="font-size: 8px; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 3px 6px; border-radius: 4px; border-left: 3px solid #2563eb; line-height: 1.25;">
+                    ТРИГГЕР: потеря тургора (балл 2 по 3-балльной шкале) минимум у 4 из 6 растений (ΔNDVI ≤ -10%).
+                </div>
+            </div>
+
+            <!-- Крайний правый блок: Резервный компактный маркер (20х20 мм) для тыла поддона -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25mm; flex-shrink: 0; border-left: 1px dashed #cbd5e1; padding-left: 8px;">
+                <div style="font-size: 7px; font-weight: 700; color: #64748b; margin-bottom: 2px;">ТЫЛ (РЕЗЕРВ)</div>
+                <img src="data:image/png;base64,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" style="width: 20mm; height: 20mm; image-rendering: pixelated; border: 1px solid #94a3b8;" alt="Резерв">
+                <div style="font-size: 8px; font-weight: 800; font-family: monospace; color: #0f172a; margin-top: 2px;">
+                    Р #5
+                </div>
+            </div>
+
+        </div>
+        
+        <div style="border: 2px solid #dc2626; border-radius: 8px; padding: 7px 10px; margin-bottom: 8px; background: #ffffff; display: flex; align-items: center; gap: 12px; height: 58mm; position: relative;">
+            
+            <!-- Левый блок: Основной ArUco-маркер для камеры (32х32 мм) -->
+            <div style="display: flex; flex-direction: column; align-items: center; width: 36mm; flex-shrink: 0;">
+                <img src="data:image/png;base64,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" style="width: 32mm; height: 32mm; image-rendering: pixelated; border: 1px solid #cbd5e1; border-radius: 2px;" alt="ArUco #6">
+                <div style="font-size: 8.5px; font-weight: 800; font-family: monospace; margin-top: 3px; color: #dc2626;">
+                    ARUCO #6
+                </div>
+                <div style="font-size: 7px; color: #64748b; font-family: monospace;">DICT_4X4_50</div>
+            </div>
+
+            <!-- Центральный блок: Буквенный код и перечень горшков -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 28mm; height: 46mm; border: 2.5px solid #dc2626; border-radius: 8px; background: #fef2f2; flex-shrink: 0;">
+                <div style="font-size: 8px; font-weight: 800; color: #475569; letter-spacing: 0.5px;">КОГОРТА</div>
+                <div style="font-size: 40px; font-weight: 900; line-height: 1; color: #dc2626; margin: 2px 0;">Э</div>
+                <div style="font-size: 8px; font-weight: 700; color: #0f172a; text-align: center;">Пилот (Эпин)</div>
+                <div style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #dc2626; padding: 1px 5px; border-radius: 4px; margin-top: 3px;">
+                    Без зонда
+                </div>
+            </div>
+
+            <!-- Правый блок: Научный регламент и триггер вмешательства -->
+            <div style="flex: 1; min-width: 0; padding-right: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <div style="font-size: 11px; font-weight: 900; color: #dc2626; text-transform: uppercase;">
+                        ПИЛОТ (БИОТЕХ-АДАПТОГЕН «ЭПИН-ЭКСТРА»)
+                    </div>
+                    <div style="font-size: 9px; font-weight: 800; color: #0f172a; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                        M<sub>цель</sub> = 80.0 г
+                    </div>
+                </div>
+
+                <div style="font-size: 9px; font-weight: 700; color: #1e293b; margin-bottom: 2px;">
+                    • Растения: <span style="font-family: monospace; font-weight: 900; color: #dc2626;">Э1, Э2</span> (N = 2)
+                </div>
+
+                <div style="font-size: 8px; color: #334155; margin-bottom: 2px; line-height: 1.25;">
+                    • <b>Регламент:</b> Блокировка полива со старта стресс-фазы. Полив раствором «Эпин-Экстра» (2 капли на 100 мл) под корень шприцем до 80.0 г. Листья не опрыскивать! Далее ежедневно водой как Контроль.
+                </div>
+
+                <div style="font-size: 8px; font-weight: 700; color: #dc2626; background: #fef2f2; padding: 3px 6px; border-radius: 4px; border-left: 3px solid #dc2626; line-height: 1.25;">
+                    ТРИГГЕР: наступает СТРОГО синхронно с триггером группы «П».
+                </div>
+            </div>
+
+            <!-- Крайний правый блок: Резервный компактный маркер (20х20 мм) для тыла поддона -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 25mm; flex-shrink: 0; border-left: 1px dashed #cbd5e1; padding-left: 8px;">
+                <div style="font-size: 7px; font-weight: 700; color: #64748b; margin-bottom: 2px;">ТЫЛ (РЕЗЕРВ)</div>
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZIAAAGSCAAAAADs6RgmAAAK3UlEQVR4Ae3BsQ3AMADDMOn/o90XqiFAhpDyXEbGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVqOS8UUk1KmVUUo1KzhuVVKNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJTcalZw3KmVUcqNRyXmjUkYlNxqVnDcqZVRyo1HJeaNSRiU3GpWcNyplVHKjUcl5o1JGJTcalZw3KmVUcqNRyXmjUkYlNxqVnDcqZVRyo1HJeaNSRiU3GpWcNyplVHKjUcl5o1JGJTcalZw3KmVUcqNRyXmjUkYlNxqVnDcqZVRyo1HJeaNSRiU3GpWcNyplVHKjUcl5o1JGJTcalZw3KmVUcqNRyXmjUkYlNxqVnDcqZVRyo1HJeaNSRiU3GpWcNyplVHKjUcl5o1JGJTcalZw3KmVUcqNRyXmjUkYlNxqVnDcqZVRyo1HJeaNSRiU3GpWcNyplVHKjUcl5o1JGJTcalZw3KmVUcqNRyXmjUkYlNxqVnDcqZVRyo1HJeaNSRiU3GpWcNyplVHKjUcl5o1JGJTcalZw3KmVUcqNRyXmjUkYlNxqVnDcqZVRyo1HJeaNSRiU3GpWcNyplVHKjUcl5o1JGJTcalZw3KmVUcqNRyXmjUkYlNxqVnDcqZVRyo1HJeaNSRiU3GpWcNyplVHKjUcl5o1JGJTcalZw3KmVUcqNRyXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXVuJGcNyplVFKNG8l5o1JGJdW4kZw3KmVUUo0byXmjUkYl1biRnDcqZVRSjRvJeaNSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSRiXPX6NSxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UcZzE2U8N1HGcxNlPDdRxnMTZTw3UZ7LfJQOt8Bja19aAAAAAElFTkSuQmCC" style="width: 20mm; height: 20mm; image-rendering: pixelated; border: 1px solid #94a3b8;" alt="Резерв">
+                <div style="font-size: 8px; font-weight: 800; font-family: monospace; color: #0f172a; margin-top: 2px;">
+                    Э #6
+                </div>
+            </div>
+
+        </div>
+        
+        </div>
+
+        <div class="page-footer">
+            <span>Машинное зрение: OpenCV cv2.aruco DICT_4X4_50 · Протокол Волна 2 (Cucumis sativus)</span>
+            <span>Целевая масса субстрата: 80.0 г (нетто) · Расчет дозы полива шприцем</span>
+        </div>
+    </div>
+    
+</body>
+</html>
