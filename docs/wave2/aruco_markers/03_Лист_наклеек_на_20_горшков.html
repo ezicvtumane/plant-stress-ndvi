@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лист 3: Наклейки на 20 горшков</title>
+    <style>
+        
+    @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+    }
+    * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #0f172a;
+        background: #ffffff;
+        margin: 0;
+        padding: 0;
+        line-height: 1.25;
+    }
+    .page {
+        width: 100%;
+        max-width: 190mm;
+        margin: 0 auto;
+        page-break-after: always;
+        position: relative;
+    }
+    .page:last-child {
+        page-break-after: avoid;
+    }
+    .page-header {
+        border-bottom: 2px solid #0f172a;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+    .header-titles h1 {
+        font-size: 14px;
+        font-weight: 900;
+        margin: 0 0 2px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #0f172a;
+    }
+    .header-titles p {
+        font-size: 9px;
+        color: #475569;
+        margin: 0;
+    }
+    .page-badge {
+        font-size: 9.5px;
+        font-weight: 700;
+        background: #0f172a;
+        color: #ffffff;
+        padding: 3px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+    .print-btn-bar {
+        text-align: center;
+        margin-bottom: 12px;
+    }
+    .print-btn {
+        background: #0f172a;
+        color: #ffffff;
+        border: none;
+        padding: 10px 24px;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 6px;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        transition: background 0.2s;
+    }
+    .print-btn:hover {
+        background: #2563eb;
+    }
+    .info-callout {
+        border: 1px dashed #64748b;
+        background: #f8fafc;
+        border-radius: 6px;
+        padding: 6px 10px;
+        margin-bottom: 10px;
+        font-size: 8.5px;
+        color: #334155;
+        line-height: 1.35;
+    }
+    .ruler-test {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 8px;
+        font-family: monospace;
+    }
+    .ruler-bar {
+        width: 50mm;
+        height: 5mm;
+        border: 1px solid #000;
+        background: repeating-linear-gradient(
+            to right,
+            #000 0, #000 0.2mm,
+            transparent 0.2mm, transparent 1mm
+        );
+        position: relative;
+    }
+    .page-footer {
+        margin-top: 8px;
+        padding-top: 4px;
+        border-top: 1px solid #cbd5e1;
+        font-size: 8px;
+        color: #64748b;
+        display: flex;
+        justify-content: space-between;
+    }
+    @media print {
+        .print-btn-bar { display: none; }
+        body { padding: 0; }
+    }
+
+    </style>
+</head>
+<body>
+    <div class="print-btn-bar">
+        <button class="print-btn" onclick="window.print()">🖨️ РАСПЕЧАТАТЬ НА ПРИНТЕРЕ (A4, Ctrl + P)</button>
+    </div>
+    
+    <div class="page">
+        <div class="page-header">
+            <div class="header-titles">
+                <h1>Лист 3: Индивидуальные маркировочные наклейки на 20 горшков</h1>
+                <p>К1–К6 (Контроль) · Р1–Р6 (Реакция) · П1–П6 (Превенция) · Э1–Э2 (Пилот Эпин)</p>
+            </div>
+            <div class="page-badge">ЛИСТ 3 ИЗ 3</div>
+        </div>
+
+        <div class="info-callout">
+            <b>Инструкция по наклейке на индивидуальные горшки:</b><br>
+            • Распечатайте на самоклеящейся бумаге А4 или на обычном листе с фиксацией прозрачным скотчем.<br>
+            • Наклейте на лицевую грань рассадного горшка 7×7×8 см.<br>
+            • Обратите внимание: горшки <b>К1, Р1, П1</b> помечены значком <code>💧 ЗОНД ПОЧВЫ</code> — в них устанавливается стационарный датчик влажности субстрата (в остальных 17 горшках зонд не используется).
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-between;">
+            
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #059669; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #059669; font-family: monospace;">
+                    [К1]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #059669; padding: 1px 4px; border-radius: 3px;">
+                    Контроль
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #1">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 1 (Поддон 1)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #1</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 800; background: #0284c7; color: #fff; padding: 1px 4px; border-radius: 3px; display: inline-block;">💧 ЗОНД ПОЧВЫ</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #059669; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #059669; font-family: monospace;">
+                    [К2]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #059669; padding: 1px 4px; border-radius: 3px;">
+                    Контроль
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #1">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 1 (Поддон 1)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #1</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #059669; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #059669; font-family: monospace;">
+                    [К3]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #059669; padding: 1px 4px; border-radius: 3px;">
+                    Контроль
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #1">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 2 (Поддон 2)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #1</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #059669; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #059669; font-family: monospace;">
+                    [К4]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #059669; padding: 1px 4px; border-radius: 3px;">
+                    Контроль
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #1">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 2 (Поддон 2)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #1</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #059669; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #059669; font-family: monospace;">
+                    [К5]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #059669; padding: 1px 4px; border-radius: 3px;">
+                    Контроль
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #1">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 3 (Поддон 3)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #1</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #059669; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #059669; font-family: monospace;">
+                    [К6]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #059669; padding: 1px 4px; border-radius: 3px;">
+                    Контроль
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #1">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 3 (Поддон 3)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #1</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #2563eb; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #2563eb; font-family: monospace;">
+                    [Р1]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #2563eb; padding: 1px 4px; border-radius: 3px;">
+                    Реакция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #5">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 1 (Поддон 1)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #5</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 800; background: #0284c7; color: #fff; padding: 1px 4px; border-radius: 3px; display: inline-block;">💧 ЗОНД ПОЧВЫ</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #2563eb; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #2563eb; font-family: monospace;">
+                    [Р2]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #2563eb; padding: 1px 4px; border-radius: 3px;">
+                    Реакция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #5">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 1 (Поддон 1)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #5</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #2563eb; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #2563eb; font-family: monospace;">
+                    [Р3]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #2563eb; padding: 1px 4px; border-radius: 3px;">
+                    Реакция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #5">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 2 (Поддон 2)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #5</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #2563eb; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #2563eb; font-family: monospace;">
+                    [Р4]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #2563eb; padding: 1px 4px; border-radius: 3px;">
+                    Реакция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #5">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 2 (Поддон 2)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #5</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #2563eb; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #2563eb; font-family: monospace;">
+                    [Р5]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #2563eb; padding: 1px 4px; border-radius: 3px;">
+                    Реакция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #5">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 3 (Поддон 3)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #5</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #2563eb; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #2563eb; font-family: monospace;">
+                    [Р6]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #2563eb; padding: 1px 4px; border-radius: 3px;">
+                    Реакция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #5">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 3 (Поддон 3)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #5</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #d97706; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #d97706; font-family: monospace;">
+                    [П1]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #d97706; padding: 1px 4px; border-radius: 3px;">
+                    Превенция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #4">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 1 (Поддон 1)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #4</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 800; background: #0284c7; color: #fff; padding: 1px 4px; border-radius: 3px; display: inline-block;">💧 ЗОНД ПОЧВЫ</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #d97706; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #d97706; font-family: monospace;">
+                    [П2]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #d97706; padding: 1px 4px; border-radius: 3px;">
+                    Превенция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #4">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 1 (Поддон 1)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #4</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #d97706; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #d97706; font-family: monospace;">
+                    [П3]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #d97706; padding: 1px 4px; border-radius: 3px;">
+                    Превенция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #4">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 2 (Поддон 2)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #4</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #d97706; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #d97706; font-family: monospace;">
+                    [П4]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #d97706; padding: 1px 4px; border-radius: 3px;">
+                    Превенция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #4">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 2 (Поддон 2)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #4</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #d97706; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #d97706; font-family: monospace;">
+                    [П5]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #d97706; padding: 1px 4px; border-radius: 3px;">
+                    Превенция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #4">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 3 (Поддон 3)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #4</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #d97706; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #d97706; font-family: monospace;">
+                    [П6]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #d97706; padding: 1px 4px; border-radius: 3px;">
+                    Превенция
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #4">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Блок 3 (Поддон 3)</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #4</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #dc2626; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #dc2626; font-family: monospace;">
+                    [Э1]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #dc2626; padding: 1px 4px; border-radius: 3px;">
+                    Пилот (Эпин)
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #6">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Изолированный лоток</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #6</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        <div style="width: 44mm; height: 35mm; border: 1.5px solid #dc2626; border-radius: 6px; padding: 4px 6px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+            
+            <!-- Верхняя строка: ID горшка и цветная плашка -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 2px;">
+                <span style="font-size: 15px; font-weight: 900; color: #dc2626; font-family: monospace;">
+                    [Э2]
+                </span>
+                <span style="font-size: 7.5px; font-weight: 800; color: #ffffff; background: #dc2626; padding: 1px 4px; border-radius: 3px;">
+                    Пилот (Эпин)
+                </span>
+            </div>
+
+            <!-- Средняя строка: ArUco-маркер когорты + инфо о блоке -->
+            <div style="display: flex; align-items: center; gap: 6px; margin: 2px 0;">
+                <img src="data:image/png;base64,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" style="width: 16mm; height: 16mm; image-rendering: pixelated; border: 1px solid #cbd5e1;" alt="ArUco #6">
+                <div style="font-size: 7.5px; color: #334155; line-height: 1.2;">
+                    <div><b>Изолированный лоток</b></div>
+                    <div style="color: #64748b; font-size: 7px;">ArUco #6</div>
+                    <div style="color: #0f172a; font-weight: 700; margin-top: 2px;">M<sub>цель</sub>: 80.0 г</div>
+                </div>
+            </div>
+
+            <!-- Нижняя строка: Зонд влажности -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 2px;">
+                <div style="font-size: 7px; font-weight: 600; color: #94a3b8; display: inline-block;">(без зонда)</div>
+                <span style="font-size: 6.5px; color: #64748b; font-family: monospace;">7×7×8 см</span>
+            </div>
+
+        </div>
+        
+        </div>
+
+        <div class="page-footer">
+            <span>20 индивидуальных горшков объемом 0.25 л (250 мл) · Сорт огурца «Каскад» · Посев 25.10.2026</span>
+            <span>Станция NoIR + Thermal UNI-T UTi120S · Калибровка массы 80.0 г</span>
+        </div>
+    </div>
+    
+</body>
+</html>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="20.00mm" height="20.00mm" viewBox="0 0 20.00 20.00">
+<rect width="20.00" height="20.00" fill="#ffffff"/>
+<rect x="2.50" y="2.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="5.00" y="2.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="7.50" y="2.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="10.00" y="2.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="12.50" y="2.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="15.00" y="2.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="2.50" y="5.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="5.00" y="5.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="7.50" y="5.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="15.00" y="5.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="2.50" y="7.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="5.00" y="7.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="7.50" y="7.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="15.00" y="7.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="2.50" y="10.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="5.00" y="10.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="7.50" y="10.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="12.50" y="10.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="15.00" y="10.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="2.50" y="12.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="10.00" y="12.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="15.00" y="12.50" width="2.50" height="2.50" fill="#000000"/>
+<rect x="2.50" y="15.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="5.00" y="15.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="7.50" y="15.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="10.00" y="15.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="12.50" y="15.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="15.00" y="15.00" width="2.50" height="2.50" fill="#000000"/>
+<rect x="0.1" y="0.1" width="19.80" height="19.80" fill="none" stroke="#94a3b8" stroke-width="0.15" stroke-dasharray="1,1"/>
+</svg>
