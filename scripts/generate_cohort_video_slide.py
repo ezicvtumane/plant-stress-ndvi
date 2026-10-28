@@ -268,7 +268,7 @@ draw.rounded_rectangle(
     width=2
 )
 
-footer_text = "🏆 ИТОГ: Превентивный полив по CWSI сохраняет +35.8% биомассы (p < 0.05) с упреждением увядания на 48 часов!"
+footer_text = "🏆 ИТОГ: Превентивный полив по CWSI сохраняет +35.8% биомассы (тренд p = 0.20, предотвращение усыхания p < 0.05) с упреждением на 48 ч!"
 draw.text((WIDTH // 2, footer_y + footer_h // 2), footer_text, fill=(255, 255, 255), font=font_footer, anchor="mm")
 
 # Save Static Images
