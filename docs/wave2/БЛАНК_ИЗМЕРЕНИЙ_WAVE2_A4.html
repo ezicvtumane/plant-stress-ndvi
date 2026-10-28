@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Лабораторный протокол измерений — Волна 2 (Огурец «Каскад»)</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 6mm 8mm 4mm 8mm;
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    font-family: 'Segoe UI', -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    color: #1a202c;
+    background: #fff;
+    margin: 0;
+    padding: 0;
+    font-size: 7.5pt;
+    line-height: 1.1;
+  }
+  .header {
+    border-bottom: 2px solid #2b6cb0;
+    padding-bottom: 2px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .title-block h1 {
+    font-size: 11.5pt;
+    margin: 0;
+    color: #1a365d;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .title-block .subtitle {
+    font-size: 7.2pt;
+    color: #4a5568;
+    margin-top: 1px;
+  }
+  .meta-right {
+    text-align: right;
+    font-size: 7pt;
+    color: #4a5568;
+    line-height: 1.15;
+  }
+  .meta-right strong {
+    color: #2b6cb0;
+  }
+  
+  .params-bar {
+    display: flex;
+    gap: 10px;
+    background: #f7fafc;
+    border: 1px solid #cbd5e0;
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin-bottom: 4px;
+    font-size: 7.2pt;
+    align-items: center;
+  }
+  .param-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .param-item label {
+    font-weight: 600;
+    color: #2d3748;
+  }
+  .line-fill {
+    border-bottom: 1px dotted #718096;
+    display: inline-block;
+    min-width: 48px;
+    height: 12px;
+  }
+  .line-fill.short { min-width: 28px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 4px;
+  }
+  th, td {
+    border: 1px solid #a0aec0;
+    padding: 1.8px 3px;
+    text-align: center;
+    vertical-align: middle;
+    height: 17px;
+  }
+  th {
+    background-color: #edf2f7;
+    color: #2d3748;
+    font-weight: 700;
+    font-size: 7pt;
+    height: 22px;
+  }
+  tr.cohort-k { background-color: rgba(235, 248, 255, 0.4); }
+  tr.cohort-p { background-color: rgba(240, 255, 244, 0.5); }
+  tr.cohort-r { background-color: rgba(255, 250, 240, 0.5); }
+  tr.cohort-e { background-color: rgba(250, 245, 255, 0.5); }
+  tr.cohort-x { background-color: rgba(247, 250, 252, 0.7); }
+
+  td.cell-id {
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 8.5pt;
+  }
+  td.cell-cohort {
+    font-size: 7pt;
+    font-weight: 600;
+    text-align: left;
+    padding-left: 4px;
+    white-space: nowrap;
+  }
+  .tag-k { color: #2b6cb0; }
+  .tag-p { color: #276749; }
+  .tag-r { color: #c05621; }
+  .tag-e { color: #6b46c1; }
+  .tag-x { color: #4a5568; }
+
+  .footer-guide {
+    display: grid;
+    grid-template-columns: 1.35fr 1.65fr 1fr;
+    gap: 6px;
+    background: #edf2f7;
+    border: 1px solid #cbd5e0;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 6.8pt;
+    line-height: 1.15;
+  }
+  .guide-col h3 {
+    margin: 0 0 1px 0;
+    font-size: 7pt;
+    color: #2c5282;
+    text-transform: uppercase;
+  }
+  .guide-col ul {
+    margin: 0;
+    padding-left: 10px;
+  }
+  .guide-col li {
+    margin-bottom: 0px;
+  }
+  .signature-block {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    font-size: 7pt;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <h1>Лабораторный протокол фитомониторинга — Волна 2</h1>
+    <div class="subtitle">Мультимодальный комплекс: Sony IMX179 NoIR (400–1000 нм) + Термография UTi120S + Лизиметрия FAO-56</div>
+  </div>
+  <div class="meta-right">
+    Автор: <strong>Ковалева Алиса</strong> (10 кл., ГБОУ СОШ №282 СПб)<br>
+    Объект: <strong>Огурец «Каскад» (Cucumis sativus L.)</strong> | n=20 + X0
+  </div>
+</div>
+
+<div class="params-bar">
+  <div class="param-item">
+    <label>Дата:</label>
+    <span class="line-fill"></span>
+  </div>
+  <div class="param-item">
+    <label>Время:</label>
+    <span class="line-fill short"></span>
+  </div>
+  <div class="param-item">
+    <label>День опыта:</label>
+    <span class="line-fill short">Д-___</span>
+  </div>
+  <div class="param-item">
+    <label>Стресс-день:</label>
+    <span class="line-fill short">S-___</span>
+  </div>
+  <div class="param-item">
+    <label>Твозд:</label>
+    <span class="line-fill short"></span> °C
+  </div>
+  <div class="param-item">
+    <label>RHвозд:</label>
+    <span class="line-fill short"></span> %
+  </div>
+  <div class="param-item">
+    <label>Трепера (сух):</label>
+    <span class="line-fill short"></span> °C
+  </div>
+  <div class="param-item">
+    <label>Трепера (вл):</label>
+    <span class="line-fill short"></span> °C
+  </div>
+  <div class="param-item" style="margin-left: auto;">
+    <label>Ротация GRCBD:</label>
+    [ &nbsp; ] ВЫПОЛНЕНА
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 26px;">№</th>
+      <th style="width: 32px;">ID</th>
+      <th style="width: 130px;">Когорта / Блок</th>
+      <th style="width: 50px;">Поз.</th>
+      <th style="width: 65px;">Масса, г</th>
+      <th style="width: 60px;">&Delta;M, г<br><span style="font-weight:normal; font-size:6pt;">(M - 80.0)</span></th>
+      <th style="width: 55px;">Тлист, °C</th>
+      <th style="width: 55px;">&Delta;T, °C<br><span style="font-weight:normal; font-size:6pt;">(Тлист-Тсух)</span></th>
+      <th style="width: 50px;">NDVI</th>
+      <th style="width: 48px;">Тургор<br><span style="font-weight:normal; font-size:6pt;">(1-4)</span></th>
+      <th style="width: 52px;">Триггер<br><span style="font-weight:normal; font-size:6pt;">ДА/НЕТ</span></th>
+      <th style="width: 62px;">Полив, мл</th>
+      <th>Фенологические наблюдения и статус листьев<br><span style="font-weight:normal; font-size:6pt;">(семядоли, 1-й настоящий лист, краевой тургор, хлороз, эвазия)</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- К1 КОНТРОЛЬ -->
+    <tr class="cohort-k"><td>1</td><td class="cell-id">K1</td><td class="cell-cohort"><span class="tag-k">&#9679;</span> Контроль (Блок 1)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-k"><td>2</td><td class="cell-id">K2</td><td class="cell-cohort"><span class="tag-k">&#9679;</span> Контроль (Блок 1)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-k"><td>3</td><td class="cell-id">K3</td><td class="cell-cohort"><span class="tag-k">&#9679;</span> Контроль (Блок 2)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-k"><td>4</td><td class="cell-id">K4</td><td class="cell-cohort"><span class="tag-k">&#9679;</span> Контроль (Блок 2)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-k"><td>5</td><td class="cell-id">K5</td><td class="cell-cohort"><span class="tag-k">&#9679;</span> Контроль (Блок 3)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-k"><td>6</td><td class="cell-id">K6</td><td class="cell-cohort"><span class="tag-k">&#9679;</span> Контроль (Блок 3)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <!-- К4 ПРЕВЕНЦИЯ -->
+    <tr class="cohort-p"><td>7</td><td class="cell-id">P1</td><td class="cell-cohort"><span class="tag-p">&#9679;</span> Превенция (&Delta;T&ge;+0.6°) Бл.1</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-p"><td>8</td><td class="cell-id">P2</td><td class="cell-cohort"><span class="tag-p">&#9679;</span> Превенция (&Delta;T&ge;+0.6°) Бл.1</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-p"><td>9</td><td class="cell-id">P3</td><td class="cell-cohort"><span class="tag-p">&#9679;</span> Превенция (&Delta;T&ge;+0.6°) Бл.2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-p"><td>10</td><td class="cell-id">P4</td><td class="cell-cohort"><span class="tag-p">&#9679;</span> Превенция (&Delta;T&ge;+0.6°) Бл.2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-p"><td>11</td><td class="cell-id">P5</td><td class="cell-cohort"><span class="tag-p">&#9679;</span> Превенция (&Delta;T&ge;+0.6°) Бл.3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-p"><td>12</td><td class="cell-id">P6</td><td class="cell-cohort"><span class="tag-p">&#9679;</span> Превенция (&Delta;T&ge;+0.6°) Бл.3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <!-- К5 РЕАКЦИЯ -->
+    <tr class="cohort-r"><td>13</td><td class="cell-id">R1</td><td class="cell-cohort"><span class="tag-r">&#9679;</span> Реакция (Увядание) Бл.1</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-r"><td>14</td><td class="cell-id">R2</td><td class="cell-cohort"><span class="tag-r">&#9679;</span> Реакция (Увядание) Бл.1</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-r"><td>15</td><td class="cell-id">R3</td><td class="cell-cohort"><span class="tag-r">&#9679;</span> Реакция (Увядание) Бл.2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-r"><td>16</td><td class="cell-id">R4</td><td class="cell-cohort"><span class="tag-r">&#9679;</span> Реакция (Увядание) Бл.2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-r"><td>17</td><td class="cell-id">R5</td><td class="cell-cohort"><span class="tag-r">&#9679;</span> Реакция (Увядание) Бл.3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-r"><td>18</td><td class="cell-id">R6</td><td class="cell-cohort"><span class="tag-r">&#9679;</span> Реакция (Увядание) Бл.3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <!-- К6 ЭПИН -->
+    <tr class="cohort-e"><td>19</td><td class="cell-id">E1</td><td class="cell-cohort"><span class="tag-e">&#9679;</span> Пилот Эпин (Адаптоген)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="cohort-e"><td>20</td><td class="cell-id">E2</td><td class="cell-cohort"><span class="tag-e">&#9679;</span> Пилот Эпин (Адаптоген)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <!-- ХОЛОСТОЙ ЛИЗИМЕТР X0 -->
+    <tr class="cohort-x"><td>21</td><td class="cell-id">X0</td><td class="cell-cohort"><span class="tag-x">&#9632;</span> Лизиметр FAO-56 (Без раст.)</td><td></td><td></td><td></td><td></td><td></td><td>-</td><td>-</td><td>-</td><td></td><td>Контроль физического испарения почвы E (ET = E + T)</td></tr>
+  </tbody>
+</table>
+
+<div class="footer-guide">
+  <div class="guide-col">
+    <h3>Правила полива и триггеры</h3>
+    <ul>
+      <li><strong>Контроль (K):</strong> Долив воды до 80.0 г + (PLA &times; 0.06 г/см&sup2;).</li>
+      <li><strong>Превенция (P):</strong> Полив 15 мл СТРОГО при &Delta;T &ge; +0.6 °C или M &le; 68.0 г.</li>
+      <li><strong>Реакция (R):</strong> Полив 15 мл ТОЛЬКО при увядании (Тургор = 3).</li>
+      <li><strong>Лизиметр (X0):</strong> Взвесить, долить до 80.0 г (определение чистого E).</li>
+    </ul>
+  </div>
+  <div class="guide-col">
+    <h3>Шкала тургора и визуальные маркеры</h3>
+    <ul>
+      <li><strong>1 — Тургор:</strong> Листья упругие, гипокотиль прямой, ориентация к свету.</li>
+      <li><strong>2 — Начало стресса:</strong> Легкая потеря упругости краев листа.</li>
+      <li><strong>3 — Увядание (Триггер R):</strong> Поникание листа, потеря ориентации.</li>
+      <li><strong>4 — Коллапс:</strong> Скручивание, краевой некроз, полное поникание стебля.</li>
+    </ul>
+  </div>
+  <div class="guide-col" style="display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <h3>Погрешности приборов</h3>
+      Весы: &plusmn;0.1 г | Термо: &plusmn;0.1 °C | SHT30: &plusmn;0.2 °C
+    </div>
+    <div class="signature-block">
+      Оператор: ___________________
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
