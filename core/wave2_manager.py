@@ -19,7 +19,7 @@ import cv2
 # ==============================================================================
 
 WAVE2_EXPERIMENT_META = {
-    "exp_id": "exp_wave2",
+    "exp_id": "exp_1792918800",
     "name": "Волна 2: Огурец «Каскад» (GRCBD)",
     "plant": "Огурец Каскад",
     "crop": "Cucumis sativus L.",
@@ -428,7 +428,10 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
 class Wave2Storage:
     def __init__(self, data_dir: str):
         self.data_dir = data_dir
-        self.wave2_dir = os.path.join(data_dir, "experiments", "exp_wave2")
+        # Поддержка канонического таймстемпа exp_1792918800 с fallback на exp_wave2
+        exp_target = os.path.join(data_dir, "experiments", "exp_1792918800")
+        exp_legacy = os.path.join(data_dir, "experiments", "exp_wave2")
+        self.wave2_dir = exp_target if os.path.exists(exp_target) or not os.path.exists(exp_legacy) else exp_legacy
         self.images_dir = os.path.join(self.wave2_dir, "images")
         self.csv_path = os.path.join(self.wave2_dir, "measurements_wave2.csv")
         self._init_storage()

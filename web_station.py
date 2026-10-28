@@ -71,16 +71,16 @@ def ensure_wave2_registered(data_dir: str):
         exp_mgr = get_experiment_manager(data_dir)
         reg = exp_mgr._load_registry()
         exps = reg.get('experiments', [])
-        if not any(e.get('id') == 'exp_wave2' for e in exps):
-            wave2_dir = os.path.join(exp_mgr.exp_base_dir, 'exp_wave2')
+        if not any(e.get('id') in ('exp_1792918800', 'exp_wave2') for e in exps):
+            wave2_dir = os.path.join(exp_mgr.exp_base_dir, 'exp_1792918800')
             os.makedirs(os.path.join(wave2_dir, 'images'), exist_ok=True)
             exps.append({
-                'id': 'exp_wave2',
+                'id': 'exp_1792918800',
                 'name': 'Волна 2: Огурец «Каскад» (GRCBD)',
                 'plant': 'Огурец «Каскад»',
                 'created_at': time.strftime('%Y-%m-%d %H:%M'),
                 'description': 'Огурец Каскад 20 горшков GRCBD, превентивный полив по Delta T и оптимизация Эпина',
-                'folder': 'exp_wave2'
+                'folder': 'exp_1792918800'
             })
             reg['experiments'] = exps
             exp_mgr._save_registry(reg)
@@ -1720,7 +1720,7 @@ async def index(
 
     # --- ВЕТВЛЕНИЕ: ВТОРАЯ ВОЛНА (ОГУРЕЦ GRCBD) ---
     is_wave2 = (
-        active_exp.get('id') == 'exp_wave2' or 
+        active_exp.get('id') in ('exp_1792918800', 'exp_wave2') or 
         'wave2' in str(active_exp.get('id', '')).lower() or
         'cucumber' in str(active_exp.get('id', '')).lower()
     )
