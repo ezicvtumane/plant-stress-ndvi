@@ -59,7 +59,7 @@ class RealADS1115(SoilSensor):
             from src.sensors_ads1115 import SoilMoistureReader
             return SoilMoistureReader().get_active_moisture(group_name)
         except Exception:
-            return 1.85, 64.0
+            return 1.977, 64.0
 
     async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
         return await asyncio.get_running_loop().run_in_executor(
@@ -69,7 +69,7 @@ class RealADS1115(SoilSensor):
 class MockADS1115(SoilSensor):
     async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
         # Детерминированная константа поверки АЦП без псевдослучайных колебаний
-        v = 1.85
+        v = 1.977
         pct = 64.0
         return v, pct
 
