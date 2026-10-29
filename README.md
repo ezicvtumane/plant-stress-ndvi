@@ -1,9 +1,22 @@
+<div align="center">
+
+<a href="https://konkurs.sochisirius.ru/">
+  <img src="docs/images/bv_logo_badge.png" height="75" alt="Всероссийский конкурс научно-технологических проектов «Большие вызовы»" />
+</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://konkurs.sochisirius.ru/">
+  <img src="docs/images/agrobiotech_track_logo.png" height="70" alt="Направление: Агропромышленные и биотехнологии" />
+</a>
+
 # Оптико-электронный комплекс активной спектрофотометрии и термографии для ранней индикации водного стресса растений
 
+[![Сириус: Большие вызовы](https://img.shields.io/badge/Сириус-Большие%20вызовы%202025%2F2026-00a499.svg)](https://konkurs.sochisirius.ru/)
+[![Направление](https://img.shields.io/badge/Трек-Агропромышленные%20и%20биотехнологии-008276.svg)](https://konkurs.sochisirius.ru/)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests: 36 passed](https://img.shields.io/badge/Tests-36%20passed-brightgreen.svg)]()
 [![Hardware: Orange Pi 4 Pro](https://img.shields.io/badge/Platform-Orange%20Pi%204%20Pro-orange.svg)]()
+
+</div>
 
 Программно-аппаратный комплекс для ранней (доклинической) детекции водного и осмотического стресса растений закрытого грунта. 
 
