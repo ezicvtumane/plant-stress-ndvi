@@ -519,22 +519,37 @@ class Wave2Storage:
             return False, f"Ошибка записи: {str(e)}"
 
     def delete_record(self, pot_id: str, date_str: Optional[str] = None) -> Tuple[bool, str]:
-        """Удаление замера горшка за сегодня из measurements_wave2.csv."""
-        if not date_str:
-            date_str = datetime.now().strftime("%Y-%m-%d")
+        """Удаление замера горшка из measurements_wave2.csv."""
         pot_id = str(pot_id).strip().upper()
         all_records = self.load_all_records()
         new_records = []
         deleted = False
         deleted_opt_file = None
-        for r in all_records:
-            if r.get("ID", "").strip().upper() == pot_id and r.get("Timestamp", "").startswith(date_str):
+        
+        target_idx = None
+        for i, r in enumerate(all_records):
+            if r.get("ID", "").strip().upper() == pot_id:
+                if date_str and r.get("Timestamp", "").startswith(date_str):
+                    target_idx = i
+                    break
+                elif not date_str:
+                    target_idx = i
+        
+        if target_idx is None:
+            for i, r in enumerate(all_records):
+                if r.get("ID", "").strip().upper() == pot_id:
+                    target_idx = i
+                    break
+        
+        if target_idx is None:
+            return False, f"Замер для горшка {pot_id} не найден"
+            
+        for i, r in enumerate(all_records):
+            if i == target_idx:
                 deleted = True
                 deleted_opt_file = r.get("Opt_File")
             else:
                 new_records.append(r)
-        if not deleted:
-            return False, f"Замер для горшка {pot_id} за сегодня не найден"
         
         temp_csv = self.csv_path + ".tmp"
         try:
