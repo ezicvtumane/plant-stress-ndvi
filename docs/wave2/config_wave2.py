@@ -11,7 +11,7 @@ EXPERIMENT_META = {
     "crop": "Cucumis sativus (сорт Каскад)",
     "start_date": "2026-10-25",
     "measurement_window": "18:00-18:30",
-    "target_weight_net_g": 80.0,
+    "target_weight_net_g": 85.0,
     "emissivity_lwir": 0.98,
     "threshold_delta_t": 0.6,
     "cluster_min_plants": 4,
@@ -27,38 +27,38 @@ TURGOR_SCALE = {
 
 POTS_CONFIG: Dict[str, Dict[str, Any]] = {
     # Блок 1 (Поддон 1)
-    "K1": {"cohort": "Control", "block": 1, "color": "green", "aruco_id": 1, "target_weight": 80.0, "probe": True},
-    "K2": {"cohort": "Control", "block": 1, "color": "green", "aruco_id": 1, "target_weight": 80.0, "probe": False},
-    "P1": {"cohort": "Prevention", "block": 1, "color": "yellow", "aruco_id": 4, "target_weight": 80.0, "probe": True},
-    "P2": {"cohort": "Prevention", "block": 1, "color": "yellow", "aruco_id": 4, "target_weight": 80.0, "probe": False},
-    "R1": {"cohort": "Reaction", "block": 1, "color": "blue", "aruco_id": 5, "target_weight": 80.0, "probe": True},
-    "R2": {"cohort": "Reaction", "block": 1, "color": "blue", "aruco_id": 5, "target_weight": 80.0, "probe": False},
+    "K1": {"cohort": "Control", "block": 1, "color": "green", "aruco_id": 1, "target_weight": 85.0, "probe": True},
+    "K2": {"cohort": "Control", "block": 1, "color": "green", "aruco_id": 1, "target_weight": 85.0, "probe": False},
+    "P1": {"cohort": "Prevention", "block": 1, "color": "yellow", "aruco_id": 4, "target_weight": 85.0, "probe": True},
+    "P2": {"cohort": "Prevention", "block": 1, "color": "yellow", "aruco_id": 4, "target_weight": 85.0, "probe": False},
+    "R1": {"cohort": "Reaction", "block": 1, "color": "blue", "aruco_id": 5, "target_weight": 85.0, "probe": True},
+    "R2": {"cohort": "Reaction", "block": 1, "color": "blue", "aruco_id": 5, "target_weight": 85.0, "probe": False},
 
     # Блок 2 (Поддон 2)
-    "K3": {"cohort": "Control", "block": 2, "color": "green", "aruco_id": 1, "target_weight": 80.0, "probe": False},
-    "K4": {"cohort": "Control", "block": 2, "color": "green", "aruco_id": 1, "target_weight": 80.0, "probe": False},
-    "P3": {"cohort": "Prevention", "block": 2, "color": "yellow", "aruco_id": 4, "target_weight": 80.0, "probe": False},
-    "P4": {"cohort": "Prevention", "block": 2, "color": "yellow", "aruco_id": 4, "target_weight": 80.0, "probe": False},
-    "R3": {"cohort": "Reaction", "block": 2, "color": "blue", "aruco_id": 5, "target_weight": 80.0, "probe": False},
-    "R4": {"cohort": "Reaction", "block": 2, "color": "blue", "aruco_id": 5, "target_weight": 80.0, "probe": False},
+    "K3": {"cohort": "Control", "block": 2, "color": "green", "aruco_id": 1, "target_weight": 85.0, "probe": False},
+    "K4": {"cohort": "Control", "block": 2, "color": "green", "aruco_id": 1, "target_weight": 85.0, "probe": False},
+    "P3": {"cohort": "Prevention", "block": 2, "color": "yellow", "aruco_id": 4, "target_weight": 85.0, "probe": False},
+    "P4": {"cohort": "Prevention", "block": 2, "color": "yellow", "aruco_id": 4, "target_weight": 85.0, "probe": False},
+    "R3": {"cohort": "Reaction", "block": 2, "color": "blue", "aruco_id": 5, "target_weight": 85.0, "probe": False},
+    "R4": {"cohort": "Reaction", "block": 2, "color": "blue", "aruco_id": 5, "target_weight": 85.0, "probe": False},
 
     # Блок 3 (Поддон 3)
-    "K5": {"cohort": "Control", "block": 3, "color": "green", "aruco_id": 1, "target_weight": 80.0, "probe": False},
-    "K6": {"cohort": "Control", "block": 3, "color": "green", "aruco_id": 1, "target_weight": 80.0, "probe": False},
-    "P5": {"cohort": "Prevention", "block": 3, "color": "yellow", "aruco_id": 4, "target_weight": 80.0, "probe": False},
-    "P6": {"cohort": "Prevention", "block": 3, "color": "yellow", "aruco_id": 4, "target_weight": 80.0, "probe": False},
-    "R5": {"cohort": "Reaction", "block": 3, "color": "blue", "aruco_id": 5, "target_weight": 80.0, "probe": False},
-    "R6": {"cohort": "Reaction", "block": 3, "color": "blue", "aruco_id": 5, "target_weight": 80.0, "probe": False},
+    "K5": {"cohort": "Control", "block": 3, "color": "green", "aruco_id": 1, "target_weight": 85.0, "probe": False},
+    "K6": {"cohort": "Control", "block": 3, "color": "green", "aruco_id": 1, "target_weight": 85.0, "probe": False},
+    "P5": {"cohort": "Prevention", "block": 3, "color": "yellow", "aruco_id": 4, "target_weight": 85.0, "probe": False},
+    "P6": {"cohort": "Prevention", "block": 3, "color": "yellow", "aruco_id": 4, "target_weight": 85.0, "probe": False},
+    "R5": {"cohort": "Reaction", "block": 3, "color": "blue", "aruco_id": 5, "target_weight": 85.0, "probe": False},
+    "R6": {"cohort": "Reaction", "block": 3, "color": "blue", "aruco_id": 5, "target_weight": 85.0, "probe": False},
 
     # Изолированный лоток (Пилот)
-    "E1": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 4, "target_weight": 80.0, "probe": False},
-    "E2": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 4, "target_weight": 80.0, "probe": False},
+    "E1": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 4, "target_weight": 85.0, "probe": False},
+    "E2": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 4, "target_weight": 85.0, "probe": False},
 }
 
 TARGET_WEIGHTS = {pot_id: data["target_weight"] for pot_id, data in POTS_CONFIG.items()}
 
 
-def calculate_water_dose(current_weight: float, target_weight: float = 80.0) -> float:
+def calculate_water_dose(current_weight: float, target_weight: float = 85.0) -> float:
     """Расчет дефицита полива в миллилитрах."""
     deficit = target_weight - current_weight
     return round(max(0.0, deficit), 1)
