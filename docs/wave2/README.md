@@ -72,15 +72,15 @@
 
 ## Документы и материалы Волна 2
 
-* [`PROTOCOL_WAVE2_CUCUMBER.md`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/PROTOCOL_WAVE2_CUCUMBER.md) — Академический мастер-протокол (цель, GRCBD Доспехова, формулы, аналитика сухой массы).
-* [`LAB_LOG_INSTRUCTIONS.md`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/LAB_LOG_INSTRUCTIONS.md) — Экспресс-памятка для Алисы на конвейер измерений (18:00–18:30).
-* [`HANDOFF_WAVE2.md`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/HANDOFF_WAVE2.md) — Исчерпывающая техническая инструкция передачи дел (Handoff) для будущих сессий и нейросетей.
-* [`config_wave2.py`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/config_wave2.py) — Программный конфиг когорт и порогов.
-* [`JOURNAL_TEMPLATE_WAVE2.csv`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/JOURNAL_TEMPLATE_WAVE2.csv) — Табличный шаблон для ведения журнала измерений.
+* [`PROTOCOL_WAVE2_CUCUMBER.md`](PROTOCOL_WAVE2_CUCUMBER.md) — Академический мастер-протокол (цель, GRCBD Доспехова, формулы, аналитика сухой массы).
+* [`LAB_LOG_INSTRUCTIONS.md`](LAB_LOG_INSTRUCTIONS.md) — Экспресс-памятка для Алисы на конвейер измерений (18:00–18:30).
+* [`HANDOFF_WAVE2.md`](HANDOFF_WAVE2.md) — Исчерпывающая техническая инструкция передачи дел (Handoff) для будущих сессий и нейросетей.
+* [`config_wave2.py`](config_wave2.py) — Программный конфиг когорт и порогов.
+* [`JOURNAL_TEMPLATE_WAVE2.csv`](JOURNAL_TEMPLATE_WAVE2.csv) — Табличный шаблон для ведения журнала измерений.
 * `aruco_markers/` — Каталог сгенерированных и готовых к печати маркеров OpenCV `DICT_4X4_50` (A4 PDF и SVG).
 * `images/` — Фотоархив пробоподготовки и личного вклада автора:
-  * [`03_alice_gravimetric_taring_40g.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/03_alice_gravimetric_taring_40g.jpg) — Алиса проводит пошаговое взвешивание базового слоя (40.1 г на весах).
-  * [`05_alice_seed_planting_60g_total.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/05_alice_seed_planting_60g_total.jpg) — Алиса раскладывает калиброванные проростки и засыпает покрывной слой до 60.0 г.
-  * [`02_calibrated_seeds_radicles.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/02_calibrated_seeds_radicles.jpg) — Калиброванные семена с корешком 1.0–1.5 см на влажной подложке.
-  * [`04_synchronous_emergence_20pots.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/04_synchronous_emergence_20pots.jpg) — 100% синхронные всходы огурца в 20 сосудах (28 октября 2026 г.).
-  * [`01_substrate_prep_cat_inspector.jpg`](file:///c:/Users/Администратор/Documents/antigravity/lively-hertz/docs/wave2/images/01_substrate_prep_cat_inspector.jpg) — Подготовка субстрата и лабораторный контроль.
+  * [`03_alice_gravimetric_taring_40g.jpg`](images/03_alice_gravimetric_taring_40g.jpg) — Алиса проводит пошаговое взвешивание базового слоя (40.1 г на весах).
+  * [`05_alice_seed_planting_60g_total.jpg`](images/05_alice_seed_planting_60g_total.jpg) — Алиса раскладывает калиброванные проростки и засыпает покрывной слой до 60.0 г.
+  * [`02_calibrated_seeds_radicles.jpg`](images/02_calibrated_seeds_radicles.jpg) — Калиброванные семена с корешком 1.0–1.5 см на влажной подложке.
+  * [`04_synchronous_emergence_20pots.jpg`](images/04_synchronous_emergence_20pots.jpg) — 100% синхронные всходы огурца в 20 сосудах (28 октября 2026 г.).
+  * [`01_substrate_prep_cat_inspector.jpg`](images/01_substrate_prep_cat_inspector.jpg) — Подготовка субстрата и лабораторный контроль.
