@@ -115,9 +115,17 @@
    * Органические красители фильтров Байера бытовых NoIR-матриц обладают паразитным пропусканием в ближнем ИК-диапазоне.
    * Для нормировки спектрального отклика применен диффузный белый эталон из химически чистого политетрафторэтилена (PTFE, химический аналог Spectralon®).
    * Коэффициент межканального баланса рассчитывается по формуле:
-     $$k_{\text{bal}} = \frac{DN_{660}^{\text{white}}}{DN_{850}^{\text{white}}} = \frac{195.2}{48.0} \approx 4.070$$
+
+$$
+k_{\text{bal}} = \frac{DN_{660}^{\text{white}}}{DN_{850}^{\text{white}}} = \frac{195.2}{48.0} \approx 4.070
+$$
+
    * Формула инструментального вегетационного индекса комплекса с дифференциальным вычитанием темнового фона:
-     $$NDVI_{\text{instr}} = \frac{k_{\text{bal}} \cdot NIR_{\text{diff}} - R_{\text{diff}}}{k_{\text{bal}} \cdot NIR_{\text{diff}} + R_{\text{diff}} + 10^{-6}}$$
+
+$$
+NDVI_{\text{instr}} = \frac{k_{\text{bal}} \cdot NIR_{\text{diff}} - R_{\text{diff}}}{k_{\text{bal}} \cdot NIR_{\text{diff}} + R_{\text{diff}} + 10^{-6}}
+$$
+
      обеспечивает строгое равенство $NDVI_{\text{instr}} \equiv 0.000$ на нейтральном нерастительном отражателе.
 
 3. **Компьютерное зрение и фенотипирование полога (OpenCV):**
@@ -129,7 +137,11 @@
 
 5. **Модуль биометрии и математического анализа:**
    * Расчет индекса водного стресса покрова (Crop Water Stress Index, CWSI) по эмпирической модели Идсо:
-     $$\text{CWSI}_{\text{instr}} = \frac{\Delta T - \Delta T_{\text{wet}}}{\Delta T_{\text{dry}} - \Delta T_{\text{wet}}} = \frac{\Delta T - 0.24 + 1.20 \cdot VPD}{1.26 + 1.20 \cdot VPD}$$
+
+$$
+\text{CWSI}_{\text{instr}} = \frac{\Delta T - \Delta T_{\text{wet}}}{\Delta T_{\text{dry}} - \Delta T_{\text{wet}}} = \frac{\Delta T - 0.24 + 1.20 \cdot VPD}{1.26 + 1.20 \cdot VPD}
+$$
+
      *(подробный протокол вывода регрессии см. в [`CALIBRATION.md`](CALIBRATION.md))*;
    * Двухфакторный дисперсионный анализ (**Two-Way ANOVA по Доспехову**) с апостериорным тестом Тьюки (HSD) для блочных экспериментов.
 
