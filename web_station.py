@@ -34,6 +34,7 @@ from datetime import datetime
 import subprocess
 import numpy as np
 from src.sensors_ads1115 import _global_reader
+from src.config import V_DRY, V_WET
 from src.profiler import profile_performance  # OPT: performance tracking
 import cv2
 try:
@@ -147,6 +148,7 @@ def get_agronomic_ndvi_lut() -> np.ndarray:
 AGRONOMIC_NDVI_LUT = get_agronomic_ndvi_lut()
 
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
+DOCS_DIR = os.path.join(BASE_DIR, 'docs')
 TH_CACHE_DIR = os.path.join(STATIC_DIR, 'uti_cache')
 UTI_DIR = '/media/uti120s/Images'
 
@@ -429,7 +431,7 @@ def read_moisture_mock(group_name: str = ''):
             raw -= 65536
         v = float(raw * 0.000125)
         # Расчет влажности субстрата (% ПВ)
-        pct = max(0.0, min(100.0, (2.03 - v) / 1.59 * 100.0))  # V_dry=2.03V, V_wet=0.44V, Delta_V=1.59V
+        pct = max(0.0, min(100.0, (V_DRY - v) / (V_DRY - V_WET) * 100.0))  # Торф: V_DRY=2.072V, V_WET=1.923V (Delta_V=0.149V)
         return round(v, 3), round(pct, 1)
     except Exception as e:
         gn = group_name.lower() if group_name else ''
@@ -1073,7 +1075,7 @@ def handle_save_final(
         try:
             ps_val = float(pct_soil.strip().replace(',', '.'))
             s['pct_soil'] = round(max(0.0, min(100.0, ps_val)), 1)
-            s['v_soil'] = round(2.03 - (s['pct_soil'] / 100.0) * 1.59, 2)
+            s['v_soil'] = round(V_DRY - (s['pct_soil'] / 100.0) * (V_DRY - V_WET), 3)
         except Exception:
             pass
 
@@ -1334,7 +1336,7 @@ async def handle_batch_save_manual(request: Request):
             try:
                 ps = float(str(pct_raw).strip().replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-                s['v_soil'] = round(2.03 - (s['pct_soil'] / 100.0) * 1.59, 2)
+                s['v_soil'] = round(V_DRY - (s['pct_soil'] / 100.0) * (V_DRY - V_WET), 3)
             except Exception:
                 pass
         elif group_name in ['Превенция', 'Реакция']:
@@ -1418,7 +1420,7 @@ async def handle_batch_save_final(request: Request):
             try:
                 ps = float(str(pct_raw).strip().replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
-                s['v_soil'] = round(2.03 - (s['pct_soil'] / 100.0) * 1.59, 2)
+                s['v_soil'] = round(V_DRY - (s['pct_soil'] / 100.0) * (V_DRY - V_WET), 3)
             except Exception:
                 pass
         elif group_name in ['Превенция', 'Реакция']:

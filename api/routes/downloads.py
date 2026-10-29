@@ -134,3 +134,8 @@ def download_images_zip():
     if os.path.exists(out_zip):
         return FileResponse(out_zip, filename=f"images_{exp_id}.zip", media_type='application/zip')
     return HTMLResponse('Архив снимков не найден')
+
+
+def init_downloads(*args, **kwargs):
+    """Инициализация модуля загрузок (обратная совместимость)."""
+    pass
