@@ -190,13 +190,7 @@ BATCH_CONFIG = {
     }
 }
 
-BATCH_STATE = {
-    'active': False,
-    'stage_key': 'batch5',
-    'current_step': 0,
-    'sessions': [],
-    'verified_data': None
-}
+from core.station_state import BATCH_STATE
 
 LAST_VALID_CLIMATE = (23.2, 52.0, 3.21)
 
@@ -1130,26 +1124,28 @@ def handle_start_batch(stage: str = 'stage1'):
     PENDING_SESSION = None
     if stage not in BATCH_CONFIG:
         stage = 'stage1'
-    BATCH_STATE = {
+    BATCH_STATE.clear()
+    BATCH_STATE.update({
         'active': True,
         'stage_key': stage,
         'current_step': 0,
         'sessions': [],
         'verified_data': None
-    }
+    })
     return RedirectResponse(url='/?stage=batch_shoot', status_code=303)
 
 @app.get('/api/cancel_batch')
 def handle_cancel_batch():
     """Отмена текущей пакетной сессии."""
     global BATCH_STATE
-    BATCH_STATE = {
+    BATCH_STATE.clear()
+    BATCH_STATE.update({
         'active': False,
         'stage_key': 'stage1',
         'current_step': 0,
         'sessions': [],
         'verified_data': None
-    }
+    })
     return RedirectResponse(url='/?msg=cancelled', status_code=303)
 
 @app.post('/api/batch_capture_next')

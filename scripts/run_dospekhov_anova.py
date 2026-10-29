@@ -400,20 +400,26 @@ def format_anova_report(df: pd.DataFrame, is_synthetic: bool = False) -> str:
             rep.append(f"  - {c['Pair']:<25}: разность = {c['Diff']:>6.3f}, q = {c['q_val']:>6.2f}, p = {c['p_val']:>6.4f} -> {sig_mark}")
         rep.append("")
         
-        # Агрономическое резюме
+        # Резюме по факторам
         p_A = res['p_val']['A']
         p_B = res['p_val']['B']
-        rep.append("АГРОНОМИЧЕСКИЙ ВЫВОД (ПО ТИМИРЯЗЕВКЕ):")
-        if p_A < 0.05:
-            rep.append("  [+] Влияние стратегии полива (Фактор А) СТАТИСТИЧЕСКИ ДОСТОВЕРНО.")
+        if is_synthetic:
+            rep.append("ВАЛИДАЦИОННЫЙ ВЫВОД (ТЕСТИРОВАНИЕ АЛГОРИТМА НА СИНТЕТИЧЕСКОЙ МОДЕЛИ):")
+            rep.append("  [ТЕСТ] Алгоритм корректно вычисляет F-критерий Доспехова, остаточную дисперсию и матрицу Тьюки.")
+            rep.append("  [!] ВНИМАНИЕ: Натурный биологический сбор биомассы огурца «Каскад» еще не проводился")
+            rep.append("      (посев 25.10.2026, всходы 28.10.2026). Данные цифры служат исключительно для верификации кода!")
         else:
-            rep.append("  [-] Влияние стратегии полива не выявило значимых различий.")
-            
-        if p_B >= 0.05:
-            rep.append("  [+] Влияние блоков-поддонов (Фактор В) НЕСУЩЕСТВЕННО (p >= 0.05).")
-            rep.append("      -> Подтверждена эффективность суточной ротации поддонов на 180°!")
-        else:
-            rep.append("  [!] Зафиксирован градиент между блоками (p < 0.05).")
+            rep.append("АГРОНОМИЧЕСКИЙ ВЫВОД (ПО ТИМИРЯЗЕВКЕ):")
+            if p_A < 0.05:
+                rep.append("  [+] Влияние стратегии полива (Фактор А) СТАТИСТИЧЕСКИ ДОСТОВЕРНО.")
+            else:
+                rep.append("  [-] Влияние стратегии полива не выявило значимых различий.")
+                
+            if p_B >= 0.05:
+                rep.append("  [+] Влияние блоков-поддонов (Фактор В) НЕСУЩЕСТВЕННО (p >= 0.05).")
+                rep.append("      -> Подтверждена эффективность суточной ротации поддонов на 180°!")
+            else:
+                rep.append("  [!] Зафиксирован градиент между блоками (p < 0.05).")
         rep.append("\n")
         
     return "\n".join(rep)
@@ -426,14 +432,16 @@ def main():
     
     if args.input and os.path.exists(args.input):
         print(f"Загрузка пользовательских данных: {args.input}")
-        df = pd.read_csv(args.input)
+        df = pd.read_csv(args.input, comment="#")
     else:
         print("Используется калиброванный эталонный датасет огурца «Каскад» (20 растений)...")
         df = generate_reference_dataset()
         # Сохранение эталонного шаблона
         template_csv = os.path.join(args.outdir, "FINAL_HARVEST_TEMPLATE_20PLANTS.csv")
         os.makedirs(args.outdir, exist_ok=True)
-        df.to_csv(template_csv, index=False, encoding='utf-8')
+        with open(template_csv, "w", encoding="utf-8") as f_out:
+            f_out.write("# MOCK_PIPELINE_VALIDATION_ONLY: Синтетический шаблон для тестирования модуля ANOVA (натурный срез огурца не проводился)\n")
+            df.to_csv(f_out, index=False, encoding="utf-8")
         print(f"[OK] Шаблон для занесения данных среза сохранен: {template_csv}")
         
     is_synthetic = (args.input is None or not os.path.exists(str(args.input)))
