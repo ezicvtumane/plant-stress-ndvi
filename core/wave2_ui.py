@@ -96,7 +96,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
 
         rec = by_pot.get(pid, {})
         wt = rec.get('Weight_g', '')
-        wt_text = f"{wt} г" if (wt and wt != '--') else ("80.0 г" if not is_measured else "NoIR снят")
+        wt_text = f"{wt} г" if (wt and wt != '--') else ("85.0 г" if not is_measured else "NoIR снят")
         
         dt = rec.get('Delta_T_C', '')
         dt_text = f"ΔT: {dt}°" if (dt and dt != '--') else ("" if not is_measured else "жду ввода")
@@ -319,7 +319,7 @@ def render_wave2_active_pot_card(
     
     # Расчет дозы полива для отображения
     has_wt = current_weight and current_weight != '--'
-    raw_dose = calculate_water_dose(float(current_weight) if has_wt else 80.0, 80.0) if has_wt else None
+    raw_dose = calculate_water_dose(float(current_weight) if has_wt else 85.0, 85.0) if has_wt else None
     
     if cohort == "Control":
         if raw_dose is not None:
@@ -355,7 +355,7 @@ def render_wave2_active_pot_card(
                 {probe_badge}
             </div>
             <div style="font-size: 13px; color: #64748b;">
-                Целевая масса: <strong>80.0 г</strong> | T<sub>возд</sub>: <strong>{t_air:.1f} °C</strong>
+                Целевая масса: <strong>85.0 г</strong> | T<sub>возд</sub>: <strong>{t_air:.1f} °C</strong>
             </div>
         </div>
 

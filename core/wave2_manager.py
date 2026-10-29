@@ -24,7 +24,7 @@ WAVE2_EXPERIMENT_META = {
     "plant": "Огурец Каскад",
     "crop": "Cucumis sativus L.",
     "start_date": "2026-10-25",
-    "target_weight_net_g": 80.0,
+    "target_weight_net_g": 85.0,
     "pot_height_cm": 7.5,
     "camera_height_cm": 24.5,
     "aruco_floor_size_mm": 15.0,
@@ -48,35 +48,35 @@ TURGOR_SCALE = {
 # Каталог 20 горшков (3 поддона по 6 штук + 1 малый лоток пилота)
 POTS_CATALOG: Dict[str, Dict[str, Any]] = {
     # ХОЛОСТОЙ ЛИЗИМЕТР (Контроль испарения почвы E по FAO-56)
-    "X0": {"id": "X0", "cohort": "Lysimeter_Blank", "block": 0, "color": "#64748b", "badge": "⚖️ Лизиметр Х0 (FAO-56)", "target_weight": 80.0, "has_probe": False},
+    "X0": {"id": "X0", "cohort": "Lysimeter_Blank", "block": 0, "color": "#64748b", "badge": "⚖️ Лизиметр Х0 (FAO-56)", "target_weight": 85.0, "has_probe": False},
 
     # БЛОК 1 (Поддон 1)
-    "K1": {"id": "K1", "cohort": "Control", "block": 1, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 80.0, "has_probe": True},
-    "K2": {"id": "K2", "cohort": "Control", "block": 1, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 80.0, "has_probe": False},
-    "P1": {"id": "P1", "cohort": "Prevention", "block": 1, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 80.0, "has_probe": True},
-    "P2": {"id": "P2", "cohort": "Prevention", "block": 1, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 80.0, "has_probe": False},
-    "R1": {"id": "R1", "cohort": "Reaction", "block": 1, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 80.0, "has_probe": True},
-    "R2": {"id": "R2", "cohort": "Reaction", "block": 1, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 80.0, "has_probe": False},
+    "K1": {"id": "K1", "cohort": "Control", "block": 1, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 85.0, "has_probe": True},
+    "K2": {"id": "K2", "cohort": "Control", "block": 1, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 85.0, "has_probe": False},
+    "P1": {"id": "P1", "cohort": "Prevention", "block": 1, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 85.0, "has_probe": True},
+    "P2": {"id": "P2", "cohort": "Prevention", "block": 1, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 85.0, "has_probe": False},
+    "R1": {"id": "R1", "cohort": "Reaction", "block": 1, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 85.0, "has_probe": True},
+    "R2": {"id": "R2", "cohort": "Reaction", "block": 1, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 85.0, "has_probe": False},
 
     # БЛОК 2 (Поддон 2)
-    "K3": {"id": "K3", "cohort": "Control", "block": 2, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 80.0, "has_probe": False},
-    "K4": {"id": "K4", "cohort": "Control", "block": 2, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 80.0, "has_probe": False},
-    "P3": {"id": "P3", "cohort": "Prevention", "block": 2, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 80.0, "has_probe": False},
-    "P4": {"id": "P4", "cohort": "Prevention", "block": 2, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 80.0, "has_probe": False},
-    "R3": {"id": "R3", "cohort": "Reaction", "block": 2, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 80.0, "has_probe": False},
-    "R4": {"id": "R4", "cohort": "Reaction", "block": 2, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 80.0, "has_probe": False},
+    "K3": {"id": "K3", "cohort": "Control", "block": 2, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 85.0, "has_probe": False},
+    "K4": {"id": "K4", "cohort": "Control", "block": 2, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 85.0, "has_probe": False},
+    "P3": {"id": "P3", "cohort": "Prevention", "block": 2, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 85.0, "has_probe": False},
+    "P4": {"id": "P4", "cohort": "Prevention", "block": 2, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 85.0, "has_probe": False},
+    "R3": {"id": "R3", "cohort": "Reaction", "block": 2, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 85.0, "has_probe": False},
+    "R4": {"id": "R4", "cohort": "Reaction", "block": 2, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 85.0, "has_probe": False},
 
     # БЛОК 3 (Поддон 3)
-    "K5": {"id": "K5", "cohort": "Control", "block": 3, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 80.0, "has_probe": False},
-    "K6": {"id": "K6", "cohort": "Control", "block": 3, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 80.0, "has_probe": False},
-    "P5": {"id": "P5", "cohort": "Prevention", "block": 3, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 80.0, "has_probe": False},
-    "P6": {"id": "P6", "cohort": "Prevention", "block": 3, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 80.0, "has_probe": False},
-    "R5": {"id": "R5", "cohort": "Reaction", "block": 3, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 80.0, "has_probe": False},
-    "R6": {"id": "R6", "cohort": "Reaction", "block": 3, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 80.0, "has_probe": False},
+    "K5": {"id": "K5", "cohort": "Control", "block": 3, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 85.0, "has_probe": False},
+    "K6": {"id": "K6", "cohort": "Control", "block": 3, "color": "#059669", "badge": "🟢 Контроль", "target_weight": 85.0, "has_probe": False},
+    "P5": {"id": "P5", "cohort": "Prevention", "block": 3, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 85.0, "has_probe": False},
+    "P6": {"id": "P6", "cohort": "Prevention", "block": 3, "color": "#eab308", "badge": "🟡 Превенция", "target_weight": 85.0, "has_probe": False},
+    "R5": {"id": "R5", "cohort": "Reaction", "block": 3, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 85.0, "has_probe": False},
+    "R6": {"id": "R6", "cohort": "Reaction", "block": 3, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 85.0, "has_probe": False},
 
     # ИЗОЛИРОВАННЫЙ ЛОТОК (Пилот Эпин)
-    "E1": {"id": "E1", "cohort": "Pilot_Epin", "block": 0, "color": "#dc2626", "badge": "🔴 Пилот (Эпин)", "target_weight": 80.0, "has_probe": False},
-    "E2": {"id": "E2", "cohort": "Pilot_Epin", "block": 0, "color": "#dc2626", "badge": "🔴 Пилот (Эпин)", "target_weight": 80.0, "has_probe": False},
+    "E1": {"id": "E1", "cohort": "Pilot_Epin", "block": 0, "color": "#dc2626", "badge": "🔴 Пилот (Эпин)", "target_weight": 85.0, "has_probe": False},
+    "E2": {"id": "E2", "cohort": "Pilot_Epin", "block": 0, "color": "#dc2626", "badge": "🔴 Пилот (Эпин)", "target_weight": 85.0, "has_probe": False},
 }
 
 # Порядок очереди конвейера по когортам: Контроль -> Реакция -> Превенция -> Пилот
@@ -107,7 +107,7 @@ CSV_HEADER_WAVE2 = [
 # 2. МАТЕМАТИЧЕСКИЕ И ОПТИЧЕСКИЕ ФУНКЦИИ (CV + Z-КАЛИБРОВКА)
 # ==============================================================================
 
-def calculate_water_dose(current_weight: Any, target_weight: float = 80.0, pla_cm2: Optional[float] = None) -> Optional[float]:
+def calculate_water_dose(current_weight: Any, target_weight: float = 85.0, pla_cm2: Optional[float] = None) -> Optional[float]:
     """Расчет дефицита полива в миллилитрах с динамической компенсацией нарастания биомассы по PLA."""
     if current_weight is None or current_weight == "" or current_weight == "--":
         return None
