@@ -441,7 +441,7 @@ def read_moisture_mock(group_name: str = ''):
             v_base, pct_base = 1.85, 63.9
         jitter = round(float(np.random.uniform(-0.6, 0.6)), 1)
         pct_final = round(max(0.0, min(100.0, pct_base + jitter)), 1)
-        v_final = round(3.0 - (pct_final / 100.0) * 1.8, 2)
+        v_final = round(V_DRY - (pct_final / 100.0) * (V_DRY - V_WET), 3)
         return v_final, pct_final
 
 def extract_temperature_from_thermal(img_path: str):
