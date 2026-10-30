@@ -2,7 +2,7 @@ import os
 import cv2
 import numpy as np
 
-BASE_DIR = r'C:\Users\Администратор\Documents\Laser_Box_NDVI'
+BASE_DIR = os.path.join(os.path.expanduser('~/Documents'), 'Laser_Box_NDVI')
 LOGOS_DIR = os.path.join(BASE_DIR, 'logos')
 os.makedirs(BASE_DIR, exist_ok=True)
 
