@@ -182,7 +182,7 @@ def make_chart(theme="dark"):
     # Super Title & Subtitle at Top
     fig.text(0.5, 0.952, "ФИЗИОЛОГИЧЕСКАЯ АСИНХРОНИЯ: ТЕРМИЧЕСКИЙ vs СПЕКТРАЛЬНЫЙ СИГНАЛ", 
              fontsize=21, fontweight="heavy", color=text_color, ha="center")
-    fig.text(0.5, 0.918, "Доказательство 48-часового упреждения: реакция устьичного аппарата (CWSI) против деградации хлорофилла (NDVI)", 
+    fig.text(0.5, 0.918, "Динамика ранней реакции устьичного аппарата (CWSI) относительно оптического индекса (NDVI)", 
              fontsize=14, color=subtext_color, ha="center", fontweight="medium")
 
     # Unified Bottom Status HUD
@@ -352,7 +352,7 @@ def make_animation(theme="dark"):
 
         fig.text(0.5, 0.952, "ФИЗИОЛОГИЧЕСКАЯ АСИНХРОНИЯ: ТЕРМИЧЕСКИЙ vs СПЕКТРАЛЬНЫЙ СИГНАЛ", 
                  fontsize=21, fontweight="heavy", color=text_color, ha="center")
-        fig.text(0.5, 0.918, "Доказательство 48-часового упреждения: реакция устьичного аппарата (CWSI) против деградации хлорофилла (NDVI)", 
+        fig.text(0.5, 0.918, "Динамика ранней реакции устьичного аппарата (CWSI) относительно оптического индекса (NDVI)", 
                  fontsize=14, color=subtext_color, ha="center", fontweight="medium")
 
         hud_text = (
