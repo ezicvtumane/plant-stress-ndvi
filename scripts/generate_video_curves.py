@@ -8,7 +8,7 @@ import pandas as pd
 import cv2
 
 # Add repo to sys.path
-repo_dir = Path(r"C:\Users\Администратор\Documents\plant-stress-ndvi-repo")
+repo_dir = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(repo_dir))
 
 from src.thermal_integration import ThermalAnalyzer
