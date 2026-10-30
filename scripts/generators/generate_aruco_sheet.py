@@ -15,7 +15,7 @@ else:
 STATIC_DIR = os.path.join(LOCAL_DIR, 'static')
 ARUCO_DIR = os.path.join(STATIC_DIR, 'aruco')
 DOCS_DIR = os.path.join(LOCAL_DIR, 'docs')
-USER_DOCS_DIR = r"C:\Users\Администратор\Documents"
+USER_DOCS_DIR = os.path.expanduser("~/Documents")
 os.makedirs(ARUCO_DIR, exist_ok=True)
 os.makedirs(DOCS_DIR, exist_ok=True)
 os.makedirs(USER_DOCS_DIR, exist_ok=True)

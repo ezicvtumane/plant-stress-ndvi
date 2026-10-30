@@ -17,7 +17,7 @@ import shutil
 
 BASE_PROJ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUTPUT_DIR = os.path.join(BASE_PROJ, 'hardware', 'laser', 'box_210x210x297')
-USER_DOCS_DIR = r'C:\Users\Администратор\Documents\Laser_Box_210x210x297'
+USER_DOCS_DIR = os.path.join(os.path.expanduser('~/Documents'), 'Laser_Box_210x210x297')
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(USER_DOCS_DIR, exist_ok=True)
