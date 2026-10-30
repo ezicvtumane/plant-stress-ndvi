@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import cv2
 import numpy as np
 
-repo_dir = Path(r"C:\Users\Администратор\Documents\plant-stress-ndvi-repo")
+repo_dir = Path(__file__).resolve().parent.parent
 docs_images = repo_dir / "docs" / "images"
 media_dir = repo_dir / "media"
 
