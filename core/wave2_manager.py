@@ -418,7 +418,7 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
         "pilot_epin": {
             "triggered": p_triggered,
             "status_text": (
-                "ПОЛИВ РАСТВОРОМ ЭПИНА ПОД КОРЕНЬ ШПРИЦЕМ ДО 80г!" if p_triggered
+                "ПОЛИВ РАСТВОРОМ ЭПИНА ПОД КОРЕНЬ ШПРИЦЕМ ДО 85г!" if p_triggered
                 else "Ожидание триггера группы П"
             ),
             "badge_color": "#dc2626" if p_triggered else "#64748b"

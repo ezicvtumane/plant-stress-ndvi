@@ -66,7 +66,7 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
                 {e['status_text']}
             </div>
             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Регламент: полив шприцем под корень раствором 2 капли/100 мл до 80г (без опрыскивания листа).
+                Регламент: полив шприцем под корень раствором 2 капли/100 мл до 85.0г (без опрыскивания листа).
             </div>
         </div>
     </div>
@@ -451,7 +451,7 @@ def render_wave2_active_pot_card(
         }}
         const wt = parseFloat(inputVal);
         if (!isNaN(wt)) {{
-            const dose = Math.max(0, 80.0 - wt).toFixed(1);
+            const dose = Math.max(0, 85.0 - wt).toFixed(1);
             if ('{cohort}' === 'Control') {{
                 doseEl.innerHTML = '<span style=\"color: #059669; font-weight: 800; font-size: 18px;\">' + dose + ' мл</span> (Ежедневный долив)';
             }}
