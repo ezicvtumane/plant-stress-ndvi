@@ -137,7 +137,7 @@ def make_chart(theme="dark"):
 
     # 5. Highlight Unified Banner inside 48-hour Window (Top Center)
     banner_x = 5.5
-    banner_text = "⚡ ОКНО УПРЕЖДЕНИЯ: 48 ЧАСОВ (2 СУТОК)\nЛатентная фаза: устьица закрыты, лист греется, но хлорофилл еще интактен!"
+    banner_text = "⚡ АСИНХРОНИЯ В ОПЫТЕ: ДО 48 ЧАСОВ\nЛатентная фаза: устьица закрыты, лист греется, но хлорофилл еще интактен!"
     ax1.text(banner_x, 1.16, banner_text, 
              color="#F59E0B" if theme == "dark" else "#B45309",
              fontsize=13.5, fontweight="bold", ha="center", va="center", multialignment="center",
@@ -313,7 +313,7 @@ def make_animation(theme="dark"):
             
         # Top banner
         if window_alpha_prog > 0.2:
-            banner_text = "⚡ ОКНО УПРЕЖДЕНИЯ: 48 ЧАСОВ (2 СУТОК)\nЛатентная фаза: устьица закрыты, лист греется, но хлорофилл еще интактен!"
+            banner_text = "⚡ АСИНХРОНИЯ В ОПЫТЕ: ДО 48 ЧАСОВ\nЛатентная фаза: устьица закрыты, лист греется, но хлорофилл еще интактен!"
             ax1.text(5.5, 1.16, banner_text, 
                      color="#F59E0B",
                      fontsize=13.5, fontweight="bold", ha="center", va="center", multialignment="center",
