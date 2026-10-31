@@ -115,6 +115,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
         </button>
         """
 
+    cohort_x = ["X0"]
     cohort_k = ["K1", "K2", "K3", "K4", "K5", "K6"]
     cohort_r = ["R1", "R2", "R3", "R4", "R5", "R6"]
     cohort_p = ["P1", "P2", "P3", "P4", "P5", "P6"]
@@ -124,9 +125,9 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div style="font-weight: 700; font-size: 15px; color: #0f172a;">
-                📸 ОЧЕРЕДЬ СЪЕМКИ ПО КОГОРТАМ: КОНТРОЛЬ &rarr; РЕАКЦИЯ &rarr; ПРЕВЕНЦИЯ &rarr; ПИЛОТ
+                📸 ОЧЕРЕДЬ СЪЕМКИ ПО КОГОРТАМ: ЛИЗИМЕТР &rarr; КОНТРОЛЬ &rarr; РЕАКЦИЯ &rarr; ПРЕВЕНЦИЯ &rarr; ПИЛОТ
                 <span style="font-size: 12px; font-weight: 400; color: #64748b; margin-left: 8px;">
-                    (Замерено: {len(by_pot)}/20)
+                    (Замерено: {len(by_pot)}/21)
                 </span>
             </div>
             <div style="font-size: 12px; color: #64748b;">
@@ -134,7 +135,15 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+            <!-- 0. ЛИЗИМЕТР -->
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px;">
+                <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px;">0. ⚖️ ЛИЗИМЕТР (X0)</div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 4px;">
+                    {''.join(render_pot_tile(p) for p in cohort_x)}
+                </div>
+            </div>
+
             <!-- 1. КОНТРОЛЬ -->
             <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px;">
                 <div style="font-size: 12px; font-weight: 800; color: #15803d; margin-bottom: 8px;">1. 🟢 КОНТРОЛЬ (К1–К6)</div>
@@ -340,6 +349,11 @@ def render_wave2_active_pot_card(
             dose_html = "<span style='color: #2563eb; font-weight: 800;'>ПОЛИВ ЗАБЛОКИРОВАН (Тургор в норме)</span>"
         else:
             dose_html = "<span style='color: #64748b; font-weight: 600;'>Откроется после замера всей группы Р</span>"
+    elif cohort == "Lysimeter_Blank":
+        if raw_dose is not None:
+            dose_html = f"<span style='color: #475569; font-weight: 800; font-size: 18px;'>{raw_dose} мл</span> (Долив до 85.0 г / учет испарения почвы E)"
+        else:
+            dose_html = "<span style='color: #64748b;'>Взвесить и долить чистой водой до 85.0 г</span>"
     else:  # Pilot Epin
         if status["pilot_epin"]["triggered"]:
             dose_html = f"<span style='color: #dc2626; font-weight: 800; font-size: 18px;'>{raw_dose if raw_dose is not None else ''} мл ЭПИНА</span> (под корень шприцем)"

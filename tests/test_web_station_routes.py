@@ -34,6 +34,7 @@ def test_static_assets_served():
 
 def test_batch_lifecycle_routes():
     """Проверка маршрутов управления пакетной съемкой кассет."""
+    client.get('/?set_exp=exp_1791463544')
     reset_batch_state('batch5')
     
     # 1. Старт пакета -> 303 Redirect на batch_shoot
@@ -68,3 +69,20 @@ def test_downloads_routes():
 
     res_pres = client.get('/download/presentation')
     assert res_pres.status_code in (200, 303)
+
+
+def test_wave2_dashboard_and_routes():
+    """Проверка доступности дашборда Волны 2, лизиметра X0 и скачивания CSV."""
+    # 1. Переключение на Волну 2
+    res = client.get('/?set_exp=exp_1792918800')
+    assert res.status_code == 200
+    html = res.text
+    assert 'X0' in html
+    assert '85.0' in html
+
+    # 2. Скачивание CSV второй волны
+    res_w2_csv = client.get('/download/wave2_csv')
+    assert res_w2_csv.status_code == 200
+
+    # 3. Возврат на Серию 1 по умолчанию
+    client.get('/?set_exp=exp_1791463544')
