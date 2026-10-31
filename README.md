@@ -13,7 +13,7 @@
 [![Сириус: Большие вызовы](https://img.shields.io/badge/Сириус-Большие%20вызовы%202025%2F2026-00a499.svg)](https://konkurs.sochisirius.ru/)
 [![Направление](https://img.shields.io/badge/Трек-Агропромышленные%20и%20биотехнологии-008276.svg)](https://konkurs.sochisirius.ru/)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests: 13 passed](https://img.shields.io/badge/Tests-13%20passed-brightgreen.svg)]()
+[![Tests: 23 passed](https://img.shields.io/badge/Tests-23%20passed-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Hardware: Orange Pi 4 Pro](https://img.shields.io/badge/Platform-Orange%20Pi%204%20Pro-orange.svg)]()
 
