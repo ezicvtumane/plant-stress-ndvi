@@ -132,11 +132,7 @@
 
 5. **Модуль биометрии и математического анализа:**
    * Расчет индекса водного стресса покрова (Crop Water Stress Index, CWSI) по эмпирической модели Идсо:
-
-$$
-\text{CWSI}_{\text{instr}} = \frac{\Delta T - \Delta T_{\text{wet}}}{\Delta T_{\text{dry}} - \Delta T_{\text{wet}}} = \frac{\Delta T - 0.24 + 1.20 \cdot VPD}{1.26 + 1.20 \cdot VPD}
-$$
-
+     $$\text{CWSI}_{\text{instr}} = \frac{\Delta T - \Delta T_{\text{wet}}}{\Delta T_{\text{dry}} - \Delta T_{\text{wet}}} = \frac{\Delta T - 0.24 + 1.20 \cdot VPD}{1.26 + 1.20 \cdot VPD}$$
      *(подробный протокол вывода регрессии см. в [`CALIBRATION.md`](CALIBRATION.md))*;
    * Двухфакторный дисперсионный анализ (**Two-Way ANOVA по Доспехову**) с апостериорным тестом Тьюки (HSD) для блочных экспериментов.
 
