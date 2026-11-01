@@ -223,7 +223,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# 3. Запуск набора автоматических тестов (36 unit-тестов)
+# 3. Запуск набора автоматических тестов (24 unit-теста)
 pytest tests/
 
 # 4. Запуск операторской веб-станции (FastAPI)
