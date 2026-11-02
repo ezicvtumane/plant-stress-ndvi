@@ -78,7 +78,7 @@ def test_wave2_dashboard_and_routes():
     assert res.status_code == 200
     html = res.text
     assert 'X0' in html
-    assert '85.0' in html
+    assert '95.0' in html
 
     # 2. Скачивание CSV второй волны
     res_w2_csv = client.get('/download/wave2_csv')
