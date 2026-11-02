@@ -51,8 +51,8 @@ POTS_CONFIG: Dict[str, Dict[str, Any]] = {
     "R6": {"cohort": "Reaction", "block": 3, "color": "blue", "aruco_id": 5, "target_weight": 85.0, "probe": False},
 
     # Изолированный лоток (Пилот)
-    "E1": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 4, "target_weight": 85.0, "probe": False},
-    "E2": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 4, "target_weight": 85.0, "probe": False},
+    "E1": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 6, "target_weight": 85.0, "probe": False},
+    "E2": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 6, "target_weight": 85.0, "probe": False},
 }
 
 TARGET_WEIGHTS = {pot_id: data["target_weight"] for pot_id, data in POTS_CONFIG.items()}
