@@ -70,7 +70,9 @@
 > 5. [`07_cotyledon_expansion_phototropism_day4.jpg`](images/07_cotyledon_expansion_phototropism_day4.jpg) — Развитие семядолей 20 сосудов (фаза BBCH 10).  
 > 6. [`08_pot_marking_geometric_scales_85g.jpg`](images/08_pot_marking_geometric_scales_85g.jpg) — Геометрическая маркировка горшков и контрольное взвешивание на весах (85.7 г, завершение Этапа I).  
 > 7. [`09_wave2_cucumber_true_leaf_stage_day5.jpg`](images/09_wave2_cucumber_true_leaf_stage_day5.jpg) — Состояние проростков перед окучиванием (дифференциация 1-го листа BBCH 11).  
-> 8. [`11_wave2_top_dressing_95g_bbch11.jpg`](images/11_wave2_top_dressing_95g_bbch11.jpg) — Завершенная подсыпка до 95.0 г во всех сосудах и лизиметре X0 (завершение Этапа II и старт стресс-теста).
+> 8. [`11_wave2_top_dressing_95g_bbch11.jpg`](images/11_wave2_top_dressing_95g_bbch11.jpg) — Завершенная подсыпка до 95.0 г во всех сосудах и лизиметре X0 (завершение Этапа II и старт стресс-теста).  
+> 9. [`12_wave2_alice_and_cat_lab_station.jpg`](images/12_wave2_alice_and_cat_lab_station.jpg) — Алиса на рабочем месте оператора за ноутбуком со станцией и научным маскотом сфинксом Лунтиком в окружении измерительного бокса и тепловизора.  
+> 10. [`13_wave2_cat_senior_operator_chair.jpg`](images/13_wave2_cat_senior_operator_chair.jpg) — Кот Лунтик на операторском кресле за ноутбуком со станцией (непрерывный мониторинг 24/7).
 
 ### 2.2. Микроклимат и теплоизоляция
 * **Освещение:** Фитолампа полного спектра 60 Вт. Фотопериод: 14 ч день / 10 ч ночь. Высота подвеса: 25–30 см над верхушками растений.
