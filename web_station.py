@@ -951,11 +951,13 @@ def do_hardware_spectral_capture(group_name: str):
             cv2.putText(annotated_ndvi, f'{c_area} cm2', (x1 + 12, y1 + 56),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 255, 200), 1)
 
-    # Честный средневзвешенный расчет NDVI по всем пикселям листьев кассеты:
+    # Честный средневзвешенный расчет NDVI с фильтрацией граничных артефактов (0.0 / 1.0):
     leaf_pixels_ndvi = ndvi_map[leaf_mask > 0]
     if len(leaf_pixels_ndvi) > 0:
-        mean_ndvi = round(float(np.mean(leaf_pixels_ndvi)), 3)
-        std_ndvi = round(float(np.std(leaf_pixels_ndvi)), 3)
+        valid_ndvi = leaf_pixels_ndvi[(leaf_pixels_ndvi > 0.0) & (leaf_pixels_ndvi < 1.0)]
+        calc_ndvi = valid_ndvi if len(valid_ndvi) > 0 else leaf_pixels_ndvi
+        mean_ndvi = round(float(np.mean(calc_ndvi)), 3)
+        std_ndvi = round(float(np.std(calc_ndvi)), 3)
     else:
         mean_ndvi = 0.000
         std_ndvi = 0.000
