@@ -35,9 +35,9 @@ def test_rule1_dynamic_target_weight():
     assert calc_target_weight(None) == 95.0
 
     # Фаза 2: Нарастание листьев огурца
-    assert calc_target_weight(25.0) == 96.5  # 85.0 + 25 * 0.06 = 86.5
-    assert calc_target_weight(50.0) == 98.0  # 85.0 + 50 * 0.06 = 88.0
-    assert calc_target_weight(100.0) == 101.0 # 85.0 + 100 * 0.06 = 91.0
+    assert calc_target_weight(25.0) == 96.5  # 95.0 + 25 * 0.06 = 96.5
+    assert calc_target_weight(50.0) == 98.0  # 95.0 + 50 * 0.06 = 98.0
+    assert calc_target_weight(100.0) == 101.0 # 95.0 + 100 * 0.06 = 101.0
 
     # Защита от отрицательных значений
     assert calc_target_weight(-10.0) == 95.0
@@ -46,10 +46,10 @@ def test_rule1_dynamic_target_weight():
 def test_rule1_watering_dose():
     """Тест расчета прецизионной дозы полива."""
     # При PLA = 25 см², целевая масса 96.5 г
-    # Текущая масса 80.0 г -> доза 6.5 мл
+    # Текущая масса 90.0 г -> доза 6.5 мл
     assert calc_watering_dose(90.0, pla_cm2=25.0) == 6.5
 
-    # Текущая масса 86.5 г -> доза 0.0 мл
+    # Текущая масса 96.5 г -> доза 0.0 мл
     assert calc_watering_dose(96.5, pla_cm2=25.0) == 0.0
 
     # Масса превышает целевую (переувлажнение) -> доза не должна быть отрицательной
