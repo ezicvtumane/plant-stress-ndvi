@@ -66,7 +66,7 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
                 {e['status_text']}
             </div>
             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Регламент: полив шприцем под корень раствором 2 капли/100 мл до 85.0г (без опрыскивания листа).
+                Регламент: полив шприцем под корень раствором 2 капли/100 мл до 95.0г (без опрыскивания листа).
             </div>
         </div>
     </div>
@@ -96,7 +96,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
 
         rec = by_pot.get(pid, {})
         wt = rec.get('Weight_g', '')
-        wt_text = f"{wt} г" if (wt and wt != '--') else ("85.0 г" if not is_measured else "NoIR снят")
+        wt_text = f"{wt} г" if (wt and wt != '--') else ("95.0 г" if not is_measured else "NoIR снят")
         
         dt = rec.get('Delta_T_C', '')
         dt_text = f"ΔT: {dt}°" if (dt and dt != '--') else ("" if not is_measured else "жду ввода")
@@ -328,7 +328,7 @@ def render_wave2_active_pot_card(
     
     # Расчет дозы полива для отображения
     has_wt = current_weight and current_weight != '--'
-    raw_dose = calculate_water_dose(float(current_weight) if has_wt else 85.0, 85.0) if has_wt else None
+    raw_dose = calculate_water_dose(float(current_weight) if has_wt else 95.0, 95.0) if has_wt else None
     
     if cohort == "Control":
         if raw_dose is not None:
@@ -351,9 +351,9 @@ def render_wave2_active_pot_card(
             dose_html = "<span style='color: #64748b; font-weight: 600;'>Откроется после замера всей группы Р</span>"
     elif cohort == "Lysimeter_Blank":
         if raw_dose is not None:
-            dose_html = f"<span style='color: #475569; font-weight: 800; font-size: 18px;'>{raw_dose} мл</span> (Долив до 85.0 г / учет испарения почвы E)"
+            dose_html = f"<span style='color: #475569; font-weight: 800; font-size: 18px;'>{raw_dose} мл</span> (Долив до 95.0 г / учет испарения почвы E)"
         else:
-            dose_html = "<span style='color: #64748b;'>Взвесить и долить чистой водой до 85.0 г</span>"
+            dose_html = "<span style='color: #64748b;'>Взвесить и долить чистой водой до 95.0 г</span>"
     else:  # Pilot Epin
         if status["pilot_epin"]["triggered"]:
             dose_html = f"<span style='color: #dc2626; font-weight: 800; font-size: 18px;'>{raw_dose if raw_dose is not None else ''} мл ЭПИНА</span> (под корень шприцем)"
@@ -369,7 +369,7 @@ def render_wave2_active_pot_card(
                 {probe_badge}
             </div>
             <div style="font-size: 13px; color: #64748b;">
-                Целевая масса: <strong>85.0 г</strong> | T<sub>возд</sub>: <strong>{t_air:.1f} °C</strong>
+                Целевая масса: <strong>95.0 г</strong> | T<sub>возд</sub>: <strong>{t_air:.1f} °C</strong>
             </div>
         </div>
 
@@ -465,7 +465,7 @@ def render_wave2_active_pot_card(
         }}
         const wt = parseFloat(inputVal);
         if (!isNaN(wt)) {{
-            const dose = Math.max(0, 85.0 - wt).toFixed(1);
+            const dose = Math.max(0, 95.0 - wt).toFixed(1);
             if ('{cohort}' === 'Control') {{
                 doseEl.innerHTML = '<span style=\"color: #059669; font-weight: 800; font-size: 18px;\">' + dose + ' мл</span> (Ежедневный долив)';
             }}

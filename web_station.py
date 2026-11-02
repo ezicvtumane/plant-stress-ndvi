@@ -3229,7 +3229,7 @@ async def handle_wave2_capture_and_save(
                 pass
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        dose = calculate_water_dose(parsed_weight, 85.0)
+        dose = calculate_water_dose(parsed_weight, 95.0)
 
         # 3. Сохранение в measurements_wave2.csv
         wave2_storage = Wave2Storage(DATA_DIR)
@@ -3338,7 +3338,7 @@ async def handle_wave2_update_record(
                 pass
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        dose = calculate_water_dose(parsed_weight, 85.0)
+        dose = calculate_water_dose(parsed_weight, 95.0)
 
         parsed_soil = None
         if moisture_pct and moisture_pct.strip() and moisture_pct.strip() != "--":
