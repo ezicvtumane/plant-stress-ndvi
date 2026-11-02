@@ -271,10 +271,13 @@ def compute_single_pot_phenotyping(
     
     pla_cm2 = round(valid_plant_pixels * cm2_per_pixel, 2)
     
-    # 4. Расчет среднего NDVI листа
+    # 4. Расчет среднего NDVI листа с фильтрацией битых артефактных пикселей (0.0 / 1.0)
     if valid_plant_pixels > 0:
-        ndvi_mean = float(np.mean(ndvi_clamped[clean_mask > 0]))
-        ndvi_std = float(np.std(ndvi_clamped[clean_mask > 0]))
+        raw_plant_pixels = ndvi_clamped[clean_mask > 0]
+        valid_ndvi = raw_plant_pixels[(raw_plant_pixels > 0.0) & (raw_plant_pixels < 1.0)]
+        calc_ndvi = valid_ndvi if len(valid_ndvi) > 0 else raw_plant_pixels
+        ndvi_mean = float(np.mean(calc_ndvi))
+        ndvi_std = float(np.std(calc_ndvi))
     else:
         ndvi_mean = 0.0
         ndvi_std = 0.0

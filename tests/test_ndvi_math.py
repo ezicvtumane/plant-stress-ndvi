@@ -103,3 +103,32 @@ def test_cwsi_calculation():
     # Moderate stress: T_leaf = 21.4 (midpoint) -> CWSI = 0.5
     assert analyzer.compute_cwsi(21.4, t_air, t_wet, t_dry) == pytest.approx(0.5, abs=1e-2)
 
+
+
+def test_ndvi_artifact_pixel_filtering():
+    """P0-2: Verify that boundary/saturation artifacts (0.0 and 1.0) are filtered from mean and std."""
+    processor = NDVIProcessor(k_factor=1.0)
+    
+    ambient = np.zeros((10, 10), dtype=np.uint8)
+    # 100 pixels total. Healthy pixels: NIR=170, Red=30 -> NDVI = 140/200 = 0.700
+    nir = np.full((10, 10), 170, dtype=np.uint8)
+    red = np.full((10, 10), 30, dtype=np.uint8)
+    
+    # Introduce division / saturation artifacts:
+    # 5 pixels with Red=0 -> NDVI clamped to 1.0
+    red[0, 0:5] = 0
+    # 5 pixels with Red == NIR -> NDVI = 0.0
+    red[1, 0:5] = 170
+    
+    ndvi_map, mask, metrics = processor.compute_ndvi_map(ambient, nir, red)
+    
+    # Artifact pixels (0.0 and 1.0) must be rejected
+    assert metrics["artifact_pixels_rejected"] == 10
+    assert metrics["artifact_rejected_ratio"] == 0.10
+    assert metrics["plant_pixel_count"] == 90
+    assert metrics["raw_plant_pixel_count"] == 100
+    
+    # Mean of remaining 90 healthy pixels should be exactly 0.700
+    assert metrics["ndvi_mean"] == pytest.approx(0.700, abs=1e-3)
+    # Std of clean pixels should be 0.0, avoiding inflation by 0.0 and 1.0
+    assert metrics["ndvi_std"] == pytest.approx(0.000, abs=1e-3)

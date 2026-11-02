@@ -140,31 +140,44 @@ class NDVIProcessor:
         if total_plant_pixels == 0:
             metrics = {
                 "plant_pixel_count": 0,
+                "raw_plant_pixel_count": 0,
+                "artifact_pixels_rejected": 0,
+                "artifact_rejected_ratio": 0.0,
                 "ndvi_mean": 0.0,
                 "ndvi_std": 0.0,
                 "ndvi_median": 0.0,
                 "healthy_percent": 0.0,
                 "latent_stress_percent": 0.0,
                 "severe_stress_percent": 0.0,
-                "k_factor": self.k_factor
+                "k_factor": round(self.k_factor, 4)
             }
         else:
-            ndvi_mean = float(np.mean(plant_pixels))
-            ndvi_std = float(np.std(plant_pixels))
-            ndvi_median = float(np.median(plant_pixels))
+            # P0-2: Filter out division and saturation artifacts (ndvi <= 0.0 or ndvi >= 1.0)
+            valid_pixels = plant_pixels[(plant_pixels > 0.0) & (plant_pixels < 1.0)]
+            rejected_count = int(total_plant_pixels - len(valid_pixels))
+            rejected_ratio = float(rejected_count / total_plant_pixels) if total_plant_pixels > 0 else 0.0
 
-            healthy_cnt = np.count_nonzero(plant_pixels > config.NDVI_HEALTHY_MIN)
-            stress_cnt = np.count_nonzero((plant_pixels > config.NDVI_STRESS_MIN) & (plant_pixels <= config.NDVI_HEALTHY_MIN))
-            severe_cnt = np.count_nonzero(plant_pixels <= config.NDVI_STRESS_MIN)
+            calc_pixels = valid_pixels if len(valid_pixels) > 0 else plant_pixels
+
+            ndvi_mean = float(np.mean(calc_pixels))
+            ndvi_std = float(np.std(calc_pixels))
+            ndvi_median = float(np.median(calc_pixels))
+
+            healthy_cnt = np.count_nonzero(calc_pixels > config.NDVI_HEALTHY_MIN)
+            stress_cnt = np.count_nonzero((calc_pixels > config.NDVI_STRESS_MIN) & (calc_pixels <= config.NDVI_HEALTHY_MIN))
+            severe_cnt = np.count_nonzero(calc_pixels <= config.NDVI_STRESS_MIN)
 
             metrics = {
-                "plant_pixel_count": int(total_plant_pixels),
+                "plant_pixel_count": int(len(calc_pixels)),
+                "raw_plant_pixel_count": int(total_plant_pixels),
+                "artifact_pixels_rejected": rejected_count,
+                "artifact_rejected_ratio": round(rejected_ratio, 4),
                 "ndvi_mean": round(ndvi_mean, 4),
                 "ndvi_std": round(ndvi_std, 4),
                 "ndvi_median": round(ndvi_median, 4),
-                "healthy_percent": round((healthy_cnt / total_plant_pixels) * 100.0, 2),
-                "latent_stress_percent": round((stress_cnt / total_plant_pixels) * 100.0, 2),
-                "severe_stress_percent": round((severe_cnt / total_plant_pixels) * 100.0, 2),
+                "healthy_percent": round((healthy_cnt / len(calc_pixels)) * 100.0, 2),
+                "latent_stress_percent": round((stress_cnt / len(calc_pixels)) * 100.0, 2),
+                "severe_stress_percent": round((severe_cnt / len(calc_pixels)) * 100.0, 2),
                 "k_factor": round(self.k_factor, 4)
             }
 
