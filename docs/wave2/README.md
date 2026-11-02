@@ -82,4 +82,7 @@
   * [`05_alice_seed_planting_60g_total.jpg`](images/05_alice_seed_planting_60g_total.jpg) — Алиса раскладывает калиброванные проростки и засыпает покрывной слой до 60.0 г.
   * [`02_calibrated_seeds_radicles.jpg`](images/02_calibrated_seeds_radicles.jpg) — Калиброванные семена с корешком 1.0–1.5 см на влажной подложке.
   * [`04_synchronous_emergence_20pots.jpg`](images/04_synchronous_emergence_20pots.jpg) — 100% синхронные всходы огурца в 20 сосудах (28 октября 2026 г.).
+  * [`07_cotyledon_expansion_phototropism_day4.jpg`](images/07_cotyledon_expansion_phototropism_day4.jpg) — Развертывание семядолей и ориентация к светодиодной фитолинейке.
+  * [`09_wave2_cucumber_true_leaf_stage_day5.jpg`](images/09_wave2_cucumber_true_leaf_stage_day5.jpg) — Текущее состояние проростков *Cucumis sativus* (2 ноября 2026 г.): 100% тургор, полностью расправленные семядольные пластинки и синхронная закладка 1-го настоящего листа (стадия BBCH 11) во всех 20 сосудах рандомизированного блока GRCBD.
+  * [`10_wave2_phytotron_setup_ginger_pomegranate_opuntia.jpg`](images/10_wave2_phytotron_setup_ginger_pomegranate_opuntia.jpg) — Общий вид вегетационной зоны на подоконнике с фитолинейкой, настольной подсветкой и светоотражающим экраном. В окружении — ботаническая коллекция автора (выращенные Алисой из семян имбирь, гранат и опунция).
   * [`01_substrate_prep_cat_inspector.jpg`](images/01_substrate_prep_cat_inspector.jpg) — Подготовка субстрата и лабораторный контроль.
