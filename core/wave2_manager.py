@@ -42,9 +42,10 @@ WAVE2_EXPERIMENT_META = {
 }
 
 TURGOR_SCALE = {
-    1: "1 — Полный тургор (Норма, 0–10°)",
-    2: "2 — Умеренное увядание (15–25°, потеря тургора)",
-    3: "3 — Глубокое увядание (Критический стресс, >30°)"
+    4: "4 — Полный тургор (Норма, 0–10°, упругий)",
+    3: "3 — Лёгкое поникание (В воздухе, 30–45°, бортик не задет)",
+    2: "2 — Сильное поникание (Лист лёг на бортик горшка, триггер полива)",
+    1: "1 — Коллапс (Стебель изогнут, лист на грунте)"
 }
 
 # Каталог 20 горшков (3 поддона по 6 штук + 1 малый лоток пилота)
@@ -387,7 +388,7 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
     for pid in r_measured:
         t_score = by_pot[pid].get("Turgor_Score")
         try:
-            if t_score is not None and int(t_score) >= WAVE2_EXPERIMENT_META["turgor_reaction_trigger_score"]:
+            if t_score is not None and int(t_score) <= WAVE2_EXPERIMENT_META["turgor_reaction_trigger_score"]:
                 r_stressed.append(pid)
         except (ValueError, TypeError):
             pass

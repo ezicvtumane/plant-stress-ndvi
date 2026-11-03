@@ -309,7 +309,7 @@ def render_wave2_active_pot_card(
     cur_v = current_climate.get("cur_v")
     current_weight = rec.get("Weight_g", "")
     current_t_leaf = rec.get("T_Leaf_C", "")
-    current_turgor = rec.get("Turgor_Score", "1")
+    current_turgor = rec.get("Turgor_Score", "4")
     
     has_probe = meta.get("has_probe", False) or active_pot_id in ("K1", "R1", "P1")
     if has_probe:
@@ -408,9 +408,10 @@ def render_wave2_active_pot_card(
                 </label>
                 <select name="turgor_score" id="wave2_turgor" 
                     style="width: 100%; font-size: 14px; font-weight: 600; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box;">
-                    <option value="1" {'selected' if str(current_turgor) == '1' else ''}>{TURGOR_SCALE[1]}</option>
-                    <option value="2" {'selected' if str(current_turgor) == '2' else ''}>{TURGOR_SCALE[2]}</option>
+                    <option value="4" {'selected' if str(current_turgor) == '4' else ''}>{TURGOR_SCALE[4]}</option>
                     <option value="3" {'selected' if str(current_turgor) == '3' else ''}>{TURGOR_SCALE[3]}</option>
+                    <option value="2" {'selected' if str(current_turgor) == '2' else ''}>{TURGOR_SCALE[2]}</option>
+                    <option value="1" {'selected' if str(current_turgor) == '1' else ''}>{TURGOR_SCALE[1]}</option>
                 </select>
             </div>
 
@@ -498,7 +499,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             t_leaf = r.get("T_Leaf_C", "")
             t_air = r.get("T_Air_C", "--")
             dt = r.get("Delta_T_C", "--")
-            turgor = r.get("Turgor_Score", "1")
+            turgor = r.get("Turgor_Score", "4")
             dose = r.get("Water_Dose_ml", "--")
             ndvi = r.get("NDVI_Mean", "--")
             pla = r.get("Leaf_Area_cm2", "--")
@@ -560,9 +561,10 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                 <td style="padding: 6px 4px; text-align: center;">{soil_cell}</td>
                 <td style="padding: 6px 4px;">
                     <select id="cell_tr_{rec_id}" style="padding: 4px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
-                        <option value="1" {'selected' if str(turgor) == '1' else ''}>1</option>
-                        <option value="2" {'selected' if str(turgor) == '2' else ''}>2</option>
+                        <option value="4" {'selected' if str(turgor) == '4' else ''}>4</option>
                         <option value="3" {'selected' if str(turgor) == '3' else ''}>3</option>
+                        <option value="2" {'selected' if str(turgor) == '2' else ''}>2</option>
+                        <option value="1" {'selected' if str(turgor) == '1' else ''}>1</option>
                     </select>
                 </td>
                 <td style="padding: 8px 10px; font-size: 12px; font-weight: 800; color: #059669;">{dose}</td>

@@ -3188,7 +3188,7 @@ async def handle_wave2_capture_and_save(
     weight_g: str = Form(""),
     t_leaf: str = Form(""),
     t_air: str = Form(""),
-    turgor_score: str = Form("1"),
+    turgor_score: str = Form("4"),
     thermal_file: UploadFile = File(None)
 ):
     try:
@@ -3221,7 +3221,7 @@ async def handle_wave2_capture_and_save(
             except ValueError:
                 pass
 
-        parsed_turgor = 1
+        parsed_turgor = 4
         if turgor_score and turgor_score.strip() and turgor_score.strip() != "--":
             try:
                 parsed_turgor = int(turgor_score.strip())
@@ -3294,7 +3294,7 @@ async def handle_wave2_update_record(
     pot_id: str = Form(...),
     weight_g: str = Form(""),
     t_leaf: str = Form(""),
-    turgor_score: str = Form("1"),
+    turgor_score: str = Form("4"),
     t_air: str = Form(""),
     moisture_pct: str = Form("")
 ):
@@ -3330,7 +3330,7 @@ async def handle_wave2_update_record(
             except ValueError:
                 pass
 
-        parsed_turgor = 1
+        parsed_turgor = 4
         if turgor_score and turgor_score.strip() and turgor_score.strip() != "--":
             try:
                 parsed_turgor = int(turgor_score.strip())

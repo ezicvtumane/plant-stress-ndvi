@@ -13,6 +13,8 @@ BASE_TARE_WEIGHT_G: float = 95.0       # Базовая тарированная
 BIOMASS_PLA_COEFF: float = 0.06        # Эмпирический коэффициент сырой биомассы листа огурца (г/см²)
 DELTA_DELTA_T_THRESHOLD_C: float = 0.6 # Порог стрессового отклика относительно контроля (°C)
 PREVENTION_MIN_TRIGGERED_PLANTS: int = 4 # Порог кворума для срабатывания превентивного полива (из 6)
+TURGOR_REACTION_TRIGGER_SCORE: int = 2   # Порог шкалы тургора для триггера Реакции (балл <= 2: лист лег на бортик горшка)
+REACTION_MIN_TRIGGERED_PLANTS: int = 4   # Кворум для срабатывания полива Реакции (из 6)
 TOTAL_COHORT_PLANTS: int = 6
 LYSIMETER_POT_ID: str = 'X0'           # Идентификатор лизиметрического контрольного горшка без растения
 
@@ -119,6 +121,34 @@ def evaluate_cohort_prevention_trigger(
             f"🚨 ТРИГГЕР ПРЕВЕНЦИИ СРАБОТАЛ ({triggered_count}/{min_plants} растений ≥ +{threshold}°C)"
             if is_triggered else
             f"✅ Норма когорты ({triggered_count}/{min_plants} превышений порога)"
+        )
+    }
+
+
+def evaluate_cohort_reaction_trigger(
+    reaction_plants_turgor: List[Optional[int]],
+    threshold_score: int = TURGOR_REACTION_TRIGGER_SCORE,
+    min_plants: int = REACTION_MIN_TRIGGERED_PLANTS
+) -> Dict[str, Any]:
+    """
+    Оценивает кворум срабатывания триггера для когорты Реакция (Р1–Р6):
+    Триггер сработал, если минимум у 4 из 6 растений тургор <= 2 (лист лёг на бортик горшка или коллапс).
+    """
+    valid_scores = [val for val in reaction_plants_turgor if val is not None]
+    triggered_count = sum(1 for val in valid_scores if int(val) <= threshold_score)
+    total_measured = len(valid_scores)
+    is_triggered = triggered_count >= min_plants
+
+    return {
+        "is_triggered": is_triggered,
+        "triggered_count": triggered_count,
+        "total_measured": total_measured,
+        "required_quorum": min_plants,
+        "threshold_score": threshold_score,
+        "status_text": (
+            f"🚨 ТРИГГЕР РЕАКЦИИ СРАБОТАЛ ({triggered_count}/{min_plants} растений с баллом тургора ≤ {threshold_score})"
+            if is_triggered else
+            f"✅ Тургор когорты в норме ({triggered_count}/{min_plants} растений с потерей тургора)"
         )
     }
 
