@@ -22,6 +22,9 @@ from core.agronomic_rules import (
     BIOMASS_PLA_COEFF,
     DELTA_DELTA_T_THRESHOLD_C,
     PREVENTION_MIN_TRIGGERED_PLANTS,
+    TURGOR_REACTION_TRIGGER_SCORE,
+    REACTION_MIN_TRIGGERED_PLANTS,
+    evaluate_cohort_reaction_trigger,
     LYSIMETER_POT_ID
 )
 
@@ -185,3 +188,39 @@ def test_rule3_cohort_analysis():
     assert res["occlusion_percent"] == 0.0
     assert res["mean_true_transpiration_g"] == 4.58  # (5.0 + 4.0 + 5.5 + 4.5 + 3.5 + 5.0) / 6 = 27.5 / 6 = 4.5833
     assert res["mean_intensity_mg_cm2_h"] is not None
+
+
+# --- ТЕСТЫ ТРИГГЕРА РЕАКЦИИ (4-балльная шкала тургора) ---
+
+def test_reaction_cohort_quorum_4point_scale():
+    """Тест кворума триггера когорты Реакция: >= 4 из 6 растений имеют балл <= 2 (лист лёг на бортик)."""
+    # Все здоровые (балл 4 и 3) -> триггер НЕ сработал
+    scores_healthy = [4, 4, 3, 4, 3, 4]
+    res_h = evaluate_cohort_reaction_trigger(scores_healthy)
+    assert res_h["is_triggered"] is False
+    assert res_h["triggered_count"] == 0
+
+    # 3 растения легли на бортик (балл 2), 3 еще держатся (балл 3) -> кворум НЕ достигнут (3 < 4)
+    scores_3 = [2, 2, 2, 3, 3, 4]
+    res_3 = evaluate_cohort_reaction_trigger(scores_3)
+    assert res_3["is_triggered"] is False
+    assert res_3["triggered_count"] == 3
+
+    # 4 растения достигли балла <= 2 (три балла 2 и один балл 1) -> кворум ДОСТИГНУТ (4 >= 4)
+    scores_4 = [2, 2, 1, 2, 3, 4]
+    res_4 = evaluate_cohort_reaction_trigger(scores_4)
+    assert res_4["is_triggered"] is True
+    assert res_4["triggered_count"] == 4
+
+    # 5 растений со стрессом -> кворум ДОСТИГНУТ
+    scores_5 = [2, 2, 1, 1, 2, 3]
+    res_5 = evaluate_cohort_reaction_trigger(scores_5)
+    assert res_5["is_triggered"] is True
+    assert res_5["triggered_count"] == 5
+
+    # Обработка None / незамеренных горшков
+    scores_incomplete = [2, 2, None, 1, 3, None]
+    res_inc = evaluate_cohort_reaction_trigger(scores_incomplete)
+    assert res_inc["is_triggered"] is False
+    assert res_inc["triggered_count"] == 3
+    assert res_inc["total_measured"] == 4

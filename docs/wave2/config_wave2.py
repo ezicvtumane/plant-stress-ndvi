@@ -20,9 +20,10 @@ EXPERIMENT_META = {
 }
 
 TURGOR_SCALE = {
-    1: "Полный тургор (Норма, 0-10°)",
-    2: "Умеренная потеря тургора (Увядание, 15-25°)",
-    3: "Глубокое увядание (Коллапс, >30°)"
+    4: "Полный тургор (Норма, 0-10°, упругий)",
+    3: "Лёгкое поникание в воздухе (30-45°, бортик не задет)",
+    2: "Сильное поникание (Лист лёг на бортик горшка, триггер полива)",
+    1: "Коллапс (Стебель согнут, лист на грунте)"
 }
 
 POTS_CONFIG: Dict[str, Dict[str, Any]] = {
@@ -82,7 +83,7 @@ def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> 
     # 2. Анализ группы Реакция (Р1-Р6)
     r_stressed_count = sum(
         1 for pid in ["R1", "R2", "R3", "R4", "R5", "R6"]
-        if daily_measurements.get(pid, {}).get("turgor", 1) >= EXPERIMENT_META["turgor_reaction_trigger_score"]
+        if daily_measurements.get(pid, {}).get("turgor", 4) <= EXPERIMENT_META["turgor_reaction_trigger_score"]
     )
     reaction_triggered = r_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
 
