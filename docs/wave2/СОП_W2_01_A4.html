@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>СОП-W2-01: Ежедневный замер и дифференцированный полив (Огурец «Каскад», Волна 2)</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 6mm 8mm 5mm 8mm;
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #0f172a;
+    background: #fff;
+    margin: 0;
+    padding: 0;
+    font-size: 7.7pt;
+    line-height: 1.22;
+  }
+  .header {
+    border-bottom: 2px solid #1e3a8a;
+    padding-bottom: 3px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .title h1 {
+    font-size: 10pt;
+    margin: 0 0 1px 0;
+    color: #1e3a8a;
+    font-weight: 800;
+    letter-spacing: 0.1px;
+    text-transform: uppercase;
+  }
+  .title .sub {
+    font-size: 7pt;
+    color: #475569;
+    font-weight: 600;
+  }
+  .meta-badge {
+    text-align: right;
+    font-size: 7pt;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+  .meta-badge strong {
+    color: #1e3a8a;
+  }
+  .section {
+    margin-bottom: 3.5px;
+  }
+  .section-title {
+    font-size: 7.8pt;
+    font-weight: 700;
+    color: #1e3a8a;
+    background: #eff6ff;
+    border-left: 3px solid #2563eb;
+    padding: 1.5px 5px;
+    margin-bottom: 2.5px;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+  }
+  .pipeline-bar {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    padding: 1.5px 5px;
+    font-weight: 700;
+    font-size: 7.2pt;
+    text-align: center;
+    color: #0f172a;
+    margin-bottom: 2.5px;
+  }
+  .pipeline-arrow {
+    color: #2563eb;
+    margin: 0 3px;
+  }
+  ul, ol {
+    margin: 0;
+    padding-left: 14px;
+  }
+  li {
+    margin-bottom: 1.5px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 6.9pt;
+    margin-top: 2px;
+  }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 2.5px 3.5px;
+    vertical-align: top;
+  }
+  th {
+    background: #f1f5f9;
+    color: #1e293b;
+    font-weight: 700;
+    text-align: left;
+  }
+  .turgor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    margin-top: 2px;
+    font-size: 7pt;
+  }
+  .turgor-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    padding: 2px 4px;
+  }
+  .turgor-card strong {
+    color: #0f172a;
+  }
+  .turgor-card.trigger {
+    border-color: #f87171;
+    background: #fef2f2;
+  }
+  .turgor-card.trigger strong {
+    color: #b91c1c;
+  }
+  .formula-box {
+    background: #fdf4ff;
+    border: 1px solid #f0abfc;
+    border-radius: 3px;
+    padding: 1.5px 5px;
+    font-size: 6.9pt;
+    color: #701a75;
+    margin-bottom: 2.5px;
+    font-weight: 600;
+  }
+  .footer {
+    border-top: 1px solid #cbd5e1;
+    padding-top: 2px;
+    margin-top: 3px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 6.5pt;
+    color: #64748b;
+  }
+  code {
+    font-family: Consolas, monospace;
+    font-size: 6.8pt;
+    background: #f1f5f9;
+    padding: 0.5px 2px;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">
+    <h1>СОП-W2-01: Ежедневный замер и дифференцированный полив</h1>
+    <div class="sub">Огурец «Каскад», 20 сосудов 7×7×8 см (тара 5.0 г, база 95.0 г) + лизиметр X0 | GRCBD N=18+2</div>
+  </div>
+  <div class="meta-badge">
+    <strong>ВЕРСИЯ 2.3</strong> | 04.11.2026<br>
+    Окно: <strong>18:00–18:30</strong> (за 1 ч до ламп)
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>1. ПОДГОТОВКА К СЕАНСУ (17:50–18:00)</span> <span>за 10 мин до старта</span></div>
+  <ol>
+    <li><strong>Тепловизор UNI-T UTi120S:</strong> Включить за 3–5 мин до старта (прогрев микроболометра до щелчка затвора NUC). Проверить: излучение <strong>ε = 0.98</strong>, режим <strong>Center Spot</strong> (только центр. точка, маркеры Hi/Lo выкл).</li>
+    <li><strong>Веб-станция:</strong> Включить Orange Pi. Открыть панель: в домашней сети — <code>http://192.168.0.30:8000</code> (или <code>http://orangepi4pro.local:8000</code>); автономно — Wi-Fi <strong>«PlantStation»</strong> (пароль <code>[локальный пароль]</code>) ➔ <code>http://192.168.4.1:8000</code>. Проверить данные SHT30 и норму.</li>
+    <li><strong>Весы и инвентарь:</strong> Весы на <strong>0.0 г</strong> (Tare). Шприц 20 мл, стакан с отстоянной водой. <em>Для триггера:</em> ампула «Эпин-Экстра», инсулиновый шприц U-100, pH-метр; бесцветный лак, скотч, предметные стёкла (методика Волны-1).</li>
+  </ol>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>2. ОЧЕРЕДНОСТЬ КОНВЕЙЕРА И ЛИЗИМЕТР X0 (18:00)</span> <span>учет чистого испарения почвы E</span></div>
+  <div class="pipeline-bar">
+    X0 (Лизиметр) <span class="pipeline-arrow">➔</span> КОНТРОЛЬ (К1–К6) <span class="pipeline-arrow">➔</span> РЕАКЦИЯ (Р1–Р6) <span class="pipeline-arrow">➔</span> ПРЕВЕНЦИЯ (П1–П6) <span class="pipeline-arrow">➔</span> ПИЛОТ (Э1–Э2)
+  </div>
+  <ol>
+    <li><strong>Замер лизиметра X0:</strong> Поставить X0 на весы, нажать «X0» в интерфейсе, зафиксировать массу M<sub>X0</sub> (г).</li>
+    <li><strong>Компенсация физического испарения:</strong> Долить шприцем воду строго до <strong>95.0 г</strong> (ΔM = 95.0 - M<sub>X0</sub>). Вернуть X0 на стеллаж (в бокс не ставить).</li>
+  </ol>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>3. АЛГОРИТМ ЗАМЕРА ОДНОГО СОСУДА С РАСТЕНИЕМ (ЦИКЛ 1–20)</span> <span>порядок не менять!</span></div>
+  <ol>
+    <li><strong>ГРАВИМЕТРИЯ:</strong> Поставить горшок на весы, выбрать карточку растения в веб-интерфейсе, зафиксировать массу M<sub>факт</sub> (г).</li>
+    <li><strong>БОКС (NoIR IMX179):</strong> Поместить в ложемент бокса, прикрыть дверцу на магнитах. Нажать «Замер»: двухволновой строб 660/850 нм через релейный блок, маска кроны, расчет площади PLA (см²) и индекса NDVI<sub>instr</sub>.</li>
+    <li><strong>ТЕРМОГРАФИЯ (UTi120S):</strong> Через окно навести тепловизор на среднюю треть 1-го листа (Center Spot на мезофилл, 90°, 20–25 см). Внести T<sub>leaf</sub>. Станция вычисляет ΔT = T<sub>leaf</sub> - T<sub>air</sub> и разность с контролем ΔΔT.</li>
+    <li><strong>ТУРГОР (ОБЪЕКТИВНАЯ 4-БАЛЛЬНАЯ ШКАЛА С ПРИВЯЗКОЙ К БОРТИКУ ГОРШКА):</strong></li>
+  </ol>
+  <div class="turgor-grid">
+    <div class="turgor-card"><strong>Балл 4 — Оптимум:</strong> Пластинка листа строго горизонтальна или приподнята вверх (угол 0–10°).</div>
+    <div class="turgor-card"><strong>Балл 3 — Легкое поникание:</strong> Наклон листа 30–45°, но пластинка <strong>НЕ касается бортика</strong> горшка.</div>
+    <div class="turgor-card trigger"><strong>Балл 2 — Сильное поникание:</strong> Наклон >60°, пластинка <strong>ЛЁГЛА НА БОРТИК</strong> горшка (триггер Реакции!).</div>
+    <div class="turgor-card"><strong>Балл 1 — Коллапс:</strong> Черешок согнут под острым углом, листовая пластинка лежит на грунте.</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>4. МАТРИЦА ПРИНЯТИЯ РЕШЕНИЙ ПО ДИФФЕРЕНЦИРОВАННОМУ ПОЛИВУ</span> <span>кворум 4 из 6</span></div>
+  <div class="formula-box">
+    Адаптивная масса (расчёт по биомассе): M<sub>цель</sub>(t) = 95.0 + (PLA × 0.06 г/см²) | Доза полива: V = max(0, M<sub>цель</sub> - M<sub>факт</sub>) мл
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 15%;">Когорта (ID)</th>
+        <th style="width: 20%;">Режим полива</th>
+        <th style="width: 27%;">Критерий триггера (кворум)</th>
+        <th style="width: 38%;">Действие оператора при срабатывании</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>КОНТРОЛЬ</strong><br>(К1–К6, n=6)</td>
+        <td>Постоянный оптимум (100% ПВ)</td>
+        <td>Ежедневно без перерывов</td>
+        <td>Долить отстоянную воду шприцем до M<sub>цель</sub>. Служит опорным термальным фоном ΔT<sub>контр</sub>.</td>
+      </tr>
+      <tr>
+        <td><strong>ПРЕВЕНЦИЯ</strong><br>(П1–П6, n=6)</td>
+        <td>Блокировка полива со старта стресса</td>
+        <td><strong>ΔΔT ≥ +0.6 °C</strong> зафиксирован у <strong>≥ 4 из 6</strong> растений когорты</td>
+        <td>1. Разовый полив водой до M<sub>цель</sub>. Со след. дня полив как Контроль.<br>2. <strong>Сразу отобрать лаковые слепки устьиц у К1 и П1</strong> (методика Волны-1).</td>
+      </tr>
+      <tr>
+        <td><strong>РЕАКЦИЯ</strong><br>(Р1–Р6, n=6)</td>
+        <td>Блокировка полива со старта стресса</td>
+        <td><strong>Балл тургора ≤ 2</strong> (лист лёг на бортик) у <strong>≥ 4 из 6</strong> растений</td>
+        <td>1. Разовый реанимационный полив водой до M<sub>цель</sub>. Далее как Контроль.<br>2. <strong>Сразу отобрать лаковые слепки устьиц у К1 и Р1</strong> (методика Волны-1).</td>
+      </tr>
+      <tr>
+        <td><strong>ПИЛОТ</strong><br>(Э1, Э2, n=2)</td>
+        <td>Блокировка полива со старта стресса</td>
+        <td>Наступает <strong>строго синхронно</strong> с триггером Превенции</td>
+        <td>1. Раствор: 50 мл воды pH 5.8–6.0 + <strong>4–5 делений U-100</strong> (40–50 мкл/1 кап.) «Эпина». Полив Э1 и Э2 шприцем до M<sub>цель</sub> (~12–16 мл/сосуд). Далее водой как Контроль.<br>2. <strong>Отобрать слепок у Э1</strong>.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>5. РОТАЦИЯ НА СТЕЛЛАЖЕ И ВЫКЛЮЧЕНИЕ ПРИБОРОВ (18:25–18:30)</span> <span>устранение краевого эффекта</span></div>
+  <ol>
+    <li><strong>Пространственная ротация поддонов:</strong>
+      • <em>Разворот на 180°:</em> Каждый из 3 поддонов развернуть вокруг вертикальной оси на 180° относительно окна.
+      • <em>Сдвиг позиций:</em> Поддоны циклически переставить: Блок 1 ➔ поз. 2, Блок 2 ➔ поз. 3, Блок 3 ➔ поз. 1.
+      • <em>Высота ламп:</em> Строго <strong>25–30 см</strong> над верхушками (не опускать ниже 25 см во избежание ожогов!).
+    </li>
+    <li><strong>Целостность данных и выключение:</strong> В веб-интерфейсе станции нажать «Завершить сеанс» (данные сохранены в <code>measurements.csv</code>). Выключить тепловизор, весы и станцию (Orange Pi). Протереть платформу весов и ложемент бокса сухой салфеткой.</li>
+  </ol>
+</div>
+
+<div class="footer">
+  <span>Комплекс «Plant-Stress-NDVI» | Разработчик: Ковалева Алиса, 10 класс | Руководитель: Ковалев И.В.</span>
+  <span>Климат 24/7: автономный датчик Xiaomi Mijia BLE</span>
+</div>
+
+</body>
+</html>
