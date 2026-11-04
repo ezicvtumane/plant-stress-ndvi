@@ -1,96 +1,132 @@
 """
-Конфигурация параметров второй волны эксперимента (Огурец «Каскад»).
-Используется для интеграции в web_station.py на Orange Pi 4 Pro.
+Конфигурация параметров второй волны эксперимента (Огурец «Каскад», GRCBD).
+Полностью согласована с агрономическим модулем core/agronomic_rules.py и web_station.py.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 EXPERIMENT_META = {
-    "title": "Прецизионная оптимизация фитоадаптогенов",
-    "track": "Агропромышленные и биотехнологии",
-    "crop": "Cucumis sativus (сорт Каскад)",
+    "title": "Прецизионная оптимизация фитоадаптогенов и ранняя индикация стресса",
+    "track": "Агропромышленные и биотехнологии (Сириус «Большие вызовы» 2026)",
+    "crop": "Cucumis sativus L. (сорт «Каскад»)",
     "start_date": "2026-10-25",
     "measurement_window": "18:00-18:30",
-    "target_weight_net_g": 95.0,
+    "pot_tare_g": 5.0,
+    "target_weight_gross_g": 95.0,
+    "biomass_pla_coeff": 0.06,  # Правило №1 Тимирязевки: 0.06 г/см² сырой биомассы листа
     "emissivity_lwir": 0.98,
-    "threshold_delta_t": 0.6,
-    "cluster_min_plants": 4,
+    "threshold_delta_delta_t": 0.6,  # Правило №2: нормированный триггер ΔΔT >= +0.6 °C относительно контроля
+    "cluster_min_plants": 4,  # Кворум: минимум 4 из 6 растений когорты
     "cluster_total_plants": 6,
-    "turgor_reaction_trigger_score": 2,
+    "turgor_reaction_trigger_score": 2,  # Балл <= 2: лист лег на бортик горшка
 }
 
 TURGOR_SCALE = {
-    4: "Полный тургор (Норма, 0-10°, упругий)",
-    3: "Лёгкое поникание в воздухе (30-45°, бортик не задет)",
-    2: "Сильное поникание (Лист лёг на бортик горшка, триггер полива)",
-    1: "Коллапс (Стебель согнут, лист на грунте)"
+    4: "4 — Оптимум (Норма, угол 0–10°, упругий тургор)",
+    3: "3 — Лёгкое поникание в воздухе (30–45°, пластинка не касается бортика)",
+    2: "2 — Сильное поникание (Лист лёг на бортик горшка, триггер Реакции)",
+    1: "1 — Коллапс (Черешок согнут, пластинка листа лежит на грунте)"
 }
 
 POTS_CONFIG: Dict[str, Dict[str, Any]] = {
-    # Блок 1 (Поддон 1)
-    "K1": {"cohort": "Control", "block": 1, "color": "green", "aruco_id": 1, "target_weight": 95.0, "probe": True},
-    "K2": {"cohort": "Control", "block": 1, "color": "green", "aruco_id": 1, "target_weight": 95.0, "probe": False},
-    "P1": {"cohort": "Prevention", "block": 1, "color": "yellow", "aruco_id": 4, "target_weight": 95.0, "probe": True},
-    "P2": {"cohort": "Prevention", "block": 1, "color": "yellow", "aruco_id": 4, "target_weight": 95.0, "probe": False},
-    "R1": {"cohort": "Reaction", "block": 1, "color": "blue", "aruco_id": 5, "target_weight": 95.0, "probe": True},
-    "R2": {"cohort": "Reaction", "block": 1, "color": "blue", "aruco_id": 5, "target_weight": 95.0, "probe": False},
+    # ХОЛОСТОЙ ЛИЗИМЕТР (Контроль чистого испарения почвы E по FAO-56)
+    "X0": {"cohort": "Lysimeter", "block": 0, "color": "gray", "target_weight": 95.0, "probe": False, "badge": "⚖️ Лизиметр X0"},
 
-    # Блок 2 (Поддон 2)
-    "K3": {"cohort": "Control", "block": 2, "color": "green", "aruco_id": 1, "target_weight": 95.0, "probe": False},
-    "K4": {"cohort": "Control", "block": 2, "color": "green", "aruco_id": 1, "target_weight": 95.0, "probe": False},
-    "P3": {"cohort": "Prevention", "block": 2, "color": "yellow", "aruco_id": 4, "target_weight": 95.0, "probe": False},
-    "P4": {"cohort": "Prevention", "block": 2, "color": "yellow", "aruco_id": 4, "target_weight": 95.0, "probe": False},
-    "R3": {"cohort": "Reaction", "block": 2, "color": "blue", "aruco_id": 5, "target_weight": 95.0, "probe": False},
-    "R4": {"cohort": "Reaction", "block": 2, "color": "blue", "aruco_id": 5, "target_weight": 95.0, "probe": False},
+    # БЛОК 1 (Поддон 1)
+    "K1": {"cohort": "Control", "block": 1, "color": "green", "target_weight": 95.0, "probe": True, "badge": "🟢 Контроль"},
+    "K2": {"cohort": "Control", "block": 1, "color": "green", "target_weight": 95.0, "probe": False, "badge": "🟢 Контроль"},
+    "P1": {"cohort": "Prevention", "block": 1, "color": "yellow", "target_weight": 95.0, "probe": True, "badge": "🟡 Превенция"},
+    "P2": {"cohort": "Prevention", "block": 1, "color": "yellow", "target_weight": 95.0, "probe": False, "badge": "🟡 Превенция"},
+    "R1": {"cohort": "Reaction", "block": 1, "color": "blue", "target_weight": 95.0, "probe": True, "badge": "🔵 Реакция"},
+    "R2": {"cohort": "Reaction", "block": 1, "color": "blue", "target_weight": 95.0, "probe": False, "badge": "🔵 Реакция"},
 
-    # Блок 3 (Поддон 3)
-    "K5": {"cohort": "Control", "block": 3, "color": "green", "aruco_id": 1, "target_weight": 95.0, "probe": False},
-    "K6": {"cohort": "Control", "block": 3, "color": "green", "aruco_id": 1, "target_weight": 95.0, "probe": False},
-    "P5": {"cohort": "Prevention", "block": 3, "color": "yellow", "aruco_id": 4, "target_weight": 95.0, "probe": False},
-    "P6": {"cohort": "Prevention", "block": 3, "color": "yellow", "aruco_id": 4, "target_weight": 95.0, "probe": False},
-    "R5": {"cohort": "Reaction", "block": 3, "color": "blue", "aruco_id": 5, "target_weight": 95.0, "probe": False},
-    "R6": {"cohort": "Reaction", "block": 3, "color": "blue", "aruco_id": 5, "target_weight": 95.0, "probe": False},
+    # БЛОК 2 (Поддон 2)
+    "K3": {"cohort": "Control", "block": 2, "color": "green", "target_weight": 95.0, "probe": False, "badge": "🟢 Контроль"},
+    "K4": {"cohort": "Control", "block": 2, "color": "green", "target_weight": 95.0, "probe": False, "badge": "🟢 Контроль"},
+    "P3": {"cohort": "Prevention", "block": 2, "color": "yellow", "target_weight": 95.0, "probe": False, "badge": "🟡 Превенция"},
+    "P4": {"cohort": "Prevention", "block": 2, "color": "yellow", "target_weight": 95.0, "probe": False, "badge": "🟡 Превенция"},
+    "R3": {"cohort": "Reaction", "block": 2, "color": "blue", "target_weight": 95.0, "probe": False, "badge": "🔵 Реакция"},
+    "R4": {"cohort": "Reaction", "block": 2, "color": "blue", "target_weight": 95.0, "probe": False, "badge": "🔵 Реакция"},
 
-    # Изолированный лоток (Пилот)
-    "E1": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 6, "target_weight": 95.0, "probe": False},
-    "E2": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "aruco_id": 6, "target_weight": 95.0, "probe": False},
+    # БЛОК 3 (Поддон 3)
+    "K5": {"cohort": "Control", "block": 3, "color": "green", "target_weight": 95.0, "probe": False, "badge": "🟢 Контроль"},
+    "K6": {"cohort": "Control", "block": 3, "color": "green", "target_weight": 95.0, "probe": False, "badge": "🟢 Контроль"},
+    "P5": {"cohort": "Prevention", "block": 3, "color": "yellow", "target_weight": 95.0, "probe": False, "badge": "🟡 Превенция"},
+    "P6": {"cohort": "Prevention", "block": 3, "color": "yellow", "target_weight": 95.0, "probe": False, "badge": "🟡 Превенция"},
+    "R5": {"cohort": "Reaction", "block": 3, "color": "blue", "target_weight": 95.0, "probe": False, "badge": "🔵 Реакция"},
+    "R6": {"cohort": "Reaction", "block": 3, "color": "blue", "target_weight": 95.0, "probe": False, "badge": "🔵 Реакция"},
+
+    # ИЗОЛИРОВАННЫЙ ЛОТОК (Пилотный адаптогенный скрининг Proof-of-Concept)
+    "E1": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "target_weight": 95.0, "probe": False, "badge": "🔴 Пилот Эпин"},
+    "E2": {"cohort": "Pilot_Epin", "block": 0, "color": "red", "target_weight": 95.0, "probe": False, "badge": "🔴 Пилот Эпин"},
 }
 
 TARGET_WEIGHTS = {pot_id: data["target_weight"] for pot_id, data in POTS_CONFIG.items()}
 
 
-def calculate_water_dose(current_weight: float, target_weight: float = 95.0) -> float:
-    """Расчет дефицита полива в миллилитрах."""
-    deficit = target_weight - current_weight
-    return round(max(0.0, deficit), 1)
+def calculate_target_weight(pla_cm2: float = 0.0, base_weight: float = 95.0) -> float:
+    """
+    Правило №1 Тимирязевки: Расчет динамической целевой массы с поправкой на рост биомассы.
+    M_цель(t) = 95.0 + (PLA * 0.06 г/см²)
+    """
+    return round(float(base_weight) + (max(0.0, float(pla_cm2)) * EXPERIMENT_META["biomass_pla_coeff"]), 1)
+
+
+def calculate_water_dose(current_weight: float, pla_cm2: float = 0.0, base_weight: float = 95.0) -> float:
+    """
+    Прецизионная доза полива шприцем до целевой динамической массы.
+    Доза = max(0, M_цель - M_тек)
+    """
+    target = calculate_target_weight(pla_cm2, base_weight)
+    return round(max(0.0, target - float(current_weight)), 1)
 
 
 def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Оценка кластерных триггеров полива для когорт П и Р.
+    Оценка кластерных кворум-триггеров полива для когорт Превенция (П) и Реакция (Р).
     
     daily_measurements: {
-       "P1": {"delta_t": 0.7, "turgor": 1, "weight": 82.0}, ...
+       "K1": {"delta_t": -0.2, ...},
+       "P1": {"delta_t": 0.7, "turgor": 3, "weight": 82.0}, ...
     }
     """
-    # 1. Анализ группы Превенция (П1-П6)
-    p_stressed_count = sum(
-        1 for pid in ["P1", "P2", "P3", "P4", "P5", "P6"]
-        if daily_measurements.get(pid, {}).get("delta_t", 0.0) >= EXPERIMENT_META["threshold_delta_t"]
-    )
+    # 1. Расчет синхронного термального базиса живого Контроля (К1-К6)
+    control_pids = ["K1", "K2", "K3", "K4", "K5", "K6"]
+    ctrl_dts = [
+        daily_measurements[pid]["delta_t"]
+        for pid in control_pids
+        if pid in daily_measurements and daily_measurements[pid].get("delta_t") is not None
+    ]
+    mean_ctrl_dt = sum(ctrl_dts) / len(ctrl_dts) if ctrl_dts else 0.0
+
+    # 2. Анализ группы Превенция (П1-П6): триггер по нормированному ΔΔT >= +0.6 °C
+    p_pids = ["P1", "P2", "P3", "P4", "P5", "P6"]
+    p_stressed_count = 0
+    for pid in p_pids:
+        if pid in daily_measurements:
+            m = daily_measurements[pid]
+            # берем уже готовый delta_delta_t или вычисляем относительно среднего контроля
+            ddt = m.get("delta_delta_t")
+            if ddt is None and m.get("delta_t") is not None:
+                ddt = m["delta_t"] - mean_ctrl_dt
+            if ddt is not None and ddt >= EXPERIMENT_META["threshold_delta_delta_t"]:
+                p_stressed_count += 1
+
     prevention_triggered = p_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
 
-    # 2. Анализ группы Реакция (Р1-Р6)
+    # 3. Анализ группы Реакция (Р1-Р6): триггер по потере тургора (балл <= 2 у >= 4 из 6)
+    r_pids = ["R1", "R2", "R3", "R4", "R5", "R6"]
     r_stressed_count = sum(
-        1 for pid in ["R1", "R2", "R3", "R4", "R5", "R6"]
-        if daily_measurements.get(pid, {}).get("turgor", 4) <= EXPERIMENT_META["turgor_reaction_trigger_score"]
+        1 for pid in r_pids
+        if pid in daily_measurements and daily_measurements[pid].get("turgor", 4) <= EXPERIMENT_META["turgor_reaction_trigger_score"]
     )
     reaction_triggered = r_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
 
     return {
+        "mean_control_delta_t": round(mean_ctrl_dt, 2),
         "prevention_triggered": prevention_triggered,
         "prevention_stressed_count": p_stressed_count,
         "reaction_triggered": reaction_triggered,
         "reaction_stressed_count": r_stressed_count,
-        "pilot_epin_triggered": prevention_triggered, # полив Эпином строго синхронен с группой П
+        "pilot_epin_triggered": prevention_triggered,  # Полив Эпином строго синхронен с группой П
     }
