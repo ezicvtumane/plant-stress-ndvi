@@ -18,6 +18,6 @@
 ---
 
 ### Графическая визуализация
-![Boxplots](/static/charts/anova_latest.png)
+![Boxplots](../../static/charts/anova_latest.png)
 
 *Отчет сгенерирован автоматически аналитическим ядром станции `PlantStation`.*

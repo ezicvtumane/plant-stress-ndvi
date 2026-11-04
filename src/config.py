@@ -18,8 +18,9 @@ TRIPTYCH_DIR = DATA_DIR / "triptychs"
 for d in [RAW_DATA_DIR, PROCESSED_DATA_DIR, TRIPTYCH_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-# Camera / Optical Sensor Configuration
-# Logitech C270 / diymore IMX179 NoIR sensor running at native 1280x960 (4:3)
+# Camera / Optical Sensor Configuration (Evolutionary TRL Progression):
+# - Wave 1 (Pisum sativum, TRL 3): Modified Logitech C270 NoIR (1280x960, 4:3)
+# - Wave 2 (Cucumis sativus, TRL 4): Industrial Sony IMX179 NoIR M12 sensor (400-1000 nm)
 CAMERA_INDEX = 0  # /dev/video0
 CAMERA_WIDTH = 1280
 CAMERA_HEIGHT = 960

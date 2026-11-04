@@ -376,7 +376,7 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         f"---",
         f"",
         f"### Графическая визуализация",
-        f"![Boxplots](/static/{chart_rel_path})",
+        f"![Boxplots](../../static/{chart_rel_path})",
         f"",
         f"*Отчет сгенерирован автоматически аналитическим ядром станции `PlantStation`.*"
     ])
