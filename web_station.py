@@ -66,6 +66,7 @@ from core.wave2_ui import (
     render_wave2_active_pot_card, render_wave2_measurements_table,
     render_wave2_channels_card
 )
+from core.wave2_anova import analyze_wave2_dataset
 
 def ensure_wave2_registered(data_dir: str):
     try:
@@ -3392,6 +3393,37 @@ def handle_download_wave2_csv():
     if os.path.exists(wave2_storage.csv_path):
         return FileResponse(wave2_storage.csv_path, filename='measurements_wave2.csv', media_type='text/csv')
     return HTMLResponse('Файл measurements_wave2.csv не найден')
+
+@app.get('/download/wave2_anova_report')
+def handle_download_wave2_anova_report():
+    report_path = os.path.join(BASE_DIR, 'docs', 'wave2', 'ANOVA_LATEST_REPORT.md')
+    if os.path.exists(report_path):
+        return FileResponse(report_path, filename='ANOVA_LATEST_REPORT.md', media_type='text/markdown')
+    return HTMLResponse('Отчет ANOVA_LATEST_REPORT.md еще не сформирован. Запустите расчет в интерфейсе.')
+
+
+@app.get('/api/wave2/anova_report')
+async def api_wave2_anova_report():
+    try:
+        wave2_storage = Wave2Storage(DATA_DIR)
+        records = wave2_storage.load_today_records()
+        if len(records) < 6:
+            all_recs = wave2_storage.load_all_records()
+            latest_by_id = {}
+            for r in all_recs:
+                pid = str(r.get('ID', '')).strip().upper()
+                if pid:
+                    latest_by_id[pid] = r
+            records = list(latest_by_id.values())
+
+        res = analyze_wave2_dataset(
+            records,
+            static_dir=STATIC_DIR,
+            docs_dir=os.path.join(BASE_DIR, 'docs', 'wave2')
+        )
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({'ok': False, 'message': str(e)}, status_code=500)
 
 
 @app.post('/api/wave2/upload_thermal')

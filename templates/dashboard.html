@@ -482,6 +482,9 @@
                 <a href="/download/wave2_csv" style="display:flex; align-items:center; gap:4px; background:#059669; color:#ffffff; text-decoration:none; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; margin-left:6px; box-shadow:0 2px 4px rgba(5,150,105,0.25);">
                     📥 Скачать CSV
                 </a>
+                <button type="button" onclick="openAnovaModal()" style="display:flex; align-items:center; gap:5px; background:linear-gradient(135deg, #4f46e5, #4338ca); color:#ffffff; border:none; padding:4px 11px; border-radius:6px; font-size:11px; font-weight:700; margin-left:6px; cursor:pointer; box-shadow:0 2px 4px rgba(79,70,229,0.3); transition:all 0.15s ease;">
+                    📊 Биостатистика (ANOVA)
+                </button>
             </div>
         </div>
         <div style="max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; background:#ffffff;">
@@ -705,6 +708,153 @@ function openNewExpModal() {
 }
 function closeNewExpModal() {
     let m = document.getElementById('newExpModal');
+    if (m) m.style.display = 'none';
+}
+</script>
+
+    <!-- МОДАЛЬНОЕ ОКНО БИОСТАТИСТИКИ (ANOVA ПО ДОСПЕХОВУ) -->
+<div id="anovaModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(15,23,42,0.65); align-items:center; justify-content:center; backdrop-filter:blur(3px);">
+    <div style="background:#ffffff; padding:22px 24px; border-radius:14px; width:92%; max-width:960px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 45px rgba(0,0,0,0.3); border:2px solid #4f46e5; display:flex; flex-direction:column; gap:16px;">
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">📊</span>
+                <div>
+                    <h3 style="margin:0; color:#1e1b4b; font-size:17px; font-weight:800;">Двухфакторный дисперсионный анализ (Two-Way ANOVA по Доспехову)</h3>
+                    <p style="margin:2px 0 0; color:#64748b; font-size:11.5px;">Эксперимент Волна 2: Cucumis sativus L. | Сбалансированный комплекс GRCBD (3 когорты × 3 блока × 2 повт., N=18)</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeAnovaModal()" style="background:#f1f5f9; border:none; border-radius:8px; width:32px; height:32px; font-size:16px; font-weight:700; cursor:pointer; color:#64748b; display:flex; align-items:center; justify-content:center; transition:background 0.15s;">✕</button>
+        </div>
+
+        <!-- Dynamic Status & Verdict -->
+        <div id="anovaStatusContainer" style="display:flex; flex-direction:column; gap:8px;">
+            <div id="anovaBadge" style="display:inline-flex; align-items:center; padding:6px 14px; border-radius:8px; font-weight:800; font-size:13px; color:#ffffff; background:#4f46e5; width:fit-content; box-shadow:0 2px 6px rgba(79,70,229,0.3);">
+                ⏳ Расчет биостатистики...
+            </div>
+            <div id="anovaVerdict" style="padding:10px 14px; background:#f8fafc; border-left:4px solid #4f46e5; border-radius:6px; font-size:13px; color:#1e293b; line-height:1.45;">
+                Сбор текущих данных по сосудам...
+            </div>
+        </div>
+
+        <!-- Table of Traits -->
+        <div style="overflow-x:auto; border:1px solid #e2e8f0; border-radius:8px;">
+            <table id="anovaTable" style="width:100%; border-collapse:collapse; font-size:12px; text-align:center;">
+                <thead>
+                    <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; color:#334155;">
+                        <th style="padding:8px 10px; text-align:left;">Признак</th>
+                        <th style="padding:8px 6px; color:#059669;">Контроль (M ± SE)</th>
+                        <th style="padding:8px 6px; color:#d97706;">Превенция (M ± SE)</th>
+                        <th style="padding:8px 6px; color:#2563eb;">Реакция (M ± SE)</th>
+                        <th style="padding:8px 6px;">F (Когорта)</th>
+                        <th style="padding:8px 6px; font-weight:800;">p (Когорта)</th>
+                        <th style="padding:8px 6px;">F (Блок)</th>
+                        <th style="padding:8px 6px;">p (Блок)</th>
+                        <th style="padding:8px 6px;">НСР₀₅</th>
+                    </tr>
+                </thead>
+                <tbody id="anovaTableBody">
+                    <tr><td colspan="9" style="padding:16px; color:#64748b;">Загрузка матрицы признаков...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Boxplots Chart Container -->
+        <div id="anovaChartWrapper" style="display:none; text-align:center; border:1px solid #e2e8f0; border-radius:8px; padding:10px; background:#ffffff;">
+            <div style="font-size:12px; font-weight:700; color:#475569; margin-bottom:8px; text-align:left;">
+                📈 Графическое распределение признаков (Боксплоты с индивидуальными точками повторностей):
+            </div>
+            <img id="anovaChartImg" src="" alt="ANOVA Boxplots" style="max-width:100%; height:auto; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        </div>
+
+        <!-- Footer / Action Buttons -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1.5px solid #e2e8f0; padding-top:12px; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; gap:8px;">
+                <a id="anovaDownloadReportBtn" href="/download/wave2_anova_report" target="_blank" style="display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:#059669; color:#ffffff; text-decoration:none; border-radius:6px; font-size:12px; font-weight:700; box-shadow:0 2px 4px rgba(5,150,105,0.25);">
+                    📄 Скачать отчет (Markdown)
+                </a>
+                <a id="anovaOpenChartBtn" href="/static/charts/anova_latest.png" target="_blank" style="display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:#f1f5f9; color:#334155; text-decoration:none; border-radius:6px; font-size:12px; font-weight:700; border:1px solid #cbd5e1;">
+                    🖼️ Открыть график в полный размер
+                </a>
+            </div>
+            <button type="button" onclick="closeAnovaModal()" style="padding:7px 18px; background:#475569; color:#ffffff; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                Закрыть
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+async function openAnovaModal() {
+    let m = document.getElementById('anovaModal');
+    if (!m) return;
+    m.style.display = 'flex';
+    
+    let badge = document.getElementById('anovaBadge');
+    let verdict = document.getElementById('anovaVerdict');
+    let tbody = document.getElementById('anovaTableBody');
+    let chartWrapper = document.getElementById('anovaChartWrapper');
+    let chartImg = document.getElementById('anovaChartImg');
+    
+    badge.style.background = '#4f46e5';
+    badge.innerText = '⏳ Выполняется Two-Way ANOVA по Доспехову...';
+    verdict.innerText = 'Расчет дисперсий, критериев Фишера F и НСР₀₅...';
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:20px; color:#64748b; font-weight:600;">Вычисление статистических параметров...</td></tr>';
+    chartWrapper.style.display = 'none';
+
+    try {
+        let resp = await fetch('/api/wave2/anova_report');
+        let data = await resp.json();
+        
+        if (!data.ok) {
+            badge.style.background = '#e11d48';
+            badge.innerText = '⚠️ Недостаточно данных';
+            verdict.innerText = data.message || 'Ошибка обработки данных';
+            tbody.innerHTML = `<tr><td colspan="9" style="padding:20px; color:#e11d48;">${data.message}</td></tr>`;
+            return;
+        }
+
+        badge.style.background = data.badge_color || '#059669';
+        badge.innerText = data.status_badge || 'ANOVA Complete';
+        verdict.innerHTML = `<strong>Вердикт:</strong> ${data.verdict}`;
+        
+        let htmlRows = '';
+        (data.summary_table || []).forEach(row => {
+            let pColor = (row.p_cohort <= 0.05) ? '#dc2626' : '#15803d';
+            let pWeight = (row.p_cohort <= 0.05) ? '800' : '600';
+            let fb = (row.f_block !== null && row.f_block !== undefined) ? row.f_block : '--';
+            let pb = (row.p_block !== null && row.p_block !== undefined) ? row.p_block : '--';
+            let lsd = (row.lsd_05 !== null && row.lsd_05 !== undefined) ? row.lsd_05 : '--';
+
+            htmlRows += `
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:7px 10px; text-align:left; font-weight:700; color:#1e293b;">${row.label}</td>
+                    <td style="padding:7px 6px; color:#059669; font-weight:600;">${row.k_str}</td>
+                    <td style="padding:7px 6px; color:#d97706; font-weight:600;">${row.p_str}</td>
+                    <td style="padding:7px 6px; color:#2563eb; font-weight:600;">${row.r_str}</td>
+                    <td style="padding:7px 6px; color:#475569;">${row.f_cohort}</td>
+                    <td style="padding:7px 6px; color:${pColor}; font-weight:${pWeight};">${row.p_cohort}</td>
+                    <td style="padding:7px 6px; color:#64748b;">${fb}</td>
+                    <td style="padding:7px 6px; color:#64748b;">${pb}</td>
+                    <td style="padding:7px 6px; color:#0f172a; font-weight:600;">${lsd}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = htmlRows;
+
+        if (data.chart_url) {
+            chartImg.src = data.chart_url + '?t=' + new Date().getTime();
+            chartWrapper.style.display = 'block';
+        }
+    } catch (e) {
+        badge.style.background = '#e11d48';
+        badge.innerText = '❌ Ошибка сети / сервера';
+        verdict.innerText = 'Не удалось связаться с сервером станции: ' + e.message;
+    }
+}
+
+function closeAnovaModal() {
+    let m = document.getElementById('anovaModal');
     if (m) m.style.display = 'none';
 }
 </script>
