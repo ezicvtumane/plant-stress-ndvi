@@ -105,7 +105,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
         <button type="button" onclick="selectWave2Pot('{pid}')" 
             style="display: flex; flex-direction: column; align-items: center; justify-content: space-between;
                    background: {bg_card}; border: {border_w} solid {border_col}; border-radius: 8px;
-                   padding: 6px 4px; cursor: pointer; transition: all 0.15s; min-height: 58px; text-align: center; width: 100%;">
+                   padding: 6px 2px; cursor: pointer; transition: all 0.15s; min-height: 58px; text-align: center; width: 100%; box-sizing: border-box; min-width: 0; overflow: hidden;">
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 4px;">
                 <span style="font-weight: 800; font-size: 14px; color: {meta['color']};">{pid}</span>
                 <span style="font-weight: 800; font-size: 14px; color: {check_col};">{check_icon}</span>
@@ -125,7 +125,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div style="font-weight: 700; font-size: 15px; color: #0f172a;">
-                📸 ОЧЕРЕДЬ СЪЕМКИ ПО КОГОРТАМ: ЛИЗИМЕТР &rarr; КОНТРОЛЬ &rarr; РЕАКЦИЯ &rarr; ПРЕВЕНЦИЯ &rarr; ПИЛОТ
+                📸 ОЧЕРЕДЬ СЪЕМКИ ПО КОГОРТАМ: КОНТРОЛЬ &rarr; РЕАКЦИЯ &rarr; ПРЕВЕНЦИЯ &rarr; ЭПИН И ЛИЗИМЕТР
                 <span style="font-size: 12px; font-weight: 400; color: #64748b; margin-left: 8px;">
                     (Замерено: {len(by_pot)}/21)
                 </span>
@@ -135,15 +135,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
-            <!-- 0. ЛИЗИМЕТР -->
-            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px;">
-                <div style="font-size: 12px; font-weight: 800; color: #475569; margin-bottom: 8px;">0. ⚖️ ЛИЗИМЕТР (X0)</div>
-                <div style="display: grid; grid-template-columns: 1fr; gap: 4px;">
-                    {''.join(render_pot_tile(p) for p in cohort_x)}
-                </div>
-            </div>
-
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
             <!-- 1. КОНТРОЛЬ -->
             <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px;">
                 <div style="font-size: 12px; font-weight: 800; color: #15803d; margin-bottom: 8px;">1. 🟢 КОНТРОЛЬ (К1–К6)</div>
@@ -168,11 +160,11 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                 </div>
             </div>
 
-            <!-- 4. ПИЛОТ -->
+            <!-- 4. ЭПИН И ЛИЗИМЕТР -->
             <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 10px;">
-                <div style="font-size: 12px; font-weight: 800; color: #be123c; margin-bottom: 8px;">4. 🔴 ПИЛОТ (Э1–Э2)</div>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
-                    {''.join(render_pot_tile(p) for p in cohort_e)}
+                <div style="font-size: 12px; font-weight: 800; color: #be123c; margin-bottom: 8px;">4. 🔴 ЭПИН (Э1–Э2) + ⚖️ ЛИЗИМЕТР (Х0)</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
+                    {''.join(render_pot_tile(p) for p in cohort_e + cohort_x)}
                 </div>
             </div>
         </div>

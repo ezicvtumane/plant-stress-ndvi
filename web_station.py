@@ -351,7 +351,7 @@ init_csv()
 
 
 # --- Постоянный дескриптор V4L2-камеры (защита от сбоя VIDIOC_REQBUFS busy) ---
-_camera_lock = threading.Lock()
+_camera_lock = threading.RLock()
 _shared_camera = None
 
 def get_shared_camera():
@@ -420,7 +420,7 @@ def _read_moisture_i2c_sync():
 def read_moisture_mock(group_name: str = ''):
     """Чтение АЦП ADS1115 через выделенный I2C-пул."""
     try:
-        c = i2c_executor.submit(_read_moisture_i2c_sync).result()
+        c = i2c_executor.submit(_read_moisture_i2c_sync).result(timeout=1.0)
         raw = (c[0] << 8) | c[1]
         if raw > 32767:
             raw -= 65536
@@ -3195,7 +3195,7 @@ async def handle_wave2_capture_and_save(
     try:
         pot_id = pot_id.strip().upper()
         # 1. Аппаратная съемка
-        opt_file, metrics = do_hardware_capture_wave2(pot_id)
+        opt_file, metrics = await asyncio.to_thread(do_hardware_capture_wave2, pot_id)
 
         # 2. Климат и щупы
         box_t, box_rh, cur_v = await get_climate_sensor().read_climate()
