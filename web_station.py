@@ -364,6 +364,7 @@ def get_shared_camera():
             cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             _shared_camera = cap
         return _shared_camera
 
@@ -673,37 +674,32 @@ def do_hardware_spectral_capture(group_name: str):
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     init_relay()
+    rc = get_relay_controller()
     if True:
         # 1. Спектральная съемка NIR 850 нм (10000 мкс / Gain 128 под NoIR)
         set_v4l2_exposure(10000, 128)
-        time.sleep(0.20)
-        get_relay_controller().set_nir(True)
-        time.sleep(0.40)
-        for _ in range(8): cap.grab()
-        ret_n, frame_nir = cap.read()
-        get_relay_controller().set_nir(False) # Инфракрасный выключен
-
-        # Темновой фон NIR
-        time.sleep(0.15)
-        for _ in range(5): cap.grab()
+        time.sleep(0.08)
+        rc.set_nir(False)
         _, frame_amb_nir = cap.read()
+
+        rc.set_nir(True)
+        time.sleep(0.10)
+        ret_n, frame_nir = cap.read()
+        rc.set_nir(False) # Инфракрасный выключен
 
         # 2. Спектральная съемка RED 660 нм (50 мкс / Gain 50)
         set_v4l2_exposure(50, 50)
-        time.sleep(0.20)
-        for _ in range(8): cap.grab()
-        get_relay_controller().set_red(True)
-        time.sleep(0.40)
-        for _ in range(8): cap.grab()
-        ret_r, frame_red = cap.read()
-        get_relay_controller().set_red(False) # Красный выключен
-
-        # Темновой фон RED
-        time.sleep(0.15)
-        for _ in range(5): cap.grab()
+        time.sleep(0.08)
+        rc.set_red(False)
         _, frame_amb_red = cap.read()
+
+        rc.set_red(True)
+        time.sleep(0.08)
+        ret_r, frame_red = cap.read()
+        rc.set_red(False) # Красный выключен
 
         if not ret_r: frame_red = frame_amb_red
         if not ret_n: frame_nir = frame_amb_nir
@@ -3094,34 +3090,30 @@ def do_hardware_capture_wave2(pot_id: str):
 
     with _camera_lock:
         cap = get_shared_camera()
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        rc = get_relay_controller()
         try:
             # 1. Съемка NIR 850 нм (10000 мкс, Gain 128)
             set_v4l2_exposure(10000, 128)
-            time.sleep(0.20)
-            get_relay_controller().set_nir(True)
-            time.sleep(0.40)
-            for _ in range(8): cap.grab()
-            ret_n, frame_nir = cap.read()
-            get_relay_controller().set_nir(False)
-
-            # Ambient NIR
-            time.sleep(0.15)
-            for _ in range(5): cap.grab()
+            time.sleep(0.08)
+            rc.set_nir(False)
             _, frame_amb_nir = cap.read()
+
+            rc.set_nir(True)
+            time.sleep(0.10)
+            ret_n, frame_nir = cap.read()
+            rc.set_nir(False)
 
             # 2. Съемка RED 660 нм (50 мкс, Gain 50)
             set_v4l2_exposure(50, 50)
-            time.sleep(0.20)
-            get_relay_controller().set_red(True)
-            time.sleep(0.40)
-            for _ in range(8): cap.grab()
-            ret_r, frame_red = cap.read()
-            get_relay_controller().set_red(False)
-
-            # Ambient RED
-            time.sleep(0.15)
-            for _ in range(5): cap.grab()
+            time.sleep(0.08)
+            rc.set_red(False)
             _, frame_amb_red = cap.read()
+
+            rc.set_red(True)
+            time.sleep(0.08)
+            ret_r, frame_red = cap.read()
+            rc.set_red(False)
 
             if not ret_r or frame_red is None: frame_red = frame_amb_red
             if not ret_n or frame_nir is None: frame_nir = frame_amb_nir
