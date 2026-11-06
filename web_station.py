@@ -81,7 +81,7 @@ def ensure_wave2_registered(data_dir: str):
                 'name': 'Волна 2: Огурец «Каскад» (GRCBD)',
                 'plant': 'Огурец «Каскад»',
                 'created_at': time.strftime('%Y-%m-%d %H:%M'),
-                'description': 'Огурец Каскад 18 горшков GRCBD + лизиметр X0 + сателлит C20, превентивный полив по Delta T',
+                'description': 'Огурец Каскад 20 горшков GRCBD, превентивный полив по Delta T и оптимизация Эпина',
                 'folder': 'exp_1792918800'
             })
             reg['experiments'] = exps
@@ -384,7 +384,7 @@ def init_relay():
     try:
         from hardware.hal import get_relay_controller
         controller = get_relay_controller()
-        RELAY_REQ = getattr(controller, '_req', getattr(controller, 'request', None))
+        RELAY_REQ = getattr(controller, 'request', None)
     except Exception:
         RELAY_REQ = None
 
@@ -1027,23 +1027,19 @@ def handle_start_spectral(group_name: str = Form('Контроль')):
 @app.get('/api/test_relay')
 def handle_test_relay(channel: str = 'nir', sec: float = 3.0):
     """Аппаратная диагностика: включение выбранного реле (nir или red) на sec секунд."""
+    init_relay()
+    if not RELAY_REQ:
+        return JSONResponse({'status': 'error', 'message': 'Relay not initialized'})
+    line = 7 if channel.lower() == 'nir' else 4
+    pin_name = 'Pin 10 (NIR 850nm)' if line == 7 else 'Pin 7 (Red 660nm)'
     try:
-        from hardware.hal import get_relay_controller
-        rc = get_relay_controller()
         duration = max(0.5, min(10.0, float(sec)))
-        ch = channel.lower().strip()
-        pin_name = 'Pin 10 (NIR 850nm)' if ch == 'nir' else 'Pin 7 (Red 660nm)'
-        print(f"[Test Relay] Включение {pin_name} на {duration} сек...")
-        if ch == 'nir':
-            rc.set_nir(True)
-            time.sleep(duration)
-            rc.set_nir(False)
-        else:
-            rc.set_red(True)
-            time.sleep(duration)
-            rc.set_red(False)
-        print(f"[Test Relay] Выключение {pin_name}. Готово.")
-        return JSONResponse({'status': 'ok', 'channel': ch, 'pin': pin_name, 'duration': duration})
+        print(f'[Test Relay] Включение {pin_name} на {duration} сек...')
+        RELAY_REQ.set_value(line, Value.ACTIVE)
+        time.sleep(duration)
+        RELAY_REQ.set_value(line, Value.INACTIVE)
+        print(f'[Test Relay] Выключение {pin_name}. Готово.')
+        return JSONResponse({'status': 'ok', 'channel': channel, 'pin': pin_name, 'duration': duration})
     except Exception as e:
         return JSONResponse({'status': 'error', 'message': str(e)})
 
@@ -1725,6 +1721,7 @@ async def index(
 
     # --- ВЕТВЛЕНИЕ: ВТОРАЯ ВОЛНА (ОГУРЕЦ GRCBD) ---
     is_wave2 = (
+        stage == 'wave2' or
         active_exp.get('id') in ('exp_1792918800', 'exp_wave2') or 
         'wave2' in str(active_exp.get('id', '')).lower() or
         'cucumber' in str(active_exp.get('id', '')).lower()
