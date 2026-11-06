@@ -18,7 +18,7 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
     status = evaluate_cohort_cluster_status(records_today)
     p = status["prevention"]
     r = status["reaction"]
-    e = status["pilot_epin"]
+    sat = status.get("satellite", {"status_text": "Донор лаковых реплик (долив воды до 95 г)", "badge_color": "#8b5cf6"})
 
     return f"""
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 16px;">
@@ -54,19 +54,19 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
             </div>
         </div>
 
-        <!-- Табло Эпина -->
-        <div style="background: #ffffff; border: 2px solid {e['badge_color']}; border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        <!-- Табло Сателлита -->
+        <div style="background: #ffffff; border: 2px solid {sat['badge_color']}; border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-weight: 700; font-size: 15px; color: #0f172a;">🔴 ПИЛОТ (ЭПИН) [Э1–Э2]</span>
-                <span style="background: {e['badge_color']}; color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 6px;">
-                    Синхронно с группой П
+                <span style="font-weight: 700; font-size: 15px; color: #0f172a;">🟣 САТЕЛЛИТ [С20]</span>
+                <span style="background: {sat['badge_color']}; color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 6px;">
+                    Микроскопия
                 </span>
             </div>
-            <div style="font-size: 13px; font-weight: 600; color: {e['badge_color']};">
-                {e['status_text']}
+            <div style="font-size: 13px; font-weight: 600; color: {sat['badge_color']};">
+                {sat['status_text']}
             </div>
             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Регламент: полив шприцем под корень раствором 2 капли/100 мл до 95.0г (без опрыскивания листа).
+                Регламент: донор устьичных лаковых реплик. Ежедневный полив водой до 95.0 г (как Контроль).
             </div>
         </div>
     </div>
@@ -119,13 +119,13 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
     cohort_k = ["K1", "K2", "K3", "K4", "K5", "K6"]
     cohort_r = ["R1", "R2", "R3", "R4", "R5", "R6"]
     cohort_p = ["P1", "P2", "P3", "P4", "P5", "P6"]
-    cohort_e = ["E1", "E2"]
+    cohort_sat = ["C20"]
 
     return f"""
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div style="font-weight: 700; font-size: 15px; color: #0f172a;">
-                📸 ОЧЕРЕДЬ СЪЕМКИ ПО КОГОРТАМ: КОНТРОЛЬ &rarr; РЕАКЦИЯ &rarr; ПРЕВЕНЦИЯ &rarr; ЭПИН И ЛИЗИМЕТР
+                📸 ОЧЕРЕДЬ СЪЕМКИ ПО КОГОРТАМ: КОНТРОЛЬ &rarr; РЕАКЦИЯ &rarr; ПРЕВЕНЦИЯ &rarr; САТЕЛЛИТ И ЛИЗИМЕТР
                 <span style="font-size: 12px; font-weight: 400; color: #64748b; margin-left: 8px;">
                     (Замерено: {len(by_pot)}/21)
                 </span>
@@ -160,11 +160,11 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                 </div>
             </div>
 
-            <!-- 4. ЭПИН И ЛИЗИМЕТР -->
-            <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 10px;">
-                <div style="font-size: 12px; font-weight: 800; color: #be123c; margin-bottom: 8px;">4. 🔴 ЭПИН (Э1–Э2) + ⚖️ ЛИЗИМЕТР (Х0)</div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
-                    {''.join(render_pot_tile(p) for p in cohort_e + cohort_x)}
+            <!-- 4. САТЕЛЛИТ И ЛИЗИМЕТР -->
+            <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; padding: 10px;">
+                <div style="font-size: 12px; font-weight: 800; color: #6d28d9; margin-bottom: 8px;">4. 🟣 САТЕЛЛИТ (С20) + ⚖️ ЛИЗИМЕТР (Х0)</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
+                    {''.join(render_pot_tile(p) for p in cohort_sat + cohort_x)}
                 </div>
             </div>
         </div>
@@ -346,11 +346,11 @@ def render_wave2_active_pot_card(
             dose_html = f"<span style='color: #475569; font-weight: 800; font-size: 18px;'>{raw_dose} мл</span> (Долив до 95.0 г / учет испарения почвы E)"
         else:
             dose_html = "<span style='color: #64748b;'>Взвесить и долить чистой водой до 95.0 г</span>"
-    else:  # Pilot Epin
-        if status["pilot_epin"]["triggered"]:
-            dose_html = f"<span style='color: #dc2626; font-weight: 800; font-size: 18px;'>{raw_dose if raw_dose is not None else ''} мл ЭПИНА</span> (под корень шприцем)"
+    else:  # Satellite C20
+        if raw_dose is not None:
+            dose_html = f"<span style='color: #8b5cf6; font-weight: 800; font-size: 18px;'>{raw_dose} мл воды</span> (Долив до 95.0 г / Сателлит-микроскопия)"
         else:
-            dose_html = "<span style='color: #64748b; font-weight: 600;'>Ждём триггера группы П</span>"
+            dose_html = "<span style='color: #8b5cf6;'>Долив чистой водой шприцем до 95.0 г</span>"
 
     return f"""
     <div class="card" style="border: 2px solid {meta['color']}; margin: 0; display: flex; flex-direction: column; justify-content: space-between; height: 100%; box-sizing: border-box;">

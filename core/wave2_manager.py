@@ -77,9 +77,8 @@ POTS_CATALOG: Dict[str, Dict[str, Any]] = {
     "R5": {"id": "R5", "cohort": "Reaction", "block": 3, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 95.0, "has_probe": False},
     "R6": {"id": "R6", "cohort": "Reaction", "block": 3, "color": "#2563eb", "badge": "🔵 Реакция", "target_weight": 95.0, "has_probe": False},
 
-    # ИЗОЛИРОВАННЫЙ ЛОТОК (Пилот Эпин)
-    "E1": {"id": "E1", "cohort": "Pilot_Epin", "block": 0, "color": "#dc2626", "badge": "🔴 Пилот (Эпин)", "target_weight": 95.0, "has_probe": False},
-    "E2": {"id": "E2", "cohort": "Pilot_Epin", "block": 0, "color": "#dc2626", "badge": "🔴 Пилот (Эпин)", "target_weight": 95.0, "has_probe": False},
+    # ИЗОЛИРОВАННЫЙ СОСУД (Сателлит-микроскопия)
+    "C20": {"id": "C20", "cohort": "Satellite", "block": 0, "color": "#8b5cf6", "badge": "🟣 Сателлит (Микроскопия)", "target_weight": 95.0, "has_probe": False},
 }
 
 # Порядок очереди конвейера по когортам: Контроль -> Реакция -> Превенция -> Пилот
@@ -92,8 +91,8 @@ BATCH_QUEUE_WAVE2 = [
     "R1", "R2", "R3", "R4", "R5", "R6",
     # 3. Превенция (П1–П6)
     "P1", "P2", "P3", "P4", "P5", "P6",
-    # 4. Пилот (Э1–Э2)
-    "E1", "E2"
+    # 4. Сателлит-микроскопия (С20)
+    "C20"
 ]
 
 # Структура CSV-журнала (27 колонок: 25 старых + Turgor_Score + Water_Dose_ml)
@@ -421,13 +420,9 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
             ),
             "badge_color": "#059669" if r_triggered else ("#2563eb" if r_all_measured else "#64748b")
         },
-        "pilot_epin": {
-            "triggered": p_triggered,
-            "status_text": (
-                "ПОЛИВ РАСТВОРОМ ЭПИНА ПОД КОРЕНЬ ШПРИЦЕМ ДО 95г!" if p_triggered
-                else "Ожидание триггера группы П"
-            ),
-            "badge_color": "#dc2626" if p_triggered else "#64748b"
+        "satellite": {
+            "status_text": "Донор устьичных лаковых реплик (долив воды до 95.0 г ежедневно)",
+            "badge_color": "#8b5cf6"
         }
     }
 

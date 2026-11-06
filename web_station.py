@@ -81,7 +81,7 @@ def ensure_wave2_registered(data_dir: str):
                 'name': 'Волна 2: Огурец «Каскад» (GRCBD)',
                 'plant': 'Огурец «Каскад»',
                 'created_at': time.strftime('%Y-%m-%d %H:%M'),
-                'description': 'Огурец Каскад 20 горшков GRCBD, превентивный полив по Delta T и оптимизация Эпина',
+                'description': 'Огурец Каскад 18 горшков GRCBD + лизиметр X0 + сателлит C20, превентивный полив по Delta T',
                 'folder': 'exp_1792918800'
             })
             reg['experiments'] = exps
