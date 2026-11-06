@@ -34,7 +34,7 @@ WAVE2_EXPERIMENT_META = {
     "turgor_reaction_trigger_score": 2,
     "emissivity_lwir": 0.98,
     "k_bal_ptfe": 4.070,
-    "nir_threshold_dn": 7.0,
+    "nir_threshold_dn": 5.0,
     "ndvi_threshold": 0.26,
     "min_leaf_component_px": 20,
 }
