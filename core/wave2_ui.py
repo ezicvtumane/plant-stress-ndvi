@@ -84,7 +84,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
     by_pot = {str(r.get("ID", "")).strip().upper(): r for r in records_today}
 
     def render_pot_tile(pid: str) -> str:
-        meta = POTS_CATALOG[pid]
+        meta = POTS_CATALOG.get(pid, {"id": pid, "cohort": "Unknown", "block": 0, "color": "#64748b", "badge": pid, "target_weight": 95.0, "has_probe": False})
         is_measured = pid in by_pot
         is_selected = (pid == active_pot_id)
         

@@ -24,9 +24,7 @@ WAVE2_EXPERIMENT_META = {
     "plant": "Огурец Каскад",
     "crop": "Cucumis sativus L.",
     "start_date": "2026-10-25",
-    "empty_pot_tare_g": 5.0,
-    "target_weight_gross_g": 95.0,
-    "target_weight_net_g": 90.0,
+    "target_weight_net_g": 95.0,
     "pot_height_cm": 7.5,
     "camera_height_cm": 24.5,
     "aruco_floor_size_mm": 15.0,
@@ -42,10 +40,10 @@ WAVE2_EXPERIMENT_META = {
 }
 
 TURGOR_SCALE = {
-    4: "4 — Полный тургор (Норма, 0–10°, упругий)",
-    3: "3 — Лёгкое поникание (В воздухе, 30–45°, бортик не задет)",
-    2: "2 — Сильное поникание (Лист лёг на бортик горшка, триггер полива)",
-    1: "1 — Коллапс (Стебель изогнут, лист на грунте)"
+    4: "4 — Полный тургор (вертикальный стебель, норма)",
+    3: "3 — Начальная потеря тургора (поникание кончиков)",
+    2: "2 — Умеренное увядание (черешки на кромке стаканчика)",
+    1: "1 — Глубокое увядание (критический стресс, потеря прочности)"
 }
 
 # Каталог 20 горшков (3 поддона по 6 штук + 1 малый лоток пилота)
@@ -387,7 +385,7 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
     for pid in r_measured:
         t_score = by_pot[pid].get("Turgor_Score")
         try:
-            if t_score is not None and int(t_score) <= WAVE2_EXPERIMENT_META["turgor_reaction_trigger_score"]:
+            if t_score is not None and int(t_score) >= WAVE2_EXPERIMENT_META["turgor_reaction_trigger_score"]:
                 r_stressed.append(pid)
         except (ValueError, TypeError):
             pass
@@ -420,9 +418,13 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
             ),
             "badge_color": "#059669" if r_triggered else ("#2563eb" if r_all_measured else "#64748b")
         },
-        "satellite": {
-            "status_text": "Донор устьичных лаковых реплик (долив воды до 95.0 г ежедневно)",
-            "badge_color": "#8b5cf6"
+        "pilot_epin": {
+            "triggered": p_triggered,
+            "status_text": (
+                "ПОЛИВ РАСТВОРОМ ЭПИНА ПОД КОРЕНЬ ШПРИЦЕМ ДО 85г!" if p_triggered
+                else "Ожидание триггера группы П"
+            ),
+            "badge_color": "#dc2626" if p_triggered else "#64748b"
         }
     }
 
