@@ -650,6 +650,55 @@ def get_file_info_at_index(index: int = 0):
     }
 
 @profile_performance
+def capture_spectral_pair(cap):
+    """
+    Калиброванный спектральный захват Wave 2 (Огурец, NoIR IMX179).
+    1. NIR 850 нм: выдержка 10000 (1000 мс / Gain 128), реле активно 2.01 с.
+    2. RED 660 нм: выдержка 40 (4 мс / Gain 50), реле активно 0.17 с.
+    Обеспечивает 100% синхронизацию затвора, отсекает паразитные пересветы и темновой шум.
+    """
+    def set_v4l2(exp_val, gain_val):
+        try:
+            subprocess.run([
+                'v4l2-ctl', '-d', '/dev/video0', '-c',
+                f'auto_exposure=1,exposure_time_absolute={exp_val},gain={gain_val},white_balance_automatic=0,focus_automatic_continuous=0'
+            ], check=False)
+        except Exception:
+            pass
+
+    rc = get_relay_controller()
+
+    # 1. NIR 850 нм
+    set_v4l2(10000, 128)
+    time.sleep(0.15)
+    rc.set_nir(False)
+    for _ in range(3): cap.grab()
+    _, frame_amb_nir = cap.read()
+
+    rc.set_nir(True)
+    time.sleep(1.10)
+    cap.grab()
+    ret_n, frame_nir = cap.read()
+    rc.set_nir(False)
+
+    # 2. RED 660 нм (сброс 3 кадров для стабилизации регистров после длинной выдержки)
+    set_v4l2(40, 50)
+    time.sleep(0.15)
+    rc.set_red(False)
+    for _ in range(3): cap.grab()
+    _, frame_amb_red = cap.read()
+
+    rc.set_red(True)
+    time.sleep(0.15)
+    cap.grab()
+    ret_r, frame_red = cap.read()
+    rc.set_red(False)
+
+    if not ret_r or frame_red is None: frame_red = frame_amb_red
+    if not ret_n or frame_nir is None: frame_nir = frame_amb_nir
+
+    return frame_red, frame_nir, frame_amb_red, frame_amb_nir
+
 def do_hardware_spectral_capture(group_name: str):
     """
     Шаг 1: Оптический спектральный замер NoIR камеры со стробированием.
@@ -674,45 +723,10 @@ def do_hardware_spectral_capture(group_name: str):
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
     init_relay()
-    rc = get_relay_controller()
-    if True:
-        # 1. Спектральная съемка NIR 850 нм (10000 мкс / Gain 128 под NoIR)
-        set_v4l2_exposure(10000, 128)
-        time.sleep(0.08)
-        rc.set_nir(False)
-        _, frame_amb_nir = cap.read()
-
-        rc.set_nir(True)
-        time.sleep(0.10)
-        ret_n, frame_nir = cap.read()
-        rc.set_nir(False) # Инфракрасный выключен
-
-        # 2. Спектральная съемка RED 660 нм (50 мкс / Gain 50)
-        set_v4l2_exposure(50, 50)
-        time.sleep(0.08)
-        rc.set_red(False)
-        _, frame_amb_red = cap.read()
-
-        rc.set_red(True)
-        time.sleep(0.08)
-        ret_r, frame_red = cap.read()
-        rc.set_red(False) # Красный выключен
-
-        if not ret_r: frame_red = frame_amb_red
-        if not ret_n: frame_nir = frame_amb_nir
-        frame_amb = frame_amb_red
-    else:
-        set_v4l2_exposure(2200, 100)
-        for _ in range(5): cap.grab()
-        ret, frame_amb_nir = cap.read()
-        frame_red = frame_amb_nir
-        frame_nir = frame_amb_nir
-        frame_amb_red = frame_amb_nir
-        frame_amb = frame_amb_nir
-
+    frame_red, frame_nir, frame_amb_red, frame_amb_nir = capture_spectral_pair(cap)
+    frame_amb = frame_amb_red
     cap.release()
     # Возвращаем камеру в штатный режим
     try:
@@ -3090,33 +3104,8 @@ def do_hardware_capture_wave2(pot_id: str):
 
     with _camera_lock:
         cap = get_shared_camera()
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        rc = get_relay_controller()
         try:
-            # 1. Съемка NIR 850 нм (10000 мкс, Gain 128)
-            set_v4l2_exposure(10000, 128)
-            time.sleep(0.08)
-            rc.set_nir(False)
-            _, frame_amb_nir = cap.read()
-
-            rc.set_nir(True)
-            time.sleep(0.10)
-            ret_n, frame_nir = cap.read()
-            rc.set_nir(False)
-
-            # 2. Съемка RED 660 нм (50 мкс, Gain 50)
-            set_v4l2_exposure(50, 50)
-            time.sleep(0.08)
-            rc.set_red(False)
-            _, frame_amb_red = cap.read()
-
-            rc.set_red(True)
-            time.sleep(0.08)
-            ret_r, frame_red = cap.read()
-            rc.set_red(False)
-
-            if not ret_r or frame_red is None: frame_red = frame_amb_red
-            if not ret_n or frame_nir is None: frame_nir = frame_amb_nir
+            frame_red, frame_nir, frame_amb_red, frame_amb_nir = capture_spectral_pair(cap)
         except Exception as e:
             print(f'[Wave 2 Capture Error]: {e}', flush=True)
             frame_red = np.zeros((960, 1280, 3), dtype=np.uint8)
