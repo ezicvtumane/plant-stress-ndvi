@@ -676,9 +676,8 @@ def do_hardware_spectral_capture(group_name: str):
 
     init_relay()
     if True:
-        # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
-        # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
-        set_v4l2_exposure(2200, 100)
+        # 1. Спектральная съемка NIR 850 нм (10000 мкс / Gain 128 под NoIR)
+        set_v4l2_exposure(10000, 128)
         time.sleep(0.20)
         get_relay_controller().set_nir(True)
         time.sleep(0.40)
@@ -691,8 +690,8 @@ def do_hardware_spectral_capture(group_name: str):
         for _ in range(5): cap.grab()
         _, frame_amb_nir = cap.read()
 
-        # 2. Спектральная съемка RED 660 нм (калиброванная экспозиция 120/40 без клиппинга)
-        set_v4l2_exposure(350, 50)
+        # 2. Спектральная съемка RED 660 нм (50 мкс / Gain 50)
+        set_v4l2_exposure(50, 50)
         time.sleep(0.20)
         for _ in range(8): cap.grab()
         get_relay_controller().set_red(True)
@@ -3096,8 +3095,8 @@ def do_hardware_capture_wave2(pot_id: str):
     with _camera_lock:
         cap = get_shared_camera()
         try:
-            # 1. Съемка NIR 850 нм (2200 мкс)
-            set_v4l2_exposure(2200, 100)
+            # 1. Съемка NIR 850 нм (10000 мкс, Gain 128)
+            set_v4l2_exposure(10000, 128)
             time.sleep(0.20)
             get_relay_controller().set_nir(True)
             time.sleep(0.40)
@@ -3110,8 +3109,8 @@ def do_hardware_capture_wave2(pot_id: str):
             for _ in range(5): cap.grab()
             _, frame_amb_nir = cap.read()
 
-            # 2. Съемка RED 660 нм (350 мкс)
-            set_v4l2_exposure(350, 50)
+            # 2. Съемка RED 660 нм (50 мкс, Gain 50)
+            set_v4l2_exposure(50, 50)
             time.sleep(0.20)
             get_relay_controller().set_red(True)
             time.sleep(0.40)
