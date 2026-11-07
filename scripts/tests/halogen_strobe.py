@@ -1,4 +1,4 @@
-﻿import cv2
+import cv2
 import gpiod
 from gpiod.line import Direction, Value
 import time

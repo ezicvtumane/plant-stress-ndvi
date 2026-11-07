@@ -1,4 +1,4 @@
-﻿from PIL import Image
+from PIL import Image
 p = '/media/uti120s/Images/IMG 0418.bmp'
 img = Image.open(p)
 print('Format:', img.format, 'Size:', img.size, 'Mode:', img.mode)
