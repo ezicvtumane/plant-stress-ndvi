@@ -32,7 +32,7 @@ from core.agronomic_rules import (
 # --- ТЕСТЫ ПРАВИЛА №1 ---
 
 def test_rule1_dynamic_target_weight():
-    """Тест Правила №1: M_цель(t) = 95.0 + PLA * 0.06 г/см²."""
+    """Тест Правила №1: M_цель(t) = 100.0 + PLA * 0.06 г/см²."""
     # Фаза 1: Проросток, нет площади листа
     assert calc_target_weight(0.0) == 100.0
     assert calc_target_weight(None) == 100.0

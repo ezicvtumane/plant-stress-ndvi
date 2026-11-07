@@ -33,7 +33,7 @@ WAVE2_EXPERIMENT_META = {
     "cluster_total_plants": 6,
     "turgor_reaction_trigger_score": 2,
     "emissivity_lwir": 0.98,
-    "k_bal_ptfe": 4.070,
+    "k_bal_ptfe": 1.150,
     "nir_threshold_dn": 4.0,
     "ndvi_threshold": 0.25,
     "min_leaf_component_px": 100,
@@ -205,7 +205,7 @@ def compute_single_pot_phenotyping(
     red_channel: np.ndarray,
     nir_channel: np.ndarray,
     pot_id: str = "P1",
-    k_bal: float = 4.070,
+    k_bal: float = 1.150,
     z_camera_cm: float = 24.5,
     h_pot_cm: float = 7.5
 ) -> Tuple[np.ndarray, Dict[str, Any]]:
@@ -426,13 +426,9 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
             ),
             "badge_color": "#059669" if r_triggered else ("#2563eb" if r_all_measured else "#64748b")
         },
-        "pilot_epin": {
-            "triggered": p_triggered,
-            "status_text": (
-                "ПОЛИВ РАСТВОРОМ ЭПИНА ПОД КОРЕНЬ ШПРИЦЕМ ДО 85г!" if p_triggered
-                else "Ожидание триггера группы П"
-            ),
-            "badge_color": "#dc2626" if p_triggered else "#64748b"
+        "satellite": {
+            "status_text": "Донор лаковых реплик (долив воды до 100.0 г)",
+            "badge_color": "#8b5cf6"
         }
     }
 
