@@ -16,7 +16,7 @@
   - Фактор В (Блоки / Поддоны): 3 уровня (Блок 1, Блок 2, Блок 3)
   - Повторность в блоке: n = 2 растения на ячейку
   - Сбалансированный комплекс ANOVA: 3 x 3 x 2 = 18 растений
-  - Автономный поисковый скрининг «Пилот Эпин»: n = 2 (описательный анализ)
+  - Автономный поисковый скрининг «Сателлит»: n = 2 (описательный анализ)
 ===============================================================================
 """
 
@@ -68,8 +68,8 @@ def generate_reference_dataset() -> pd.DataFrame:
         {"pot_id": "Р6", "cohort": "Реакция", "block": "Блок 3", "FW_g": 12.30, "DW_g": 0.93, "water_ml": 81.0,  "ndvi": 0.48},
 
         # Автономный пилот «Эпин» (Изолированный лоток, n = 2)
-        {"pot_id": "Э1", "cohort": "Пилот Эпин", "block": "Лоток Пилот", "FW_g": 18.15, "DW_g": 1.32, "water_ml": 120.0, "ndvi": 0.68},
-        {"pot_id": "Э2", "cohort": "Пилот Эпин", "block": "Лоток Пилот", "FW_g": 18.40, "DW_g": 1.35, "water_ml": 122.0, "ndvi": 0.69},
+        {"pot_id": "C20", "cohort": "Сателлит", "block": "Лоток Пилот", "FW_g": 18.15, "DW_g": 1.32, "water_ml": 120.0, "ndvi": 0.68},
+        {"pot_id": "C21", "cohort": "Сателлит", "block": "Лоток Пилот", "FW_g": 18.40, "DW_g": 1.35, "water_ml": 122.0, "ndvi": 0.69},
     ]
     df = pd.DataFrame(data)
     # Расчет физиологических индексов
@@ -253,11 +253,11 @@ def generate_dospekhov_plots(df: pd.DataFrame, out_path: str, is_synthetic: bool
         "Контроль": "#2ca02c",  # Сочный зеленый
         "Превенция": "#d4ac0d", # Золотисто-желтый
         "Реакция": "#1f77b4",   # Синий
-        "Пилот Эпин": "#d62728" # Красный
+        "Сателлит": "#d62728" # Красный
     }
     
-    df_main = df[df["cohort"] != "Пилот Эпин"]
-    df_epin = df[df["cohort"] == "Пилот Эпин"]
+    df_main = df[df["cohort"] != "Сателлит"]
+    df_epin = df[df["cohort"] == "Сателлит"]
     
     cohort_order = ["Контроль", "Превенция", "Реакция"]
     
@@ -288,11 +288,11 @@ def generate_dospekhov_plots(df: pd.DataFrame, out_path: str, is_synthetic: bool
             ax.text(x_pos[i], y_text, f"{means[i]:.2f} {let}", ha='center', va='bottom',
                     fontsize=11, fontweight='bold')
             
-        # Линия ориентира для группы «Пилот Эпин» (n=2)
+        # Линия ориентира для группы «Сателлит» (n=2)
         if len(df_epin) > 0:
             epin_mean = df_epin[trait].mean()
-            ax.axhline(epin_mean, color=colors["Пилот Эпин"], linestyle='--', linewidth=1.8,
-                       label=f"Пилот Эпин (ср. {epin_mean:.2f})", zorder=4)
+            ax.axhline(epin_mean, color=colors["Сателлит"], linestyle='--', linewidth=1.8,
+                       label=f"Сателлит (ср. {epin_mean:.2f})", zorder=4)
         
         # Оформление осей
         ax.set_xticks(x_pos)
@@ -334,8 +334,8 @@ def format_anova_report(df: pd.DataFrame, is_synthetic: bool = False) -> str:
     """
     Формирование полного академического протокола дисперсионного анализа по Доспехову.
     """
-    df_main = df[df["cohort"] != "Пилот Эпин"]
-    df_epin = df[df["cohort"] == "Пилот Эпин"]
+    df_main = df[df["cohort"] != "Сателлит"]
+    df_epin = df[df["cohort"] == "Сателлит"]
     
     traits = ["FW_g", "DW_g", "WC_pct", "WUE_mg_ml"]
     trait_names = {
@@ -391,7 +391,7 @@ def format_anova_report(df: pd.DataFrame, is_synthetic: bool = False) -> str:
         if len(df_epin) > 0:
             ep_m = df_epin[trait].mean()
             ep_s = df_epin[trait].std(ddof=1) if len(df_epin) > 1 else 0.0
-            rep.append(f"  * [Пилот Эпин]: {ep_m:>7.2f} ± {ep_s:>5.2f} (ориентир proof-of-concept, n=2)")
+            rep.append(f"  * [Сателлит]: {ep_m:>7.2f} ± {ep_s:>5.2f} (ориентир proof-of-concept, n=2)")
         rep.append("")
         
         rep.append("Парные сравнения Тьюки:")

@@ -99,6 +99,23 @@ DATA_DIR = os.path.join(BASE_DIR, 'data')
 CALIBRATION_FILE = os.path.join(DATA_DIR, "calibrated_k_bal.txt")
 ensure_wave2_registered(DATA_DIR)
 
+# Автоматическая генерация нейтральных заставок для предотвращения 404 в веб-интерфейсе
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+for _ph_name, _ph_label in [
+    ('last_thermal.jpg', 'UNI-T UTi120S (Ожидание термограммы)'),
+    ('last_red.jpg', 'Канал 1: Red 660 нм'),
+    ('last_nir.jpg', 'Канал 2: NIR 850 нм'),
+    ('last_ndvi.jpg', 'Канал 3: Карта NDVI'),
+]:
+    _p_path = os.path.join(STATIC_DIR, _ph_name)
+    if not os.path.exists(_p_path):
+        try:
+            _ph_img = np.zeros((180, 240, 3), dtype=np.uint8)
+            cv2.putText(_ph_img, _ph_label, (10, 95), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (120, 120, 120), 1)
+            cv2.imwrite(_p_path, _ph_img)
+        except Exception:
+            pass
+
 def get_calibrated_k_bal() -> float:
     try:
         if os.path.exists(CALIBRATION_FILE):
@@ -3119,7 +3136,7 @@ def do_hardware_capture_wave2(pot_id: str):
     with _camera_lock:
         cap = get_shared_camera()
         try:
-            # 1. Съемка NIR 850 нм (2200 мкс)
+            # 1. Съемка NIR 850 нм (5000 мкс)
             set_v4l2_exposure(5000, 115)
             time.sleep(0.20)
             for _ in range(6): cap.grab()
@@ -3134,7 +3151,7 @@ def do_hardware_capture_wave2(pot_id: str):
             for _ in range(6): cap.grab()
             _, frame_amb_nir = cap.read()
 
-            # 2. Съемка RED 660 нм (140 мкс, калиброванная)
+            # 2. Съемка RED 660 нм (100 мкс, калиброванная)
             set_v4l2_exposure(100, 40)
             time.sleep(0.20)
             for _ in range(6): cap.grab()
