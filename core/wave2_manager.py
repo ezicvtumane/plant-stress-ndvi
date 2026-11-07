@@ -277,7 +277,7 @@ def compute_single_pot_phenotyping(
     px_per_cm_leaf = px_per_cm_floor * z_ratio
     cm2_per_pixel = 1.0 / (px_per_cm_leaf ** 2)
     
-    pla_cm2 = round(valid_plant_pixels * cm2_per_pixel, 2)
+    pla_cm2 = float(round(valid_plant_pixels * cm2_per_pixel, 2))
     
     # 4. Расчет среднего NDVI листа с фильтрацией битых артефактных пикселей (0.0 / 1.0)
     if valid_plant_pixels > 0:
@@ -327,7 +327,7 @@ def compute_single_pot_phenotyping(
         "pla_cm2": pla_cm2,
         "ndvi_mean": round(ndvi_mean, 3),
         "ndvi_std": round(ndvi_std, 3),
-        "px_per_cm_leaf": round(px_per_cm_leaf, 1)
+        "px_per_cm_leaf": float(round(px_per_cm_leaf, 1))
     }
     
     return annotated, metrics
