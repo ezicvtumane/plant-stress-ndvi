@@ -364,7 +364,6 @@ def get_shared_camera():
             cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             _shared_camera = cap
         return _shared_camera
 
@@ -650,57 +649,6 @@ def get_file_info_at_index(index: int = 0):
     }
 
 @profile_performance
-def capture_spectral_pair(cap):
-    """
-    Калиброванный спектральный захват Wave 2 (Огурец, NoIR IMX179).
-    Дизайн: Balanced Fast-Strobe:
-      - NIR 850 нм: выдержка 2500 (250 мс / Gain 128), реле активно ~0.42 с.
-      - RED 660 нм: выдержка 120 (12 мс / Gain 50), реле активно ~0.14 с.
-    Обеспечивает 100% синхронизацию затвора, устраняет нагрев диодов,
-    исключает паразитную засветку фона и дает канонический NDVI = 0.74 ± 0.10.
-    """
-    def set_v4l2(exp_val, gain_val):
-        try:
-            subprocess.run([
-                'v4l2-ctl', '-d', '/dev/video0', '-c',
-                f'auto_exposure=1,exposure_time_absolute={exp_val},gain={gain_val},white_balance_automatic=0,focus_automatic_continuous=0'
-            ], check=False)
-        except Exception:
-            pass
-
-    rc = get_relay_controller()
-
-    # 1. NIR 850 нм
-    set_v4l2(2500, 128)
-    time.sleep(0.12)
-    rc.set_nir(False)
-    for _ in range(3): cap.grab()
-    _, frame_amb_nir = cap.read()
-
-    rc.set_nir(True)
-    time.sleep(0.35)
-    cap.grab()
-    ret_n, frame_nir = cap.read()
-    rc.set_nir(False)
-
-    # 2. RED 660 нм (сброс 4 кадров для мгновенной стабилизации регистров)
-    set_v4l2(120, 50)
-    time.sleep(0.12)
-    rc.set_red(False)
-    for _ in range(4): cap.grab()
-    _, frame_amb_red = cap.read()
-
-    rc.set_red(True)
-    time.sleep(0.12)
-    cap.grab()
-    ret_r, frame_red = cap.read()
-    rc.set_red(False)
-
-    if not ret_r or frame_red is None: frame_red = frame_amb_red
-    if not ret_n or frame_nir is None: frame_nir = frame_amb_nir
-
-    return frame_red, frame_nir, frame_amb_red, frame_amb_nir
-
 def do_hardware_spectral_capture(group_name: str):
     """
     Шаг 1: Оптический спектральный замер NoIR камеры со стробированием.
@@ -727,8 +675,49 @@ def do_hardware_spectral_capture(group_name: str):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
     init_relay()
-    frame_red, frame_nir, frame_amb_red, frame_amb_nir = capture_spectral_pair(cap)
-    frame_amb = frame_amb_red
+    if True:
+        # 1. Спектральная съемка NIR 850 нм (высокая экспозиция для преодоления ИК-фильтра C270)
+        # 1. Спектральная съемка NIR 850 нм (оптимальная экспозиция 2500/200 под C270 NoIR)
+        set_v4l2_exposure(5000, 115)
+        time.sleep(0.20)
+        get_relay_controller().set_nir(True)
+        time.sleep(0.40)
+        for _ in range(8): cap.grab()
+        ret_n, frame_nir = cap.read()
+        get_relay_controller().set_nir(False) # Инфракрасный выключен
+
+        # Темновой фон NIR
+        time.sleep(0.15)
+        for _ in range(5): cap.grab()
+        _, frame_amb_nir = cap.read()
+
+        # 2. Спектральная съемка RED 660 нм (калиброванная экспозиция 120/40 без клиппинга)
+        set_v4l2_exposure(350, 50)
+        time.sleep(0.20)
+        for _ in range(8): cap.grab()
+        get_relay_controller().set_red(True)
+        time.sleep(0.40)
+        for _ in range(8): cap.grab()
+        ret_r, frame_red = cap.read()
+        get_relay_controller().set_red(False) # Красный выключен
+
+        # Темновой фон RED
+        time.sleep(0.15)
+        for _ in range(5): cap.grab()
+        _, frame_amb_red = cap.read()
+
+        if not ret_r: frame_red = frame_amb_red
+        if not ret_n: frame_nir = frame_amb_nir
+        frame_amb = frame_amb_red
+    else:
+        set_v4l2_exposure(5000, 115)
+        for _ in range(5): cap.grab()
+        ret, frame_amb_nir = cap.read()
+        frame_red = frame_amb_nir
+        frame_nir = frame_amb_nir
+        frame_amb_red = frame_amb_nir
+        frame_amb = frame_amb_nir
+
     cap.release()
     # Возвращаем камеру в штатный режим
     try:
@@ -763,6 +752,10 @@ def do_hardware_spectral_capture(group_name: str):
 
     red_channel = np.maximum(0.0, red_raw - amb_red)
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
+    try:
+        np.savez(os.path.join(DATA_DIR, 'last_raw_channels.npz'), red=red_channel, nir=nir_channel)
+    except Exception:
+        pass
 
     # Радиометрическая калибровка по белому диффузному эталону (White Reference Target)
     h_f, w_f, _ = frame_flash.shape
@@ -3088,6 +3081,25 @@ app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 # АППАРАТНАЯ СЪЕМКА И ЭНДПОИНТЫ ВТОРОЙ ВОЛНЫ (ОГУРЕЦ GRCBD)
 # ==============================================================================
 
+
+def enhance_channel_preview(frame_bgr: np.ndarray, is_red: bool = True) -> np.ndarray:
+    """
+    Генерирует естественный, плавный и четкий кадр (660 нм или 850 нм)
+    без постеризации, ступенчатых изолиний и колец.
+    Использует билатеральную фильтрацию для сохранения резких границ горшка и листа
+    при полном подавлении шума квантования матрицы.
+    """
+    if frame_bgr is None:
+        return frame_bgr
+    try:
+        smooth = cv2.bilateralFilter(frame_bgr, d=7, sigmaColor=20, sigmaSpace=7)
+        alpha = 4.0 if is_red else 4.5
+        enhanced = cv2.convertScaleAbs(smooth, alpha=alpha, beta=0)
+        return enhanced
+    except Exception as e:
+        print(f"[Enhance Preview Error]: {e}", flush=True)
+        return frame_bgr
+
 def do_hardware_capture_wave2(pot_id: str):
     """Аппаратная съемка NoIR IMX179 для одиночного горшка Волны 2."""
     def set_v4l2_exposure(exp_val, gain_val):
@@ -3107,7 +3119,38 @@ def do_hardware_capture_wave2(pot_id: str):
     with _camera_lock:
         cap = get_shared_camera()
         try:
-            frame_red, frame_nir, frame_amb_red, frame_amb_nir = capture_spectral_pair(cap)
+            # 1. Съемка NIR 850 нм (2200 мкс)
+            set_v4l2_exposure(5000, 115)
+            time.sleep(0.20)
+            for _ in range(6): cap.grab()
+            get_relay_controller().set_nir(True)
+            time.sleep(0.35)
+            for _ in range(8): cap.grab()
+            ret_n, frame_nir = cap.read()
+            get_relay_controller().set_nir(False)
+
+            # Ambient NIR (темновой кадр без ИК-подсветки)
+            time.sleep(0.20)
+            for _ in range(6): cap.grab()
+            _, frame_amb_nir = cap.read()
+
+            # 2. Съемка RED 660 нм (140 мкс, калиброванная)
+            set_v4l2_exposure(100, 40)
+            time.sleep(0.20)
+            for _ in range(6): cap.grab()
+            get_relay_controller().set_red(True)
+            time.sleep(0.35)
+            for _ in range(8): cap.grab()
+            ret_r, frame_red = cap.read()
+            get_relay_controller().set_red(False)
+
+            # Ambient RED (темновой кадр без красной подсветки)
+            time.sleep(0.20)
+            for _ in range(6): cap.grab()
+            _, frame_amb_red = cap.read()
+
+            if not ret_r or frame_red is None: frame_red = frame_amb_red
+            if not ret_n or frame_nir is None: frame_nir = frame_amb_nir
         except Exception as e:
             print(f'[Wave 2 Capture Error]: {e}', flush=True)
             frame_red = np.zeros((960, 1280, 3), dtype=np.uint8)
@@ -3129,6 +3172,10 @@ def do_hardware_capture_wave2(pot_id: str):
 
     red_channel = np.maximum(0.0, red_raw - amb_red)
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
+    try:
+        np.savez(os.path.join(DATA_DIR, 'last_raw_channels.npz'), red=red_channel, nir=nir_channel)
+    except Exception:
+        pass
 
     k_bal = get_calibrated_k_bal()
     annotated_img, metrics = compute_single_pot_phenotyping(
@@ -3137,6 +3184,11 @@ def do_hardware_capture_wave2(pot_id: str):
         pot_id=pot_id,
         k_bal=k_bal
     )
+
+    print(f'[Wave 2 Capture] pot={pot_id} ret_n={ret_n} ret_r={ret_r}', flush=True)
+    print(f'[Wave 2 Capture] NIR: raw={nir_raw.mean():.2f}, amb={amb_nir.mean():.2f}, net_max={nir_channel.max():.2f}', flush=True)
+    print(f'[Wave 2 Capture] RED: raw={red_raw.mean():.2f}, amb={amb_red.mean():.2f}, net_max={red_channel.max():.2f}', flush=True)
+    print(f'[Wave 2 Capture] Metrics: {metrics}', flush=True)
 
     # Сохранение снимков
     wave2_storage = Wave2Storage(DATA_DIR)
@@ -3155,9 +3207,11 @@ def do_hardware_capture_wave2(pot_id: str):
     # Обновляем снимки 4 каналов в static для живого превью
     os.makedirs(os.path.join(STATIC_DIR, 'captures'), exist_ok=True)
     if frame_red is not None:
-        cv2.imwrite(os.path.join(STATIC_DIR, 'last_red.jpg'), frame_red)
+        vis_red_disp = enhance_channel_preview(frame_red, is_red=True)
+        cv2.imwrite(os.path.join(STATIC_DIR, 'last_red.jpg'), vis_red_disp)
     if frame_nir is not None:
-        cv2.imwrite(os.path.join(STATIC_DIR, 'last_nir.jpg'), frame_nir)
+        vis_nir_disp = enhance_channel_preview(frame_nir, is_red=False)
+        cv2.imwrite(os.path.join(STATIC_DIR, 'last_nir.jpg'), vis_nir_disp)
     if annotated_img is not None:
         cv2.imwrite(os.path.join(STATIC_DIR, 'last_ndvi.jpg'), annotated_img)
         cv2.imwrite(os.path.join(STATIC_DIR, 'captures', 'last_ndvi.jpg'), annotated_img)
@@ -3213,7 +3267,7 @@ async def handle_wave2_capture_and_save(
                 pass
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        dose = calculate_water_dose(parsed_weight, 100.0)
+        dose = calculate_water_dose(parsed_weight, 95.0)
 
         # 3. Сохранение в measurements_wave2.csv
         wave2_storage = Wave2Storage(DATA_DIR)
@@ -3322,7 +3376,7 @@ async def handle_wave2_update_record(
                 pass
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        dose = calculate_water_dose(parsed_weight, 100.0)
+        dose = calculate_water_dose(parsed_weight, 95.0)
 
         parsed_soil = None
         if moisture_pct and moisture_pct.strip() and moisture_pct.strip() != "--":

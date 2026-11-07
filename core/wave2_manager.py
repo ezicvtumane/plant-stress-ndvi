@@ -34,9 +34,9 @@ WAVE2_EXPERIMENT_META = {
     "turgor_reaction_trigger_score": 2,
     "emissivity_lwir": 0.98,
     "k_bal_ptfe": 4.070,
-    "nir_threshold_dn": 5.0,
-    "ndvi_threshold": 0.26,
-    "min_leaf_component_px": 20,
+    "nir_threshold_dn": 4.0,
+    "ndvi_threshold": 0.25,
+    "min_leaf_component_px": 100,
 }
 
 TURGOR_SCALE = {
@@ -233,18 +233,22 @@ def compute_single_pot_phenotyping(
     ndvi_thresh = WAVE2_EXPERIMENT_META["ndvi_threshold"]
     raw_mask = (ndvi_clamped > ndvi_thresh) & (nir_f > nir_thresh)
     
-    # Отсечение боковых стенок бокса (12% по горизонтали, 6% по вертикали)
-    margin_x = int(w * 0.12)
-    margin_y = int(h * 0.06)
+    # Отсечение боковых стенок и углов бокса (20% по горизонтали, 10% сверху, 16% снизу)
+    margin_x = int(w * 0.20)
+    margin_top = int(h * 0.10)
+    margin_bottom = int(h * 0.16)
     raw_mask[:, :margin_x] = False
     raw_mask[:, w - margin_x:] = False
-    raw_mask[:margin_y, :] = False
-    raw_mask[h - margin_y:, :] = False
+    raw_mask[:margin_top, :] = False
+    raw_mask[h - margin_bottom:, :] = False
 
     mask_u8 = raw_mask.astype(np.uint8) * 255
+    # Морфологическое связывание и устранение микробликов кутикулы
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+    mask_u8 = cv2.morphologyEx(mask_u8, cv2.MORPH_CLOSE, kernel_close)
     
-    # Фильтрация мелких шумов (< 20 px) через connectedComponentsWithStats
-    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
+    # Фильтрация шумов через connectedComponentsWithStats с проверкой центроидов
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
     clean_mask = np.zeros_like(mask_u8)
     min_px = WAVE2_EXPERIMENT_META["min_leaf_component_px"]
     
@@ -254,6 +258,10 @@ def compute_single_pot_phenotyping(
     for label in range(1, num_labels):
         area = stats[label, cv2.CC_STAT_AREA]
         if area >= min_px:
+            cx, cy = centroids[label]
+            # Растение находится в центральном горшке: отсекаем возможные краевые артефакты дна
+            if cx < w * 0.22 or cx > w * 0.78 or cy > h * 0.82:
+                continue
             clean_mask[labels == label] = 255
             valid_plant_pixels += area
             x = stats[label, cv2.CC_STAT_LEFT]
