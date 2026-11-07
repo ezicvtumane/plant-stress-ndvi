@@ -12,7 +12,7 @@ EXPERIMENT_META = {
     "start_date": "2026-10-25",
     "measurement_window": "18:00-18:30",
     "pot_tare_g": 5.0,
-    "target_weight_gross_g": 95.0,
+    "target_weight_gross_g": 100.0,
     "biomass_pla_coeff": 0.06,  # Правило №1 (CWSI / FAO-56): 0.06 г/см² сырой биомассы листа
     "emissivity_lwir": 0.98,
     "threshold_delta_delta_t": 0.6,  # Правило №2: нормированный триггер ΔΔT >= +0.6 °C относительно контроля

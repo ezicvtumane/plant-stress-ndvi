@@ -34,29 +34,32 @@ from core.agronomic_rules import (
 def test_rule1_dynamic_target_weight():
     """Тест Правила №1: M_цель(t) = 95.0 + PLA * 0.06 г/см²."""
     # Фаза 1: Проросток, нет площади листа
-    assert calc_target_weight(0.0) == 95.0
-    assert calc_target_weight(None) == 95.0
+    assert calc_target_weight(0.0) == 100.0
+    assert calc_target_weight(None) == 100.0
 
     # Фаза 2: Нарастание листьев огурца
-    assert calc_target_weight(25.0) == 96.5  # 95.0 + 25 * 0.06 = 96.5
-    assert calc_target_weight(50.0) == 98.0  # 95.0 + 50 * 0.06 = 98.0
-    assert calc_target_weight(100.0) == 101.0 # 95.0 + 100 * 0.06 = 101.0
+    assert calc_target_weight(25.0) == 101.5  # 100.0 + 25 * 0.06 = 101.5
+    assert calc_target_weight(50.0) == 103.0  # 100.0 + 50 * 0.06 = 103.0
+    assert calc_target_weight(100.0) == 106.0 # 100.0 + 100 * 0.06 = 106.0
 
     # Защита от отрицательных значений
-    assert calc_target_weight(-10.0) == 95.0
+    assert calc_target_weight(-10.0) == 100.0
 
 
 def test_rule1_watering_dose():
     """Тест расчета прецизионной дозы полива."""
-    # При PLA = 25 см², целевая масса 96.5 г
-    # Текущая масса 90.0 г -> доза 6.5 мл
-    assert calc_watering_dose(90.0, pla_cm2=25.0) == 6.5
+    # При PLA = 25 см², целевая масса 101.5 г (база 100.0 г)
+    # Текущая масса 90.0 г -> доза 11.5 мл
+    assert calc_watering_dose(90.0, pla_cm2=25.0) == 11.5
 
-    # Текущая масса 96.5 г -> доза 0.0 мл
-    assert calc_watering_dose(96.5, pla_cm2=25.0) == 0.0
+    # Текущая масса 95.0 г -> доза 6.5 мл
+    assert calc_watering_dose(95.0, pla_cm2=25.0) == 6.5
+
+    # Текущая масса 101.5 г -> доза 0.0 мл
+    assert calc_watering_dose(101.5, pla_cm2=25.0) == 0.0
 
     # Масса превышает целевую (переувлажнение) -> доза не должна быть отрицательной
-    assert calc_watering_dose(99.0, pla_cm2=25.0) == 0.0
+    assert calc_watering_dose(104.0, pla_cm2=25.0) == 0.0
 
 
 # --- ТЕСТЫ ПРАВИЛА №2 ---
