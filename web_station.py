@@ -81,7 +81,7 @@ def ensure_wave2_registered(data_dir: str):
                 'name': 'Волна 2: Огурец «Каскад» (GRCBD)',
                 'plant': 'Огурец «Каскад»',
                 'created_at': time.strftime('%Y-%m-%d %H:%M'),
-                'description': 'Огурец Каскад 20 горшков GRCBD, превентивный полив по Delta T и оптимизация Эпина',
+                'description': 'Огурец Каскад 19 горшков GRCBD + X0, превентивный полив по Delta T и тепловизионный триггер',
                 'folder': 'exp_1792918800'
             })
             reg['experiments'] = exps
@@ -108,7 +108,7 @@ def get_calibrated_k_bal() -> float:
                     return round(val, 3)
     except Exception:
         pass
-    return 4.070
+    return 1.150
 
 def save_calibrated_k_bal(val: float):
     try:
@@ -692,7 +692,7 @@ def do_hardware_spectral_capture(group_name: str):
         _, frame_amb_nir = cap.read()
 
         # 2. Спектральная съемка RED 660 нм (калиброванная экспозиция 120/40 без клиппинга)
-        set_v4l2_exposure(350, 50)
+        set_v4l2_exposure(100, 40)
         time.sleep(0.20)
         for _ in range(8): cap.grab()
         get_relay_controller().set_red(True)
@@ -786,7 +786,7 @@ def do_hardware_spectral_capture(group_name: str):
             save_calibrated_k_bal(k_bal)
             print(f'[Calibration Stand #0] Откалиброван и сохранен k_bal = {k_bal}', flush=True)
     else:
-        # Автоматическая загрузка сохраненного физического баланса (4.07)
+        # Автоматическая загрузка сохраненного физического баланса (1.150)
         k_bal = get_calibrated_k_bal()
 
     # Калиброванная формула NDVI с учетом балансировочного коэффициента эмиттеров
@@ -3267,7 +3267,7 @@ async def handle_wave2_capture_and_save(
                 pass
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        dose = calculate_water_dose(parsed_weight, 95.0)
+        dose = calculate_water_dose(parsed_weight, 100.0)
 
         # 3. Сохранение в measurements_wave2.csv
         wave2_storage = Wave2Storage(DATA_DIR)
@@ -3376,7 +3376,7 @@ async def handle_wave2_update_record(
                 pass
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        dose = calculate_water_dose(parsed_weight, 95.0)
+        dose = calculate_water_dose(parsed_weight, 100.0)
 
         parsed_soil = None
         if moisture_pct and moisture_pct.strip() and moisture_pct.strip() != "--":
