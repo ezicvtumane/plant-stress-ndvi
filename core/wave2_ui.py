@@ -18,7 +18,7 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
     status = evaluate_cohort_cluster_status(records_today)
     p = status["prevention"]
     r = status["reaction"]
-    sat = status.get("satellite", {"status_text": "Донор лаковых реплик (долив воды до 95 г)", "badge_color": "#8b5cf6"})
+    sat = status.get("satellite", {"status_text": "Донор лаковых реплик (долив воды до 100 г)", "badge_color": "#8b5cf6"})
 
     return f"""
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 16px;">
@@ -66,7 +66,7 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
                 {sat['status_text']}
             </div>
             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Регламент: донор устьичных лаковых реплик. Ежедневный полив водой до 95.0 г (как Контроль).
+                Регламент: донор устьичных лаковых реплик. Ежедневный полив водой до 100.0 г (как Контроль).
             </div>
         </div>
     </div>
@@ -84,7 +84,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
     by_pot = {str(r.get("ID", "")).strip().upper(): r for r in records_today}
 
     def render_pot_tile(pid: str) -> str:
-        meta = POTS_CATALOG.get(pid, {"id": pid, "cohort": "Unknown", "block": 0, "color": "#64748b", "badge": pid, "target_weight": 95.0, "has_probe": False})
+        meta = POTS_CATALOG.get(pid, {"id": pid, "cohort": "Unknown", "block": 0, "color": "#64748b", "badge": pid, "target_weight": 100.0, "has_probe": False})
         is_measured = pid in by_pot
         is_selected = (pid == active_pot_id)
         
@@ -96,7 +96,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
 
         rec = by_pot.get(pid, {})
         wt = rec.get('Weight_g', '')
-        wt_text = f"{wt} г" if (wt and wt != '--') else ("95.0 г" if not is_measured else "NoIR снят")
+        wt_text = f"{wt} г" if (wt and wt != '--') else ("100.0 г" if not is_measured else "NoIR снят")
         
         dt = rec.get('Delta_T_C', '')
         dt_text = f"ΔT: {dt}°" if (dt and dt != '--') else ("" if not is_measured else "жду ввода")
@@ -320,7 +320,7 @@ def render_wave2_active_pot_card(
     
     # Расчет дозы полива для отображения
     has_wt = current_weight and current_weight != '--'
-    raw_dose = calculate_water_dose(float(current_weight) if has_wt else 95.0, 95.0) if has_wt else None
+    raw_dose = calculate_water_dose(float(current_weight) if has_wt else 100.0, 100.0) if has_wt else None
     
     if cohort == "Control":
         if raw_dose is not None:
@@ -343,14 +343,14 @@ def render_wave2_active_pot_card(
             dose_html = "<span style='color: #64748b; font-weight: 600;'>Откроется после замера всей группы Р</span>"
     elif cohort == "Lysimeter_Blank":
         if raw_dose is not None:
-            dose_html = f"<span style='color: #475569; font-weight: 800; font-size: 18px;'>{raw_dose} мл</span> (Долив до 95.0 г / учет испарения почвы E)"
+            dose_html = f"<span style='color: #475569; font-weight: 800; font-size: 18px;'>{raw_dose} мл</span> (Долив до 100.0 г / учет испарения почвы E)"
         else:
-            dose_html = "<span style='color: #64748b;'>Взвесить и долить чистой водой до 95.0 г</span>"
+            dose_html = "<span style='color: #64748b;'>Взвесить и долить чистой водой до 100.0 г</span>"
     else:  # Satellite C20
         if raw_dose is not None:
-            dose_html = f"<span style='color: #8b5cf6; font-weight: 800; font-size: 18px;'>{raw_dose} мл воды</span> (Долив до 95.0 г / Сателлит-микроскопия)"
+            dose_html = f"<span style='color: #8b5cf6; font-weight: 800; font-size: 18px;'>{raw_dose} мл воды</span> (Долив до 100.0 г / Сателлит-микроскопия)"
         else:
-            dose_html = "<span style='color: #8b5cf6;'>Долив чистой водой шприцем до 95.0 г</span>"
+            dose_html = "<span style='color: #8b5cf6;'>Долив чистой водой шприцем до 100.0 г</span>"
 
     return f"""
     <div class="card" style="border: 2px solid {meta['color']}; margin: 0; display: flex; flex-direction: column; justify-content: space-between; height: 100%; box-sizing: border-box;">
@@ -361,7 +361,7 @@ def render_wave2_active_pot_card(
                 {probe_badge}
             </div>
             <div style="font-size: 13px; color: #64748b;">
-                Целевая масса: <strong>95.0 г</strong> | T<sub>возд</sub>: <strong>{t_air:.1f} °C</strong>
+                Целевая масса: <strong>100.0 г</strong> | T<sub>возд</sub>: <strong>{t_air:.1f} °C</strong>
             </div>
         </div>
 
@@ -458,7 +458,7 @@ def render_wave2_active_pot_card(
         }}
         const wt = parseFloat(inputVal);
         if (!isNaN(wt)) {{
-            const dose = Math.max(0, 95.0 - wt).toFixed(1);
+            const dose = Math.max(0, 100.0 - wt).toFixed(1);
             if ('{cohort}' === 'Control') {{
                 doseEl.innerHTML = '<span style=\"color: #059669; font-weight: 800; font-size: 18px;\">' + dose + ' мл</span> (Ежедневный долив)';
             }}
