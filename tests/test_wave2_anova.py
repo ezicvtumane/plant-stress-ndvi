@@ -147,3 +147,26 @@ def test_wave2_dashboard_contains_anova_ui():
     assert 'id="anovaModal"' in html
     assert 'id="anovaTable"' in html
     assert 'id="anovaChartImg"' in html
+
+
+def test_wave2_anova_reads_csv_column_names():
+    """Проверка корректного считывания колонок NDVI_Mean и Leaf_Area_cm2 из CSV."""
+    records = []
+    for pid in ["K1", "K2", "K3", "K4", "K5", "K6",
+                "P1", "P2", "P3", "P4", "P5", "P6",
+                "R1", "R2", "R3", "R4", "R5", "R6"]:
+        records.append({
+            "ID": pid,
+            "Weight_g": "100.0",
+            "Delta_T_C": "-1.8",
+            "NDVI_Mean": "0.620",
+            "Leaf_Area_cm2": "12.5",
+            "Turgor_Score": "4"
+        })
+    res = analyze_wave2_dataset(records)
+    assert res["ok"] is True
+    for row in res["summary_table"]:
+        if row["trait"] == "ndvi":
+            assert "0.62" in row["k_str"]
+        if row["trait"] == "pla_cm2":
+            assert "12.5" in row["k_str"]

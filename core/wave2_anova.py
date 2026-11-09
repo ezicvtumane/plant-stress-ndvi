@@ -170,13 +170,15 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
             dt = None
             
         try:
-            ndvi = float(r.get("NDVI_mean")) if r.get("NDVI_mean") not in (None, "", "--") else None
-        except ValueError:
+            raw_ndvi = r.get("NDVI_Mean") if r.get("NDVI_Mean") is not None else r.get("NDVI_mean", r.get("ndvi"))
+            ndvi = float(raw_ndvi) if raw_ndvi not in (None, "", "--") else None
+        except (ValueError, TypeError):
             ndvi = None
             
         try:
-            pla = float(r.get("PLA_cm2")) if r.get("PLA_cm2") not in (None, "", "--") else None
-        except ValueError:
+            raw_pla = r.get("Leaf_Area_cm2") if r.get("Leaf_Area_cm2") is not None else r.get("PLA_cm2", r.get("pla"))
+            pla = float(raw_pla) if raw_pla not in (None, "", "--") else None
+        except (ValueError, TypeError):
             pla = None
             
         try:
