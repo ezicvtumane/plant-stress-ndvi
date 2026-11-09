@@ -3708,6 +3708,136 @@ def grab_latest_uti_thermal_image(pot_id: str, images_dir: str):
     return True, display_name, ocr_temp, f"Снимок {orig_name} успешно импортирован как {display_name} и убран в DONE"
 
 
+@app.get('/api/wave2/uti_images_list')
+async def handle_wave2_uti_images_list():
+    """Возвращает список всех термограмм, доступных в папке Images на подключенном тепловизоре UTi120S."""
+    auto_mount_uti_rw()
+    if not os.path.exists(UTI_DIR):
+        return JSONResponse({
+            'status': 'error',
+            'mounted': False,
+            'message': f'Тепловизор UTi120S не найден или не смонтирован ({UTI_DIR})'
+        })
+
+    all_files = []
+    for ext_pat in ('*.bmp', '*.BMP', '*.jpg', '*.JPG', '*.png'):
+        for fp in glob.glob(os.path.join(UTI_DIR, ext_pat)):
+            norm = fp.replace('\\', '/').split('/')
+            if 'DONE' not in norm:
+                try:
+                    stat = os.stat(fp)
+                    fname = os.path.basename(fp)
+                    mtime_dt = datetime.fromtimestamp(stat.st_mtime)
+                    all_files.append({
+                        'name': fname,
+                        'size_kb': round(stat.st_size / 1024, 1),
+                        'mtime': stat.st_mtime,
+                        'mtime_str': mtime_dt.strftime('%d.%m.%Y %H:%M:%S')
+                    })
+                except Exception:
+                    pass
+
+    def sort_key(f):
+        m = re.search(r'(\d+)', f['name'])
+        num = int(m.group(1)) if m else -1
+        return (f['mtime'], num)
+
+    all_files.sort(key=sort_key, reverse=True)
+    return JSONResponse({
+        'status': 'ok',
+        'mounted': True,
+        'count': len(all_files),
+        'files': all_files
+    })
+
+
+@app.post('/api/wave2/uti_import_file')
+async def handle_wave2_uti_import_file(
+    pot_id: str = Form(...),
+    filename: str = Form(...)
+):
+    """
+    Импортирует выбранный снимок из папки Images тепловизора:
+    1. Резервирует оригинал в архивную папку станции (data/thermal_camera_backup/ и в серию).
+    2. Сохраняет и конвертирует в JPEG с распознаванием температуры OCR.
+    3. СТИРАЕТ оригинал с тепловизора (os.remove), чтобы память прибора оставалась чистой.
+    4. Обновляет T_Leaf_C, Delta_T и дозу полива для указанного горшка.
+    """
+    try:
+        pot_id = pot_id.strip().upper()
+        safe_name = os.path.basename(filename.strip())
+        auto_mount_uti_rw()
+        
+        src_path = os.path.join(UTI_DIR, safe_name)
+        if not os.path.exists(src_path):
+            return JSONResponse({'status': 'error', 'message': f'Файл {safe_name} не найден на тепловизоре ({UTI_DIR})'}, status_code=404)
+        
+        wave2_storage = Wave2Storage(DATA_DIR)
+        
+        # 1. РЕЗЕРВИРОВАНИЕ в отдельную архивную папку на станции
+        reserve_global = os.path.join(DATA_DIR, 'thermal_camera_backup')
+        os.makedirs(reserve_global, exist_ok=True)
+        reserve_dest = os.path.join(reserve_global, safe_name)
+        shutil.copyfile(src_path, reserve_dest)
+        
+        # Также резервируем внутри каталога текущей серии опытов
+        exp_reserve = os.path.join(wave2_storage.images_dir, 'thermal_backup')
+        os.makedirs(exp_reserve, exist_ok=True)
+        shutil.copyfile(src_path, os.path.join(exp_reserve, safe_name))
+        
+        # 2. Сохраняем в рабочую папку серии с привязкой к горшку
+        ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
+        ext = os.path.splitext(safe_name)[1].lower()
+        if not ext:
+            ext = '.bmp'
+        raw_saved_name = f"{pot_id}_{ts_f}_thermal{ext}"
+        raw_save_path = os.path.join(wave2_storage.images_dir, raw_saved_name)
+        shutil.copyfile(src_path, raw_save_path)
+        
+        # 3. СТИРАНИЕ файла с карты памяти тепловизора
+        erase_msg = ""
+        try:
+            os.remove(src_path)
+            erase_msg = f"Оригинал {safe_name} успешно стерт с тепловизора."
+            print(f"[UTi Clean]: {erase_msg} Резерв сохранен в {reserve_dest}")
+        except Exception as rm_err:
+            erase_msg = f"Предупреждение при удалении: {rm_err}"
+            print(f"[UTi Clean Error]: {erase_msg}")
+        
+        # 4. Конвертация BMP в universal web-JPEG + OCR температуры
+        display_name, ocr_temp = process_and_convert_thermal_image(raw_save_path, pot_id, wave2_storage.images_dir)
+        
+        update_dict = {
+            'ID': pot_id,
+            'Thermal_File': display_name
+        }
+        delta_t_val = None
+        if ocr_temp is not None:
+            ocr_val = round(float(ocr_temp), 1)
+            update_dict['T_Leaf_C'] = ocr_val
+            today_recs = wave2_storage.load_today_records()
+            existing = next((r for r in today_recs if r.get('ID', '').strip().upper() == pot_id), None)
+            t_air = existing.get('T_Air_C') if existing else None
+            if t_air not in (None, '', '--'):
+                try:
+                    delta_t_val = round(ocr_val - float(t_air), 2)
+                    update_dict['Delta_T_C'] = delta_t_val
+                except Exception:
+                    pass
+        
+        ok, msg = wave2_storage.save_or_update_record(update_dict)
+        return JSONResponse({
+            'status': 'ok' if ok else 'error',
+            'pot_id': pot_id,
+            'filename': display_name,
+            'ocr_temp': ocr_temp,
+            'delta_t': delta_t_val,
+            'message': f"Снимок {safe_name} привязан к [{pot_id}]. {erase_msg} Резервная копия сохранена на станции."
+        })
+    except Exception as e:
+        return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
+
+
 @app.post('/api/wave2/grab_uti_thermal')
 async def handle_wave2_grab_uti_thermal(
     pot_id: str = Form(...)

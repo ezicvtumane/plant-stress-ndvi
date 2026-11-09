@@ -754,9 +754,13 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                         💾
                     </button>
                     <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('{rec_id}', this)">
-                    <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить снимок термограммы" 
+                    <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить снимок с компьютера через проводник" 
                         style="background: #0d9488; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
                         📷
+                    </button>
+                    <button type="button" onclick="openUtiFolderModal('{rec_id}')" title="Открыть папку Images на тепловизоре (выбрать, резервировать на станции и стереть с прибора)" 
+                        style="background: #6366f1; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
+                        📁
                     </button>
                     <button type="button" onclick="reshootWave2Pot('{rec_id}')" title="Выбрать этот горшок и переснять" 
                         style="background: #f59e0b; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
@@ -833,6 +837,258 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
         if (e.key === 'Escape') closeImageViewer();
     }});
     </script>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ПАПКА IMAGES НА ТЕПЛОВИЗОРЕ UTI120S -->
+    <div id="utiFolderModal" style="display:none; position:fixed; z-index:10001; left:0; top:0; width:100%; height:100%; background:rgba(15,23,42,0.7); align-items:center; justify-content:center; backdrop-filter:blur(4px);" onclick="if(event.target===this) closeUtiFolderModal()">
+        <div style="background:#ffffff; border-radius:12px; width:720px; max-width:94vw; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 20px 48px rgba(0,0,0,0.4); border:2px solid #6366f1; overflow:hidden;" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:20px;">📁</span>
+                    <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">
+                        Папка Images на тепловизоре UTi120S
+                    </h3>
+                    <span id="utiModalTargetBadge" style="background:#6366f1; color:#fff; font-size:12px; font-weight:800; padding:2px 8px; border-radius:6px;">Обзор</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button type="button" onclick="refreshUtiFolderList()" title="Обновить список файлов на тепловизоре" style="background:#e0e7ff; color:#4338ca; border:none; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+                        🔄 Обновить
+                    </button>
+                    <button type="button" onclick="closeUtiFolderModal()" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; font-size:16px; cursor:pointer; font-weight:bold; color:#475569;">✕</button>
+                </div>
+            </div>
+
+            <!-- Инфо-панель: резервирование и стирание -->
+            <div style="padding:8px 18px; background:#eef2ff; border-bottom:1px solid #e0e7ff; font-size:11px; color:#3730a3; display:flex; justify-content:space-between; align-items:center;">
+                <span>🔒 <strong>Правило забора:</strong> при выборе снимок копируется на станцию, <strong>резервируется в архив</strong> (<code>data/thermal_camera_backup</code>) и <strong>стирается с тепловизора</strong>.</span>
+                <span id="utiFilesCountBadge" style="font-weight:700; background:#c7d2fe; color:#312e81; padding:2px 6px; border-radius:4px;">Считывание...</span>
+            </div>
+
+            <!-- Быстрый выбор горшка (если открыто из шапки) -->
+            <div id="utiPotSelectorBar" style="display:flex; align-items:center; gap:10px; padding:8px 18px; background:#f8fafc; border-bottom:1px solid #f1f5f9;">
+                <label style="font-size:12px; font-weight:700; color:#334155;">Целевой горшок для привязки:</label>
+                <select id="utiSelectedPot" style="padding:4px 8px; font-size:12px; font-weight:700; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                    <option value="K1">K1 (Контроль)</option>
+                    <option value="K2">K2 (Контроль)</option>
+                    <option value="K3">K3 (Контроль)</option>
+                    <option value="K4">K4 (Контроль)</option>
+                    <option value="K5">K5 (Контроль)</option>
+                    <option value="K6">K6 (Контроль)</option>
+                    <option value="R1">R1 (Реакция)</option>
+                    <option value="R2">R2 (Реакция)</option>
+                    <option value="R3">R3 (Реакция)</option>
+                    <option value="R4">R4 (Реакция)</option>
+                    <option value="R5">R5 (Реакция)</option>
+                    <option value="R6">R6 (Реакция)</option>
+                    <option value="P1">P1 (Превенция)</option>
+                    <option value="P2">P2 (Превенция)</option>
+                    <option value="P3">P3 (Превенция)</option>
+                    <option value="P4">P4 (Превенция)</option>
+                    <option value="P5">P5 (Превенция)</option>
+                    <option value="P6">P6 (Превенция)</option>
+                    <option value="X0">X0 (Лизиметр)</option>
+                </select>
+                <span style="font-size:11px; color:#64748b;">(выберите нужный горшок перед импортом снимка)</span>
+            </div>
+
+            <!-- Тело: список файлов на приборе -->
+            <div id="utiFolderBody" style="padding:14px 18px; overflow-y:auto; flex:1; max-height:calc(88vh - 160px);">
+                <div style="text-align:center; padding:30px; color:#64748b; font-size:13px;">
+                    ⏳ Загрузка списка файлов с накопителя тепловизора...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let utiCurrentTargetPot = '';
+
+    function openUtiFolderModal(potId) {{
+        utiCurrentTargetPot = potId || '';
+        const modal = document.getElementById('utiFolderModal');
+        const badge = document.getElementById('utiModalTargetBadge');
+        const sel = document.getElementById('utiSelectedPot');
+        if (sel) {{
+            if (utiCurrentTargetPot) sel.value = utiCurrentTargetPot;
+        }}
+        if (badge) {{
+            badge.innerText = utiCurrentTargetPot ? ('Горшок [' + utiCurrentTargetPot + ']') : 'Выбор горшка';
+            badge.style.background = utiCurrentTargetPot ? '#059669' : '#6366f1';
+        }}
+        if (modal) modal.style.display = 'flex';
+        refreshUtiFolderList();
+    }}
+
+    function closeUtiFolderModal() {{
+        const modal = document.getElementById('utiFolderModal');
+        if (modal) modal.style.display = 'none';
+    }}
+
+    async function refreshUtiFolderList() {{
+        const body = document.getElementById('utiFolderBody');
+        const cntBadge = document.getElementById('utiFilesCountBadge');
+        if (!body) return;
+        body.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:13px;">⏳ Считывание папки /media/uti120s/Images...</div>';
+        
+        try {{
+            const resp = await fetch('/api/wave2/uti_images_list');
+            const data = await resp.json();
+            if (data.status !== 'ok' || !data.mounted) {{
+                if (cntBadge) cntBadge.innerText = '0 файлов';
+                body.innerHTML = `
+                    <div style="text-align:center; padding:30px; color:#dc2626;">
+                        <div style="font-size:24px; margin-bottom:8px;">⚠️</div>
+                        <div style="font-weight:700; font-size:14px;">${{data.message || 'Тепловизор не найден'}}</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:6px;">Проверьте, что кабель тепловизора UTi120S вставлен в USB-порт станции Orange Pi.</div>
+                        <button type="button" onclick="refreshUtiFolderList()" style="margin-top:14px; background:#6366f1; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-weight:700; cursor:pointer;">Повторить попытку</button>
+                    </div>
+                `;
+                return;
+            }}
+
+            if (cntBadge) cntBadge.innerText = data.count + ' снимков на карте';
+
+            if (!data.files || data.files.length === 0) {{
+                body.innerHTML = `
+                    <div style="text-align:center; padding:30px; color:#059669;">
+                        <div style="font-size:24px; margin-bottom:8px;">🎉</div>
+                        <div style="font-weight:700; font-size:14px;">На тепловизоре нет новых снимков!</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:6px;">Все предыдущие кадры уже были скопированы и очищены с карты памяти.</div>
+                    </div>
+                `;
+                return;
+            }}
+
+            const latestFile = data.files[0];
+            let html = '';
+
+            // Карточка быстрого забора самого последнего снимка
+            html += `
+                <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:12px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-size:11px; font-weight:800; color:#15803d; text-transform:uppercase;">⚡ Самый свежий снимок на приборе:</div>
+                        <div style="font-size:15px; font-weight:800; color:#0f172a; font-family:monospace; margin-top:2px;">${{latestFile.name}}</div>
+                        <div style="font-size:11px; color:#64748b;">Дата: ${{latestFile.mtime_str}} &bull; ${{latestFile.size_kb}} КБ</div>
+                    </div>
+                    <button type="button" id="btn_import_latest" onclick="importUtiFile('${{latestFile.name}}', this)" style="background:#059669; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; box-shadow:0 2px 4px rgba(5,150,105,0.3);">
+                        ⚡ Взять последний
+                    </button>
+                </div>
+            `;
+
+            // Таблица всех файлов
+            html += `
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; color:#64748b; font-size:11px;">
+                            <th style="padding:6px 8px; text-align:left;">Файл</th>
+                            <th style="padding:6px 8px; text-align:left;">Время снимка</th>
+                            <th style="padding:6px 8px; text-align:right;">Размер</th>
+                            <th style="padding:6px 8px; text-align:center;">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const f of data.files) {{
+                html += `
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:6px 8px; font-weight:700; font-family:monospace; color:#0f172a;">
+                            📷 ${{f.name}}
+                        </td>
+                        <td style="padding:6px 8px; color:#64748b; font-size:11px;">
+                            ${{f.mtime_str}}
+                        </td>
+                        <td style="padding:6px 8px; text-align:right; font-family:monospace; color:#64748b; font-size:11px;">
+                            ${{f.size_kb}} КБ
+                        </td>
+                        <td style="padding:6px 8px; text-align:center;">
+                            <button type="button" onclick="importUtiFile('${{f.name}}', this)" style="background:#6366f1; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer;">
+                                📥 Забрать и стереть
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }}
+
+            html += '</tbody></table>';
+            body.innerHTML = html;
+
+        }} catch (err) {{
+            body.innerHTML = '<div style="color:#dc2626; padding:20px; text-align:center;">Ошибка связи со станцией: ' + err + '</div>';
+        }}
+    }}
+
+    async function importUtiFile(filename, btnEl) {{
+        const sel = document.getElementById('utiSelectedPot');
+        const targetPot = (sel && sel.value) ? sel.value : utiCurrentTargetPot;
+        if (!targetPot) {{
+            alert('Пожалуйста, выберите целевой горшок для привязки снимка!');
+            return;
+        }}
+
+        if (btnEl) {{
+            btnEl.disabled = true;
+            btnEl.innerText = '⏳ Забираю...';
+        }}
+
+        const formData = new FormData();
+        formData.append('pot_id', targetPot);
+        formData.append('filename', filename);
+
+        try {{
+            const resp = await fetch('/api/wave2/uti_import_file', {{
+                method: 'POST',
+                body: formData
+            }});
+            const res = await resp.json();
+
+            if (res.status === 'ok') {{
+                const fname = res.filename;
+                let thTxt = '✓';
+                if (res.ocr_temp !== null && res.ocr_temp !== undefined) {{
+                    const tlEl = document.getElementById('cell_tl_' + targetPot);
+                    if (tlEl) tlEl.value = res.ocr_temp;
+                    if (res.delta_t !== undefined && res.delta_t !== null) {{
+                        const dtCell = document.getElementById('cell_dt_' + targetPot);
+                        if (dtCell) dtCell.innerText = res.delta_t;
+                    }}
+                    thTxt = res.ocr_temp + '°';
+                    saveRowEdit(targetPot, true);
+                }}
+                const cell = document.getElementById('cell_th_' + targetPot);
+                if (cell) {{
+                    cell.innerHTML = `
+                        <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{targetPot}}] (${{thTxt}} OCR)'); return false;" title="Термограмма [${{targetPot}}] — ${{thTxt}} (распознано OCR)" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;">
+                            <span style="font-family: monospace; font-size: 11px;">${{thTxt}}</span> 🔍
+                        </a>
+                    `;
+                }}
+                const rowEl = document.getElementById('row_' + targetPot);
+                if (rowEl) {{
+                    rowEl.style.transition = 'background-color 0.3s ease';
+                    rowEl.style.backgroundColor = '#ecfdf5';
+                    setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
+                }}
+
+                closeUtiFolderModal();
+            }} else {{
+                alert('Ошибка импорта термограммы: ' + (res.message || res.error || 'Неизвестная ошибка'));
+                if (btnEl) {{
+                    btnEl.disabled = false;
+                    btnEl.innerText = '❌ Ошибка';
+                }}
+            }}
+        }} catch (err) {{
+            alert('Сетевая ошибка при импорте: ' + err);
+            if (btnEl) {{
+                btnEl.disabled = false;
+                btnEl.innerText = '❌ Ошибка';
+            }}
+        }}
+    }}
+    </script>
+
     """
 
 def render_wave2_channels_card(t_now: int) -> str:
