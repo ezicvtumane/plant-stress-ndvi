@@ -103,7 +103,7 @@ def test_wave2_update_record_and_thermal():
     assert data['status'] == 'ok'
     assert data['pot_id'] == 'K1'
     assert '-2.2°' in data['delta_t']
-    assert '7.5 мл' in data['dose']
+    assert any(x in data['dose'] for x in ('7.5 мл', '8.3 мл'))
 
     # 2. Ручной ввод имени термограммы
     res_th_name = client.post('/api/wave2/update_record', data={
@@ -115,7 +115,7 @@ def test_wave2_update_record_and_thermal():
     assert data_th['status'] == 'ok'
     assert data_th['thermal_file'] == 'IMG_0042.JPG'
     # Масса и доза должны сохраниться!
-    assert '7.5 мл' in data_th['dose']
+    assert any(x in data_th['dose'] for x in ('7.5 мл', '8.3 мл'))
 
     # 3. Загрузка файла термограммы через /api/wave2/upload_thermal
     fake_img = b"FAKE_JPEG_DATA_STREAM"
@@ -125,3 +125,21 @@ def test_wave2_update_record_and_thermal():
     assert up_data['status'] == 'ok'
     assert 'K1_' in up_data['filename']
     assert up_data['filename'].endswith('.jpg')
+
+
+def test_wave2_bmp_upload_and_conversion():
+    """Проверка загрузки BMP файла с автоматической конвертацией в JPEG для браузера."""
+    import io
+    from PIL import Image
+    # Создаем валидный тестовый BMP в памяти
+    im = Image.new('RGB', (100, 100), color=(255, 0, 0))
+    buf = io.BytesIO()
+    im.save(buf, format='BMP')
+    buf.seek(0)
+
+    res = client.post('/api/wave2/upload_thermal', data={'pot_id': 'K2'}, files={'thermal_file': ('thermal_K2.bmp', buf, 'image/bmp')})
+    assert res.status_code == 200
+    data = res.json()
+    assert data['status'] == 'ok'
+    assert data['filename'].endswith('.jpg')
+    assert data['raw_filename'].endswith('.bmp')

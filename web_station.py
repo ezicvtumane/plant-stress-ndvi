@@ -3344,6 +3344,60 @@ async def handle_wave2_capture_and_save(
         return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
 
 
+
+def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: str) -> tuple[str, float | None]:
+    """
+    Принимает путь к сохраненному файлу термограммы (BMP, JPG, PNG).
+    Если это BMP:
+      - конвертирует в веб-совместимый JPEG (95% качество);
+      - сохраняет оба файла (оригинальный BMP и JPEG);
+      - запускает OCR-распознавание температуры центральной точки листа;
+      - обновляет static/last_thermal.jpg для панели мультиспектральных каналов.
+    Возвращает (имя_файла_для_веб_отображения, распознанная_температура_или_None).
+    """
+    ext = os.path.splitext(src_path)[1].lower()
+    base_name = os.path.basename(src_path)
+    ocr_temp = None
+
+    # Попытка OCR температуры
+    try:
+        t_val, t_ok = extract_temperature_from_thermal(src_path)
+        if t_ok and t_val is not None:
+            ocr_temp = t_val
+    except Exception:
+        pass
+
+    if ext in ('.bmp', '.dib'):
+        try:
+            jpg_name = os.path.splitext(base_name)[0] + '.jpg'
+            jpg_path = os.path.join(images_dir, jpg_name)
+            im = Image.open(src_path)
+            im.convert('RGB').save(jpg_path, 'JPEG', quality=95)
+            try:
+                shutil.copyfile(jpg_path, os.path.join(STATIC_DIR, jpg_name))
+                shutil.copyfile(jpg_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
+            except Exception:
+                pass
+            # Если первый OCR не сработал на BMP, пробуем на сконвертированном JPG
+            if ocr_temp is None:
+                try:
+                    t_val, t_ok = extract_temperature_from_thermal(jpg_path)
+                    if t_ok and t_val is not None:
+                        ocr_temp = t_val
+                except Exception:
+                    pass
+            return (jpg_name, ocr_temp)
+        except Exception as e:
+            print(f"[BMP Convert Error]: {e}")
+            return (base_name, ocr_temp)
+    else:
+        try:
+            shutil.copyfile(src_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
+        except Exception:
+            pass
+        return (base_name, ocr_temp)
+
+
 @app.post('/api/wave2/update_record')
 async def handle_wave2_update_record(
     request: Request,
@@ -3462,7 +3516,7 @@ async def handle_wave2_update_record(
         saved_th_name = None
         if thermal_file and thermal_file.filename:
             ext = os.path.splitext(thermal_file.filename)[1].lower()
-            if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp'):
+            if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp', '.dib'):
                 ext = '.jpg'
             ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
             saved_th_name = f"{pot_id}_{ts_f}_thermal{ext}"
@@ -3473,7 +3527,14 @@ async def handle_wave2_update_record(
                 shutil.copyfile(th_save_path, os.path.join(STATIC_DIR, saved_th_name))
             except Exception:
                 pass
-            update_dict['Thermal_File'] = saved_th_name
+            display_th, ocr_th = process_and_convert_thermal_image(th_save_path, pot_id, wave2_storage.images_dir)
+            saved_th_name = display_th
+            update_dict['Thermal_File'] = display_th
+            if ocr_th is not None and parsed_t_leaf is None:
+                parsed_t_leaf = ocr_th
+                update_dict['T_Leaf_C'] = round(ocr_th, 1)
+                delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
+                update_dict['Delta_T_C'] = delta_t
         elif thermal_filename and thermal_filename.strip() and thermal_filename.strip() != "--":
             saved_th_name = thermal_filename.strip()
             update_dict['Thermal_File'] = saved_th_name
@@ -3565,7 +3626,7 @@ async def handle_wave2_upload_thermal(
         wave2_storage = Wave2Storage(DATA_DIR)
         
         ext = os.path.splitext(thermal_file.filename)[1].lower()
-        if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp'):
+        if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp', '.dib'):
             ext = '.jpg'
         ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
         thermal_saved_name = f"{pot_id}_{ts_f}_thermal{ext}"
@@ -3577,13 +3638,28 @@ async def handle_wave2_upload_thermal(
             shutil.copyfile(th_save_path, os.path.join(STATIC_DIR, thermal_saved_name))
         except Exception:
             pass
+
+        # Конвертация BMP в универсальный JPEG + OCR температуры
+        display_name, ocr_temp = process_and_convert_thermal_image(th_save_path, pot_id, wave2_storage.images_dir)
             
         update_dict = {
             'ID': pot_id,
-            'Thermal_File': thermal_saved_name
+            'Thermal_File': display_name
         }
+        if ocr_temp is not None:
+            today_recs = wave2_storage.load_today_records()
+            existing = next((r for r in today_recs if r.get('ID', '').strip().upper() == pot_id), None)
+            if existing and existing.get('T_Leaf_C') in (None, '', '--'):
+                update_dict['T_Leaf_C'] = round(ocr_temp, 1)
+
         ok, msg = wave2_storage.save_or_update_record(update_dict)
-        return JSONResponse({'status': 'ok' if ok else 'error', 'filename': thermal_saved_name, 'message': msg})
+        return JSONResponse({
+            'status': 'ok' if ok else 'error', 
+            'filename': display_name, 
+            'raw_filename': thermal_saved_name,
+            'ocr_temp': ocr_temp,
+            'message': msg
+        })
     except Exception as e:
         return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
 
@@ -3591,26 +3667,47 @@ async def handle_wave2_upload_thermal(
 @app.get('/wave2_image/{filename}')
 async def handle_wave2_image_view(filename: str):
     """
-    Эндпоинт для прямого просмотра и оценки мультиспектральных снимков NDVI и термограмм
-    горшков 2-й волны во всплывающем окне или в отдельной вкладке.
+    Эндпоинт для прямого просмотра мультиспектральных снимков NDVI и термограмм.
+    Если запрашивается BMP файл, проверяет наличие сконвертированного JPEG
+    или конвертирует на лету, гарантируя открытие в любом браузере.
     """
     safe_name = os.path.basename(filename)
     wave2_storage = Wave2Storage(DATA_DIR)
     
-    # 1. Поиск в папке изображений exp_wave2
-    img_path = os.path.join(wave2_storage.images_dir, safe_name)
-    if os.path.exists(img_path):
-        return FileResponse(img_path)
-        
-    # 2. Поиск в папке static
-    static_path = os.path.join(STATIC_DIR, safe_name)
-    if os.path.exists(static_path):
-        return FileResponse(static_path)
-        
-    # 3. Поиск в кэше снимков тепловизора uti_cache
-    uti_path = os.path.join(STATIC_DIR, 'uti_cache', safe_name)
-    if os.path.exists(uti_path):
-        return FileResponse(uti_path)
+    # Список директорий для поиска файла
+    search_dirs = [
+        wave2_storage.images_dir,
+        STATIC_DIR,
+        os.path.join(STATIC_DIR, 'uti_cache'),
+        UTI_DIR,
+        '/home/pi/plant-stress-ndvi/data/experiments/exp_1791463544/images/raw_original_thermals'
+    ]
+
+    base_no_ext, ext = os.path.splitext(safe_name)
+    if ext.lower() in ('.bmp', '.dib'):
+        jpg_candidate = base_no_ext + '.jpg'
+        for sdir in search_dirs:
+            p = os.path.join(sdir, jpg_candidate)
+            if os.path.exists(p):
+                return FileResponse(p, media_type='image/jpeg')
+
+    for sdir in search_dirs:
+        p = os.path.join(sdir, safe_name)
+        if os.path.exists(p):
+            if ext.lower() in ('.bmp', '.dib'):
+                try:
+                    cached_jpg = os.path.join(STATIC_DIR, 'uti_cache', base_no_ext + '.jpg')
+                    if not os.path.exists(cached_jpg):
+                        im = Image.open(p)
+                        im.convert('RGB').save(cached_jpg, 'JPEG', quality=95)
+                    return FileResponse(cached_jpg, media_type='image/jpeg')
+                except Exception:
+                    return FileResponse(p, media_type='image/bmp')
+            elif ext.lower() in ('.jpg', '.jpeg'):
+                return FileResponse(p, media_type='image/jpeg')
+            elif ext.lower() == '.png':
+                return FileResponse(p, media_type='image/png')
+            return FileResponse(p)
         
     return HTMLResponse(f"Изображение '{safe_name}' не найдено на станции", status_code=404)
 
