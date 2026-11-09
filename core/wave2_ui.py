@@ -320,11 +320,15 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                 let thTxt = '✓';
                 if (res.ocr_temp) {{
                     const tlEl = document.getElementById('cell_tl_' + pid);
-                    if (tlEl && (!tlEl.value || tlEl.value === '--')) {{
+                    if (tlEl) {{
                         tlEl.value = res.ocr_temp;
-                        saveRowEdit(pid, true);
+                    }}
+                    if (res.delta_t !== undefined) {{
+                        const dtCell = document.getElementById('cell_dt_' + pid);
+                        if (dtCell) dtCell.innerText = res.delta_t;
                     }}
                     thTxt = res.ocr_temp + '°';
+                    saveRowEdit(pid, true);
                 }} else {{
                     const tlEl = document.getElementById('cell_tl_' + pid);
                     if (tlEl && tlEl.value && tlEl.value !== '--') {{
@@ -378,11 +382,15 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                 let thTxt = '✓';
                 if (res.ocr_temp) {{
                     const tlEl = document.getElementById('cell_tl_' + pid);
-                    if (tlEl && (!tlEl.value || tlEl.value === '--')) {{
+                    if (tlEl) {{
                         tlEl.value = res.ocr_temp;
-                        saveRowEdit(pid, true);
+                    }}
+                    if (res.delta_t !== undefined) {{
+                        const dtCell = document.getElementById('cell_dt_' + pid);
+                        if (dtCell) dtCell.innerText = res.delta_t;
                     }}
                     thTxt = res.ocr_temp + '°';
+                    saveRowEdit(pid, true);
                 }} else {{
                     const tlEl = document.getElementById('cell_tl_' + pid);
                     if (tlEl && tlEl.value && tlEl.value !== '--') {{
@@ -696,7 +704,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                         th_txt = f"{t_leaf}°"
                 else:
                     th_txt = "✓"
-                th_cell = f'''<div id="cell_th_{rec_id}" style="text-align: center;"><a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}] ({th_txt})\'); return false;" title="Открыть термограмму [{rec_id}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{th_txt}</span> 🔍</a></div>'''
+                th_cell = f'''<div id="cell_th_{rec_id}" style="text-align: center;"><a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}] ({th_txt} OCR)\'); return false;" title="Термограмма [{rec_id}] — {th_txt} (распознано OCR)" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{th_txt}</span> 🔍</a></div>'''
             else:
                 th_cell = f'''<div id="cell_th_{rec_id}" style="text-align: center;"><span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span></div>'''
 

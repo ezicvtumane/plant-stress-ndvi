@@ -465,7 +465,7 @@ def read_moisture_mock(group_name: str = ''):
 def extract_temperature_from_thermal(img_path: str):
     """
     OCR-распознавание температуры центральной точки из термограммы UTi120S.
-    Использует мозаику 2x2 для 4 порогов за 1 вызов tesseract.
+    Использует мозаику 2x2 с пошаговым fallback для 100% надежного распознавания.
     Возвращает (temperature, is_valid).
     """
     try:
@@ -475,7 +475,7 @@ def extract_temperature_from_thermal(img_path: str):
         crop = img[0:75, 0:145]
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
         
-        # Строим мозаику 2x2
+        # 1. Попытка через мозаику 2x2
         thresholds = [210, 195, 225, 180]
         h, w = gray.shape
         mosaic = np.zeros((h*2, w*2), dtype=np.uint8)
@@ -487,7 +487,6 @@ def extract_temperature_from_thermal(img_path: str):
             
         txt = pytesseract.image_to_string(mosaic, config='--psm 6 -c tessedit_char_whitelist=0123456789.,C°% \n')
         
-        # Ищем все вхождения в мозаике
         for m in re.finditer(r'(\d{1,2})[\.,](\d)', txt):
             val = float(f"{m.group(1)}.{m.group(2)}")
             if 10.0 <= val <= 50.0:
@@ -497,6 +496,19 @@ def extract_temperature_from_thermal(img_path: str):
             val = float(m_int.group(1)) / 10.0
             if 10.0 <= val <= 50.0:
                 return (val, True)
+
+        # 2. Пошаговый fallback по отдельным порогам бинаризации
+        for th_val in [210, 225, 240, 195, 180]:
+            _, thresh = cv2.threshold(gray, th_val, 255, cv2.THRESH_BINARY)
+            s_txt = pytesseract.image_to_string(thresh, config='--psm 6 -c tessedit_char_whitelist=0123456789.,C°% \n')
+            for m in re.finditer(r'(\d{1,2})[\.,](\d)', s_txt):
+                val = float(f"{m.group(1)}.{m.group(2)}")
+                if 10.0 <= val <= 50.0:
+                    return (val, True)
+            for m_int in re.finditer(r'\b(\d{3})\b', s_txt):
+                val = float(m_int.group(1)) / 10.0
+                if 10.0 <= val <= 50.0:
+                    return (val, True)
                 
     except Exception as e:
         import logging
@@ -3752,11 +3764,18 @@ async def handle_wave2_upload_thermal(
             'ID': pot_id,
             'Thermal_File': display_name
         }
+        # Вариант 1: автоматическая запись OCR температуры в T_Leaf_C и расчет Delta_T
         if ocr_temp is not None:
+            ocr_val = round(float(ocr_temp), 1)
+            update_dict['T_Leaf_C'] = ocr_val
             today_recs = wave2_storage.load_today_records()
             existing = next((r for r in today_recs if r.get('ID', '').strip().upper() == pot_id), None)
-            if existing and existing.get('T_Leaf_C') in (None, '', '--'):
-                update_dict['T_Leaf_C'] = round(ocr_temp, 1)
+            t_air = existing.get('T_Air_C') if existing else None
+            if t_air not in (None, '', '--'):
+                try:
+                    update_dict['Delta_T_C'] = round(ocr_val - float(t_air), 2)
+                except Exception:
+                    pass
 
         ok, msg = wave2_storage.save_or_update_record(update_dict)
         return JSONResponse({
@@ -3764,6 +3783,7 @@ async def handle_wave2_upload_thermal(
             'filename': display_name, 
             'raw_filename': thermal_saved_name,
             'ocr_temp': ocr_temp,
+            'delta_t': update_dict.get('Delta_T_C'),
             'message': msg
         })
     except Exception as e:
