@@ -3615,6 +3615,112 @@ async def api_wave2_anova_report():
         return JSONResponse({'ok': False, 'message': str(e)}, status_code=500)
 
 
+
+def auto_mount_uti_rw() -> bool:
+    """Монтирует накопитель UTi120S в режиме rw для возможности перемещения в DONE."""
+    try:
+        if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
+            return True
+    except Exception:
+        pass
+
+    uti_devs = glob.glob('/dev/disk/by-id/usb-STM_UTi120S_*-part1')
+    candidate_devs = uti_devs + ['/dev/sdb1', '/dev/sda1', '/dev/sdc1', '/dev/sdd1']
+
+    for dev in candidate_devs:
+        if os.path.exists(dev):
+            os.makedirs('/media/uti120s', exist_ok=True)
+            subprocess.run(['sudo', 'mount', '-o', 'rw,noatime,sync', dev, '/media/uti120s'], capture_output=True, timeout=5)
+            if os.path.exists(UTI_DIR):
+                return True
+    return False
+
+
+def grab_latest_uti_thermal_image(pot_id: str, images_dir: str):
+    """
+    Вариант 2: Забирает самый свежий снимок с подключенного тепловизора UTi120S,
+    конвертирует в веб-JPEG, распознает OCR температуру, и ПЕРЕМЕЩАЕТ оригинал
+    в Images/DONE/ на флешке тепловизора.
+    """
+    auto_mount_uti_rw()
+    if not os.path.exists(UTI_DIR):
+        return False, "", None, "Тепловизор UTi120S не найден или не подключен по USB"
+
+    all_files = []
+    for ext_pat in ('*.bmp', '*.BMP', '*.jpg', '*.JPG', '*.png'):
+        for fp in glob.glob(os.path.join(UTI_DIR, ext_pat)):
+            # Исключаем файлы из папки DONE
+            norm = fp.replace('\\', '/').split('/')
+            if 'DONE' not in norm:
+                all_files.append(fp)
+
+    if not all_files:
+        return False, "", None, "На тепловизоре нет новых снимков (все уже отмаркированы в папке DONE)"
+
+    def sort_key(fp):
+        fname = os.path.basename(fp)
+        m = re.search(r'(\d+)', fname)
+        num = int(m.group(1)) if m else -1
+        return (num, os.path.getmtime(fp))
+
+    all_files.sort(key=sort_key, reverse=True)
+    latest_src = all_files[0]
+    orig_name = os.path.basename(latest_src)
+
+    ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
+    ext = os.path.splitext(latest_src)[1].lower()
+    raw_saved_name = f"{pot_id}_{ts_f}_thermal{ext}"
+    raw_save_path = os.path.join(images_dir, raw_saved_name)
+
+    # 1. Сохраняем снимок на станцию
+    shutil.copyfile(latest_src, raw_save_path)
+
+    # 2. Конвертируем в JPEG и делаем OCR
+    display_name, ocr_temp = process_and_convert_thermal_image(raw_save_path, pot_id, images_dir)
+
+    # 3. ВАРИАНТ 2: Перемещаем файл на флешке тепловизора в Images/DONE/
+    done_dir = os.path.join(UTI_DIR, 'DONE')
+    try:
+        os.makedirs(done_dir, exist_ok=True)
+        dest_done = os.path.join(done_dir, orig_name)
+        shutil.move(latest_src, dest_done)
+    except Exception as move_err:
+        print(f"[UTi Move to DONE Warning]: {move_err}")
+
+    return True, display_name, ocr_temp, f"Снимок {orig_name} успешно импортирован как {display_name} и убран в DONE"
+
+
+@app.post('/api/wave2/grab_uti_thermal')
+async def handle_wave2_grab_uti_thermal(
+    pot_id: str = Form(...)
+):
+    """Эндпоинт автоматического забора термограммы с подключенного прибора (Вариант 2)."""
+    try:
+        pot_id = pot_id.strip().upper()
+        wave2_storage = Wave2Storage(DATA_DIR)
+        ok, display_name, ocr_temp, msg = grab_latest_uti_thermal_image(pot_id, wave2_storage.images_dir)
+        if not ok:
+            return JSONResponse({'status': 'error', 'message': msg}, status_code=400)
+
+        update_dict = {
+            'ID': pot_id,
+            'Thermal_File': display_name
+        }
+        if ocr_temp is not None:
+            update_dict['T_Leaf_C'] = round(ocr_temp, 1)
+
+        save_ok, save_msg = wave2_storage.save_or_update_record(update_dict)
+        return JSONResponse({
+            'status': 'ok' if save_ok else 'error',
+            'pot_id': pot_id,
+            'filename': display_name,
+            'ocr_temp': ocr_temp,
+            'message': msg
+        })
+    except Exception as e:
+        return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
+
+
 @app.post('/api/wave2/upload_thermal')
 async def handle_wave2_upload_thermal(
     pot_id: str = Form(...),

@@ -322,10 +322,13 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                 }}
                 if (cell) {{
                     cell.innerHTML = `
-                        <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}]'); return false;" title="Открыть термограмму [${{pid}}]" style="color: #059669; font-weight: 700; font-size: 11px; white-space: nowrap; text-decoration: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">✓ ${{fname}} 🔍</a>
-                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Заменить снимок термограммы" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">📁</button>
-                        <button type="button" onclick="promptThermalFilename('${{pid}}')" title="Изменить имя вручную" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">✏️</button>
-                        <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
+                        <div style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                            <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}]'); return false;" style="color: #059669; text-decoration: none; font-weight: 700; white-space: nowrap; font-size: 11px;">
+                                <span style="font-family: monospace; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">${{fname}}</span> 🔍
+                            </a>
+                            <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
+                            <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Заменить снимок" style="border:none; background:none; cursor:pointer; font-size:11px; padding:0 2px; color:#64748b;">🔄</button>
+                        </div>
                     `;
                 }}
                 const rowEl = document.getElementById('row_' + pid);
@@ -339,8 +342,8 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                 if (cell) {{
                     cell.innerHTML = `
                         <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
-                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Загрузить снимок термограммы с ПК/флешки" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">📷 Файл</button>
-                        <button type="button" onclick="promptThermalFilename('${{pid}}')" title="Ввести имя файла вручную" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap;">✏️ Имя</button>
+                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Загрузить снимок (имя присвоится автоматически)" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">📷 Загрузить</button>
+                        <button type="button" onclick="grabUtiThermal('${{pid}}')" title="Взять свежий снимок с прибора" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">⚡ С прибора</button>
                     `;
                 }}
             }}
@@ -349,29 +352,37 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
         }}
     }}
 
-    async function promptThermalFilename(pid) {{
-        const curCell = document.getElementById('cell_th_' + pid);
-        const promptVal = prompt('Введите имя файла термограммы (с флешки UTi120S) для [' + pid + ']:\n(например: IMG_0012.JPG или ' + pid + '_thermal.jpg)', '');
-        if (!promptVal || !promptVal.trim()) return;
+    async function grabUtiThermal(pid) {{
+        const cell = document.getElementById('cell_th_' + pid);
+        if (cell) cell.innerHTML = '<span style="color:#0284c7;font-size:11px;font-weight:700;">⏳ Считывание с UTi120S...</span>';
 
-        const cleanVal = promptVal.trim();
         const formData = new FormData();
         formData.append('pot_id', pid);
-        formData.append('thermal_filename', cleanVal);
 
         try {{
-            const resp = await fetch('/api/wave2/update_record', {{
+            const resp = await fetch('/api/wave2/grab_uti_thermal', {{
                 method: 'POST',
                 body: formData
             }});
             const res = await resp.json();
             if (res.status === 'ok') {{
-                if (curCell) {{
-                    curCell.innerHTML = `
-                        <a href="/wave2_image/${{cleanVal}}" target="_blank" onclick="openImageViewer('/wave2_image/${{cleanVal}}', 'Термограмма UTi120S — Горшок [${{pid}}]'); return false;" title="Открыть термограмму [${{pid}}]" style="color: #059669; font-weight: 700; font-size: 11px; white-space: nowrap; text-decoration: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">✓ ${{cleanVal}} 🔍</a>
-                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Заменить снимок термограммы" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">📁</button>
-                        <button type="button" onclick="promptThermalFilename('${{pid}}')" title="Изменить имя вручную" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">✏️</button>
-                        <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
+                const fname = res.filename;
+                if (res.ocr_temp) {{
+                    const tlEl = document.getElementById('cell_tl_' + pid);
+                    if (tlEl && (!tlEl.value || tlEl.value === '--')) {{
+                        tlEl.value = res.ocr_temp;
+                        saveRowEdit(pid, true);
+                    }}
+                }}
+                if (cell) {{
+                    cell.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                            <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}]'); return false;" style="color: #059669; text-decoration: none; font-weight: 700; white-space: nowrap; font-size: 11px;">
+                                <span style="font-family: monospace; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">${{fname}}</span> 🔍
+                            </a>
+                            <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
+                            <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Заменить снимок" style="border:none; background:none; cursor:pointer; font-size:11px; padding:0 2px; color:#64748b;">🔄</button>
+                        </div>
                     `;
                 }}
                 const rowEl = document.getElementById('row_' + pid);
@@ -381,10 +392,17 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                     setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
                 }}
             }} else {{
-                alert('Ошибка сохранения: ' + (res.error || res.message));
+                alert('Тепловизор UTi120S: ' + (res.message || res.error || 'Не удалось считать'));
+                if (cell) {{
+                    cell.innerHTML = `
+                        <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
+                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Загрузить снимок (имя присвоится автоматически)" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">📷 Загрузить</button>
+                        <button type="button" onclick="grabUtiThermal('${{pid}}')" title="Взять свежий снимок с прибора" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">⚡ С прибора</button>
+                    `;
+                }}
             }}
         }} catch(err) {{
-            alert('Сетевая ошибка: ' + err);
+            alert('Сетевая ошибка связи с тепловизором: ' + err);
         }}
     }}
 
@@ -658,23 +676,24 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             else:
                 ndvi_cell = f'''<span style="font-family: monospace; font-size: 11px; color: #334155; font-weight: 600;">{ndvi_txt}</span>'''
 
-            # Ячейка Термограммы с интерактивным просмотром и кнопками загрузки/ввода
+            # Ячейка Термограммы в едином стиле с NDVI (авто-имя, лупа, просмотр)
             if th_file and th_file != "--":
                 clean_th = os.path.basename(th_file)
                 th_cell = f'''<div id="cell_th_{rec_id}" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-                    <a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}]\'); return false;" title="Открыть термограмму [{rec_id}]" style="color: #059669; font-weight: 700; font-size: 11px; white-space: nowrap; text-decoration: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">✓ {clean_th} 🔍</a>
-                    <button type="button" onclick="document.getElementById(\'file_th_{rec_id}\').click()" title="Заменить снимок термограммы" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">📁</button>
-                    <button type="button" onclick="promptThermalFilename(\'{rec_id}\')" title="Изменить имя вручную" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">✏️</button>
+                    <a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}]\'); return false;" title="Открыть термограмму [{rec_id}]" style="color: #059669; text-decoration: none; font-weight: 700; font-size: 11px; white-space: nowrap;">
+                        <span style="font-family: monospace; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">{clean_th}</span> 🔍
+                    </a>
                     <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage(\'{rec_id}\', this)">
+                    <button type="button" onclick="document.getElementById(\'file_th_{rec_id}\').click()" title="Заменить снимок" style="border:none; background:none; cursor:pointer; font-size:11px; padding:0 2px; color:#64748b;">🔄</button>
                 </div>'''
             else:
                 th_cell = f'''<div id="cell_th_{rec_id}" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
                     <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage(\'{rec_id}\', this)">
-                    <button type="button" onclick="document.getElementById(\'file_th_{rec_id}\').click()" title="Загрузить снимок термограммы с ПК/флешки" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
-                        📷 Файл
+                    <button type="button" onclick="document.getElementById(\'file_th_{rec_id}\').click()" title="Загрузить снимок (имя присвоится автоматически)" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                        📷 Загрузить
                     </button>
-                    <button type="button" onclick="promptThermalFilename(\'{rec_id}\')" title="Ввести имя файла вручную" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap;">
-                        ✏️ Имя
+                    <button type="button" onclick="grabUtiThermal(\'{rec_id}\')" title="Взять свежий снимок с подключенного тепловизора UTi120S (переместит в DONE)" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                        ⚡ С прибора
                     </button>
                 </div>'''
 
