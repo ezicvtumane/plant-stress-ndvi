@@ -842,8 +842,24 @@ async function openAnovaModal() {
         tbody.innerHTML = htmlRows;
 
         if (data.chart_url) {
-            chartImg.src = data.chart_url + '?t=' + new Date().getTime();
-            chartWrapper.style.display = 'block';
+            let chartUrlWithTs = data.chart_url + '?t=' + new Date().getTime();
+            let openBtn = document.getElementById('anovaOpenChartBtn');
+            if (openBtn) openBtn.href = chartUrlWithTs;
+
+            let preloader = new Image();
+            preloader.onload = function() {
+                chartImg.src = chartUrlWithTs;
+                chartWrapper.style.display = 'block';
+            };
+            preloader.onerror = function() {
+                setTimeout(() => {
+                    let retryUrl = data.chart_url + '?t=' + (new Date().getTime() + 1);
+                    chartImg.src = retryUrl;
+                    if (openBtn) openBtn.href = retryUrl;
+                    chartWrapper.style.display = 'block';
+                }, 600);
+            };
+            preloader.src = chartUrlWithTs;
         }
     } catch (e) {
         badge.style.background = '#e11d48';
