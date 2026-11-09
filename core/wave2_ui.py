@@ -1072,9 +1072,9 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
 
                 // Сразу убираем импортированный и удаленный файл из открытого списка модалки
                 const fileRow = document.getElementById('uti_row_' + filename.replace(/[^a-zA-Z0-9_-]/g, '_'));
-                if (fileRow) {
+                if (fileRow) {{
                     fileRow.remove();
-                }
+                }}
 
                 closeUtiFolderModal();
             }} else {{
