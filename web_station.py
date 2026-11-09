@@ -47,7 +47,7 @@ from fastapi import FastAPI
 from fastapi.templating import Jinja2Templates
 from api.routes.downloads import router as downloads_router, init_downloads
 from fastapi import Request, Form, UploadFile, File, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import shutil
@@ -3708,9 +3708,88 @@ def grab_latest_uti_thermal_image(pot_id: str, images_dir: str):
     return True, display_name, ocr_temp, f"Снимок {orig_name} успешно импортирован как {display_name} и убран в DONE"
 
 
+UTI_OCR_CACHE_PATH = os.path.join(DATA_DIR, "uti_ocr_cache.json")
+
+def load_uti_ocr_cache() -> dict:
+    if os.path.exists(UTI_OCR_CACHE_PATH):
+        try:
+            with open(UTI_OCR_CACHE_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_uti_ocr_cache(cache: dict):
+    try:
+        with open(UTI_OCR_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[UTi Cache Save Error]: {e}")
+
+
+@app.get('/api/wave2/uti_preview_thumb/{filename}')
+async def handle_wave2_uti_preview_thumb(filename: str, full: int = 0):
+    """Отдает JPEG-превью для файла из Images тепловизора или резервной папки."""
+    safe_name = os.path.basename(filename.strip())
+    auto_mount_uti_rw()
+    fp = os.path.join(UTI_DIR, safe_name)
+    if not os.path.exists(fp):
+        backup_fp = os.path.join(DATA_DIR, 'thermal_camera_backup', safe_name)
+        if os.path.exists(backup_fp):
+            fp = backup_fp
+        else:
+            return Response(status_code=404, content=b"File not found")
+
+    img = cv2.imread(fp)
+    if img is None:
+        return Response(status_code=500, content=b"Could not decode image")
+
+    if full == 0:
+        h, w = img.shape[:2]
+        thumb_w = 160
+        thumb_h = int(h * (thumb_w / w))
+        img = cv2.resize(img, (thumb_w, thumb_h), interpolation=cv2.INTER_AREA)
+
+    ok, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    if not ok:
+        return Response(status_code=500, content=b"Encoding error")
+
+    return Response(
+        content=buf.tobytes(),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=3600"}
+    )
+
+
+@app.get('/api/wave2/uti_ocr_temp/{filename}')
+async def handle_wave2_uti_ocr_temp(filename: str):
+    """Распознает температуру OCR для конкретного файла тепловизора с кэшированием."""
+    safe_name = os.path.basename(filename.strip())
+    cache = load_uti_ocr_cache()
+    if safe_name in cache:
+        return JSONResponse({'status': 'ok', 'filename': safe_name, 'ocr_temp': cache[safe_name]})
+
+    auto_mount_uti_rw()
+    fp = os.path.join(UTI_DIR, safe_name)
+    if not os.path.exists(fp):
+        backup_fp = os.path.join(DATA_DIR, 'thermal_camera_backup', safe_name)
+        if os.path.exists(backup_fp):
+            fp = backup_fp
+        else:
+            return JSONResponse({'status': 'error', 'message': 'Файл не найден'}, status_code=404)
+
+    temp, ok = extract_temperature_from_thermal(fp)
+    if temp is not None:
+        val = round(float(temp), 1)
+        cache[safe_name] = val
+        save_uti_ocr_cache(cache)
+        return JSONResponse({'status': 'ok', 'filename': safe_name, 'ocr_temp': val})
+    return JSONResponse({'status': 'error', 'message': 'Не удалось распознать OCR'}, status_code=422)
+
+
 @app.get('/api/wave2/uti_images_list')
 async def handle_wave2_uti_images_list():
-    """Возвращает список всех термограмм, доступных в папке Images на подключенном тепловизоре UTi120S."""
+    """Возвращает список всех термограмм с миниатюрами и OCR температурами."""
     auto_mount_uti_rw()
     if not os.path.exists(UTI_DIR):
         return JSONResponse({
@@ -3743,6 +3822,33 @@ async def handle_wave2_uti_images_list():
         return (f['mtime'], num)
 
     all_files.sort(key=sort_key, reverse=True)
+
+    cache = load_uti_ocr_cache()
+    cache_dirty = False
+
+    # Пре-распознаем OCR для топ-8 свежих файлов (если еще нет в кэше)
+    for f in all_files[:8]:
+        fname = f['name']
+        if fname in cache:
+            f['ocr_temp'] = cache[fname]
+        else:
+            fp = os.path.join(UTI_DIR, fname)
+            temp, ok = extract_temperature_from_thermal(fp)
+            if temp is not None:
+                val = round(float(temp), 1)
+                cache[fname] = val
+                f['ocr_temp'] = val
+                cache_dirty = True
+            else:
+                f['ocr_temp'] = None
+
+    # Для остальных файлов подставляем уже сохраненное из кэша
+    for f in all_files[8:]:
+        f['ocr_temp'] = cache.get(f['name'], None)
+
+    if cache_dirty:
+        save_uti_ocr_cache(cache)
+
     return JSONResponse({
         'status': 'ok',
         'mounted': True,

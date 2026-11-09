@@ -928,7 +928,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
         const body = document.getElementById('utiFolderBody');
         const cntBadge = document.getElementById('utiFilesCountBadge');
         if (!body) return;
-        body.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:13px;">⏳ Считывание папки /media/uti120s/Images...</div>';
+        body.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b; font-size:13px;">⏳ Считывание папки /media/uti120s/Images и распознавание...</div>';
         
         try {{
             const resp = await fetch('/api/wave2/uti_images_list');
@@ -959,51 +959,54 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                 return;
             }}
 
-            const latestFile = data.files[0];
             let html = '';
 
-            // Карточка быстрого забора самого последнего снимка
-            html += `
-                <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:12px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div style="font-size:11px; font-weight:800; color:#15803d; text-transform:uppercase;">⚡ Самый свежий снимок на приборе:</div>
-                        <div style="font-size:15px; font-weight:800; color:#0f172a; font-family:monospace; margin-top:2px;">${{latestFile.name}}</div>
-                        <div style="font-size:11px; color:#64748b;">Дата: ${{latestFile.mtime_str}} &bull; ${{latestFile.size_kb}} КБ</div>
-                    </div>
-                    <button type="button" id="btn_import_latest" onclick="importUtiFile('${{latestFile.name}}', this)" style="background:#059669; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; box-shadow:0 2px 4px rgba(5,150,105,0.3);">
-                        ⚡ Взять последний
-                    </button>
-                </div>
-            `;
-
-            // Таблица всех файлов
+            // Таблица всех файлов с превью и температурой
             html += `
                 <table style="width:100%; border-collapse:collapse; font-size:12px;">
                     <thead>
                         <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; color:#64748b; font-size:11px;">
-                            <th style="padding:6px 8px; text-align:left;">Файл</th>
-                            <th style="padding:6px 8px; text-align:left;">Время снимка</th>
-                            <th style="padding:6px 8px; text-align:right;">Размер</th>
-                            <th style="padding:6px 8px; text-align:center;">Действие</th>
+                            <th style="padding:8px 10px; text-align:center; width:90px;">Превью</th>
+                            <th style="padding:8px 10px; text-align:left;">Снимок / Время</th>
+                            <th style="padding:8px 10px; text-align:center; width:110px;">Температура</th>
+                            <th style="padding:8px 10px; text-align:center; width:140px;">Действие</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
 
             for (const f of data.files) {{
+                const safeName = f.name.replace(/[^a-zA-Z0-9_]/g, '_');
+                let tempHtml = '';
+                let tempTitle = '';
+                if (f.ocr_temp !== null && f.ocr_temp !== undefined) {{
+                    tempHtml = `<span style="background: #ecfdf5; color: #047857; font-weight: 800; font-size: 13px; padding: 4px 8px; border-radius: 6px; border: 1px solid #a7f3d0; white-space: nowrap;">🌡️ ${{f.ocr_temp}}°C</span>`;
+                    tempTitle = ` (${{f.ocr_temp}}°C)`;
+                }} else {{
+                    tempHtml = `<span id="ocr_box_${{safeName}}"><button type="button" onclick="fetchFileOcr('${{f.name}}', this)" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:3px 7px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer;" title="Распознать температуру">🔍 Узнать T°</button></span>`;
+                }}
+
                 html += `
                     <tr style="border-bottom:1px solid #f1f5f9;">
-                        <td style="padding:6px 8px; font-weight:700; font-family:monospace; color:#0f172a;">
-                            📷 ${{f.name}}
+                        <!-- Превью тепловизора -->
+                        <td style="padding:8px 10px; text-align:center;">
+                            <img src="/api/wave2/uti_preview_thumb/${{f.name}}" alt="${{f.name}}" loading="lazy"
+                                style="width:80px; height:60px; object-fit:cover; border-radius:6px; cursor:pointer; border:1.5px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.12); display:block; margin:0 auto; background:#000;" 
+                                onclick="openImageViewer('/api/wave2/uti_preview_thumb/${{f.name}}?full=1', 'Термограмма UTi120S — ${{f.name}}${{tempTitle}}')"
+                                title="Кликните для полноразмерного просмотра">
                         </td>
-                        <td style="padding:6px 8px; color:#64748b; font-size:11px;">
-                            ${{f.mtime_str}}
+                        <!-- Имя и время -->
+                        <td style="padding:8px 10px;">
+                            <div style="font-weight:800; font-family:monospace; font-size:13px; color:#0f172a;">${{f.name}}</div>
+                            <div style="font-size:11px; color:#64748b; margin-top:2px;">📅 ${{f.mtime_str}} &bull; ${{f.size_kb}} КБ</div>
                         </td>
-                        <td style="padding:6px 8px; text-align:right; font-family:monospace; color:#64748b; font-size:11px;">
-                            ${{f.size_kb}} КБ
+                        <!-- Температура OCR -->
+                        <td style="padding:8px 10px; text-align:center;">
+                            ${{tempHtml}}
                         </td>
-                        <td style="padding:6px 8px; text-align:center;">
-                            <button type="button" onclick="importUtiFile('${{f.name}}', this)" style="background:#6366f1; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer;">
+                        <!-- Кнопка импорта -->
+                        <td style="padding:8px 10px; text-align:center;">
+                            <button type="button" onclick="importUtiFile('${{f.name}}', this)" style="background:#6366f1; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; box-shadow:0 2px 4px rgba(99,102,241,0.25);">
                                 📥 Забрать и стереть
                             </button>
                         </td>
@@ -1087,6 +1090,33 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             }}
         }}
     }}
+    
+    async function fetchFileOcr(filename, btnEl) {{
+        if (btnEl) {{
+            btnEl.disabled = true;
+            btnEl.innerText = '⏳...';
+        }}
+        try {{
+            const resp = await fetch('/api/wave2/uti_ocr_temp/' + encodeURIComponent(filename));
+            const res = await resp.json();
+            if (res.status === 'ok' && res.ocr_temp !== null && res.ocr_temp !== undefined) {{
+                if (btnEl && btnEl.parentElement) {{
+                    btnEl.parentElement.innerHTML = `<span style="background: #ecfdf5; color: #047857; font-weight: 800; font-size: 13px; padding: 4px 8px; border-radius: 6px; border: 1px solid #a7f3d0; white-space: nowrap;">🌡️ ${{res.ocr_temp}}°C</span>`;
+                }}
+            }} else {{
+                if (btnEl) {{
+                    btnEl.disabled = false;
+                    btnEl.innerText = '—';
+                }}
+            }}
+        }} catch(err) {{
+            if (btnEl) {{
+                btnEl.disabled = false;
+                btnEl.innerText = 'Ошибка';
+            }}
+        }}
+    }}
+
     </script>
 
     """
