@@ -966,7 +966,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                 <table style="width:100%; border-collapse:collapse; font-size:12px;">
                     <thead>
                         <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; color:#64748b; font-size:11px;">
-                            <th style="padding:8px 10px; text-align:center; width:90px;">Превью</th>
+                            <th style="padding:8px 10px; text-align:center; width:135px;">Превью (T° экрана)</th>
                             <th style="padding:8px 10px; text-align:left;">Снимок / Время</th>
                             <th style="padding:8px 10px; text-align:center; width:110px;">Температура</th>
                             <th style="padding:8px 10px; text-align:center; width:140px;">Действие</th>
@@ -988,12 +988,12 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
 
                 html += `
                     <tr style="border-bottom:1px solid #f1f5f9;">
-                        <!-- Превью тепловизора -->
-                        <td style="padding:8px 10px; text-align:center;">
-                            <img src="/api/wave2/uti_preview_thumb/${{f.name}}" alt="${{f.name}}" loading="lazy"
-                                style="width:80px; height:60px; object-fit:cover; border-radius:6px; cursor:pointer; border:1.5px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.12); display:block; margin:0 auto; background:#000;" 
+                        <!-- Превью верхней части с температурой -->
+                        <td style="padding:8px 10px; text-align:center; width:135px;">
+                            <img src="/api/wave2/uti_preview_thumb/${{f.name}}?mode=top" alt="${{f.name}}" loading="lazy"
+                                style="width:125px; height:48px; object-fit:contain; border-radius:6px; cursor:pointer; border:1.5px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.12); display:block; margin:0 auto; background:#000;" 
                                 onclick="openImageViewer('/api/wave2/uti_preview_thumb/${{f.name}}?full=1', 'Термограмма UTi120S — ${{f.name}}${{tempTitle}}')"
-                                title="Кликните для полноразмерного просмотра">
+                                title="Верхняя часть снимка с температурой прибора. Кликните для просмотра всего кадра">
                         </td>
                         <!-- Имя и время -->
                         <td style="padding:8px 10px;">

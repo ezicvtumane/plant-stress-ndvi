@@ -3728,8 +3728,8 @@ def save_uti_ocr_cache(cache: dict):
 
 
 @app.get('/api/wave2/uti_preview_thumb/{filename}')
-async def handle_wave2_uti_preview_thumb(filename: str, full: int = 0):
-    """Отдает JPEG-превью для файла из Images тепловизора или резервной папки."""
+async def handle_wave2_uti_preview_thumb(filename: str, full: int = 0, mode: str = 'top'):
+    """Отдает JPEG-превью (верхней части с температурой или полный кадр) для файла тепловизора."""
     safe_name = os.path.basename(filename.strip())
     auto_mount_uti_rw()
     fp = os.path.join(UTI_DIR, safe_name)
@@ -3744,13 +3744,22 @@ async def handle_wave2_uti_preview_thumb(filename: str, full: int = 0):
     if img is None:
         return Response(status_code=500, content=b"Could not decode image")
 
-    if full == 0:
+    if full == 1:
+        # Полный оригинальный кадр без обрезки для просмотра
+        pass
+    elif mode == 'top':
+        # Верхняя часть снимка (первые 28% высоты), где отображается температура на экране UTi120S
+        h, w = img.shape[:2]
+        top_h = int(h * 0.28)
+        img = img[0:top_h, 0:w]
+    else:
+        # Общая уменьшенная миниатюра
         h, w = img.shape[:2]
         thumb_w = 160
         thumb_h = int(h * (thumb_w / w))
         img = cv2.resize(img, (thumb_w, thumb_h), interpolation=cv2.INTER_AREA)
 
-    ok, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    ok, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
     if not ok:
         return Response(status_code=500, content=b"Encoding error")
 
