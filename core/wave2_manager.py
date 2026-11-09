@@ -168,12 +168,18 @@ def detect_aruco_scale_on_floor(gray_img: np.ndarray, real_size_cm: float = 1.5)
     """
     default_px_per_cm = 40.0
     try:
-        # Проверяем доступность словаря ArUco
-        aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-        if gray_img.dtype != np.uint8:
+        # Инфракрасный канал имеет узкий динамический диапазон (0-30 DN).
+        # Растягиваем гистограмму и применяем CLAHE для уверенной детекции ArUco.
+        if gray_img.max() > gray_img.min():
+            norm_u8 = cv2.normalize(gray_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            gray_u8 = clahe.apply(norm_u8)
+        elif gray_img.dtype != np.uint8:
             gray_u8 = np.clip(gray_img, 0, 255).astype(np.uint8)
         else:
             gray_u8 = gray_img
+
+        aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         params = (
             cv2.aruco.DetectorParameters()
             if hasattr(cv2.aruco, 'DetectorParameters')
