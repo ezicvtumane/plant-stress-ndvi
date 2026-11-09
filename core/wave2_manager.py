@@ -375,7 +375,9 @@ def compute_single_pot_phenotyping(
         "pla_cm2": pla_cm2,
         "ndvi_mean": round(ndvi_mean, 3),
         "ndvi_std": round(ndvi_std, 3),
-        "px_per_cm_leaf": float(round(px_per_cm_leaf, 1))
+        "px_per_cm_leaf": float(round(px_per_cm_leaf, 1)),
+        "aruco_detected": bool(getattr(px_per_cm_floor, 'detected', False)),
+        "aruco_id": getattr(px_per_cm_floor, 'id', None)
     }
     
     return annotated, metrics
