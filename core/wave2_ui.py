@@ -750,24 +750,24 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                 <td style="padding: 8px 10px;">{th_cell}</td>
                 <td style="padding: 6px 4px; text-align: center; white-space: nowrap;">
                     <button type="button" id="btn_save_{rec_id}" onclick="saveRowEdit('{rec_id}', false)" title="Сохранить изменения" 
-                        style="background: #0284c7; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer;">
+                        style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s ease;">
                         💾
                     </button>
                     <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('{rec_id}', this)">
                     <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить снимок с компьютера через проводник" 
-                        style="background: #0d9488; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
+                        style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px; transition: all 0.15s ease;">
                         📷
                     </button>
-                    <button type="button" onclick="openUtiFolderModal('{rec_id}')" title="Открыть папку Images на тепловизоре (выбрать, резервировать на станции и стереть с прибора)" 
-                        style="background: #6366f1; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
+                    <button type="button" onclick="openUtiFolderModal('{rec_id}')" title="Открыть папку Images на тепловизоре (выбрать, резервировать и стереть)" 
+                        style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px; transition: all 0.15s ease;">
                         📁
                     </button>
-                    <button type="button" onclick="reshootWave2Pot('{rec_id}')" title="Выбрать этот горшок и переснять" 
-                        style="background: #f59e0b; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
-                        🔄 Переснять
+                    <button type="button" onclick="reshootWave2Pot('{rec_id}')" title="Выбрать этот горшок и переснять оптику NoIR" 
+                        style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px; transition: all 0.15s ease;">
+                        🔄
                     </button>
                     <button type="button" onclick="deleteWave2Row('{rec_id}')" title="Удалить ошибочный замер" 
-                        style="background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
+                        style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px; transition: all 0.15s ease;">
                         🗑️
                     </button>
                 </td>
