@@ -257,6 +257,10 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                     const doseCell = document.getElementById('cell_dose_' + pid);
                     if (doseCell) doseCell.innerText = res.dose;
                 }}
+                const thSpan = document.querySelector('#cell_th_' + pid + ' a span');
+                if (thSpan && tl) {{
+                    thSpan.innerText = tl + '°';
+                }}
                 if (rowEl) {{
                     rowEl.style.transition = 'background-color 0.3s ease';
                     rowEl.style.backgroundColor = '#ecfdf5';
@@ -313,22 +317,25 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             const res = await resp.json();
             if (res.status === 'ok') {{
                 const fname = res.filename;
+                let thTxt = '✓';
                 if (res.ocr_temp) {{
                     const tlEl = document.getElementById('cell_tl_' + pid);
                     if (tlEl && (!tlEl.value || tlEl.value === '--')) {{
                         tlEl.value = res.ocr_temp;
                         saveRowEdit(pid, true);
                     }}
+                    thTxt = res.ocr_temp + '°';
+                }} else {{
+                    const tlEl = document.getElementById('cell_tl_' + pid);
+                    if (tlEl && tlEl.value && tlEl.value !== '--') {{
+                        thTxt = tlEl.value + '°';
+                    }}
                 }}
                 if (cell) {{
                     cell.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-                            <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}]'); return false;" style="color: #059669; text-decoration: none; font-weight: 700; white-space: nowrap; font-size: 11px;">
-                                <span style="font-family: monospace; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">${{fname}}</span> 🔍
-                            </a>
-                            <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
-                            <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Заменить снимок" style="border:none; background:none; cursor:pointer; font-size:11px; padding:0 2px; color:#64748b;">🔄</button>
-                        </div>
+                        <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}] (${{thTxt}})'); return false;" title="Открыть термограмму [${{pid}}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;">
+                            <span style="font-family: monospace; font-size: 11px;">${{thTxt}}</span> 🔍
+                        </a>
                     `;
                 }}
                 const rowEl = document.getElementById('row_' + pid);
@@ -340,15 +347,16 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             }} else {{
                 alert('Ошибка загрузки термограммы: ' + (res.error || res.message || 'Ошибка'));
                 if (cell) {{
-                    cell.innerHTML = `
-                        <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
-                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Загрузить снимок (имя присвоится автоматически)" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">📷 Загрузить</button>
-                        <button type="button" onclick="grabUtiThermal('${{pid}}')" title="Взять свежий снимок с прибора" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">⚡ С прибора</button>
-                    `;
+                    cell.innerHTML = '<span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span>';
                 }}
             }}
         }} catch(err) {{
             alert('Сетевая ошибка при загрузке: ' + err);
+            if (cell) {{
+                cell.innerHTML = '<span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span>';
+            }}
+        }} finally {{
+            if (inputEl) inputEl.value = '';
         }}
     }}
 
@@ -367,22 +375,25 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             const res = await resp.json();
             if (res.status === 'ok') {{
                 const fname = res.filename;
+                let thTxt = '✓';
                 if (res.ocr_temp) {{
                     const tlEl = document.getElementById('cell_tl_' + pid);
                     if (tlEl && (!tlEl.value || tlEl.value === '--')) {{
                         tlEl.value = res.ocr_temp;
                         saveRowEdit(pid, true);
                     }}
+                    thTxt = res.ocr_temp + '°';
+                }} else {{
+                    const tlEl = document.getElementById('cell_tl_' + pid);
+                    if (tlEl && tlEl.value && tlEl.value !== '--') {{
+                        thTxt = tlEl.value + '°';
+                    }}
                 }}
                 if (cell) {{
                     cell.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-                            <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}]'); return false;" style="color: #059669; text-decoration: none; font-weight: 700; white-space: nowrap; font-size: 11px;">
-                                <span style="font-family: monospace; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">${{fname}}</span> 🔍
-                            </a>
-                            <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
-                            <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Заменить снимок" style="border:none; background:none; cursor:pointer; font-size:11px; padding:0 2px; color:#64748b;">🔄</button>
-                        </div>
+                        <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}] (${{thTxt}})'); return false;" title="Открыть термограмму [${{pid}}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;">
+                            <span style="font-family: monospace; font-size: 11px;">${{thTxt}}</span> 🔍
+                        </a>
                     `;
                 }}
                 const rowEl = document.getElementById('row_' + pid);
@@ -394,15 +405,14 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             }} else {{
                 alert('Тепловизор UTi120S: ' + (res.message || res.error || 'Не удалось считать'));
                 if (cell) {{
-                    cell.innerHTML = `
-                        <input type="file" id="file_th_${{pid}}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
-                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Загрузить снимок (имя присвоится автоматически)" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">📷 Загрузить</button>
-                        <button type="button" onclick="grabUtiThermal('${{pid}}')" title="Взять свежий снимок с прибора" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">⚡ С прибора</button>
-                    `;
+                    cell.innerHTML = '<span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span>';
                 }}
             }}
         }} catch(err) {{
             alert('Сетевая ошибка связи с тепловизором: ' + err);
+            if (cell) {{
+                cell.innerHTML = '<span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span>';
+            }}
         }}
     }}
 
@@ -676,26 +686,19 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             else:
                 ndvi_cell = f'''<span style="font-family: monospace; font-size: 11px; color: #334155; font-weight: 600;">{ndvi_txt}</span>'''
 
-            # Ячейка Термограммы в едином стиле с NDVI (авто-имя, лупа, просмотр)
+            # Ячейка Термограммы в едином стиле с NDVI (превью с температурой: 24.0° 🔍 или —)
             if th_file and th_file != "--":
                 clean_th = os.path.basename(th_file)
-                th_cell = f'''<div id="cell_th_{rec_id}" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-                    <a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}]\'); return false;" title="Открыть термограмму [{rec_id}]" style="color: #059669; text-decoration: none; font-weight: 700; font-size: 11px; white-space: nowrap;">
-                        <span style="font-family: monospace; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">{clean_th}</span> 🔍
-                    </a>
-                    <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage(\'{rec_id}\', this)">
-                    <button type="button" onclick="document.getElementById(\'file_th_{rec_id}\').click()" title="Заменить снимок" style="border:none; background:none; cursor:pointer; font-size:11px; padding:0 2px; color:#64748b;">🔄</button>
-                </div>'''
+                if t_leaf and t_leaf != "--":
+                    try:
+                        th_txt = f"{float(t_leaf):.1f}°"
+                    except (ValueError, TypeError):
+                        th_txt = f"{t_leaf}°"
+                else:
+                    th_txt = "✓"
+                th_cell = f'''<div id="cell_th_{rec_id}" style="text-align: center;"><a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}] ({th_txt})\'); return false;" title="Открыть термограмму [{rec_id}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{th_txt}</span> 🔍</a></div>'''
             else:
-                th_cell = f'''<div id="cell_th_{rec_id}" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-                    <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage(\'{rec_id}\', this)">
-                    <button type="button" onclick="document.getElementById(\'file_th_{rec_id}\').click()" title="Загрузить снимок (имя присвоится автоматически)" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
-                        📷 Загрузить
-                    </button>
-                    <button type="button" onclick="grabUtiThermal(\'{rec_id}\')" title="Взять свежий снимок с подключенного тепловизора UTi120S (переместит в DONE)" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
-                        ⚡ С прибора
-                    </button>
-                </div>'''
+                th_cell = f'''<div id="cell_th_{rec_id}" style="text-align: center;"><span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span></div>'''
 
             meta = POTS_CATALOG.get(rec_id, {})
             color = meta.get("color", "#475569")
@@ -742,8 +745,9 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                         style="background: #0284c7; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer;">
                         💾
                     </button>
-                    <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить термограмму" 
-                        style="background: #0d9488; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 6px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
+                    <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('{rec_id}', this)">
+                    <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить снимок термограммы" 
+                        style="background: #0d9488; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
                         📷
                     </button>
                     <button type="button" onclick="reshootWave2Pot('{rec_id}')" title="Выбрать этот горшок и переснять" 
@@ -759,22 +763,22 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             """)
 
     return f"""
-    <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+    <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; text-align: left;">
         <thead>
-            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; position: sticky; top: 0; z-index: 5;">
-                <th style="padding: 8px 10px;">ID</th>
-                <th style="padding: 8px 10px;">Время</th>
-                <th style="padding: 8px 10px;">Масса (г)</th>
-                <th style="padding: 8px 10px;">T листа (°C)</th>
-                <th style="padding: 8px 10px;">T возд (°C)</th>
-                <th style="padding: 8px 10px;">ΔT (°C)</th>
-                <th style="padding: 8px 10px;">Почва (%)</th>
-                <th style="padding: 8px 10px;">Тургор</th>
-                <th style="padding: 8px 10px;">Доза (мл)</th>
-                <th style="padding: 8px 10px;">NDVI</th>
-                <th style="padding: 8px 10px;">PLA (см²)</th>
-                <th style="padding: 8px 10px;">Термограмма</th>
-                <th style="padding: 8px 10px; text-align: center;">Действие</th>
+            <tr style="background: #f8fafc; color: #475569;">
+                <th style="padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">ID</th>
+                <th style="padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">Время</th>
+                <th style="padding: 10px 6px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">Масса (г)</th>
+                <th style="padding: 10px 6px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">T листа (°C)</th>
+                <th style="padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">T возд (°C)</th>
+                <th style="padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">ΔT (°C)</th>
+                <th style="padding: 10px 6px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center;">Почва (%)</th>
+                <th style="padding: 10px 6px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">Тургор</th>
+                <th style="padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">Доза (мл)</th>
+                <th style="padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">NDVI</th>
+                <th style="padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">PLA (см²)</th>
+                <th style="padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center;">Термограмма</th>
+                <th style="padding: 10px 8px; text-align: center; background: #f8fafc; border-bottom: 2px solid var(--sirius-teal); position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">Действие</th>
             </tr>
         </thead>
         <tbody>

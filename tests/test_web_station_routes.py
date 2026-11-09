@@ -143,3 +143,19 @@ def test_wave2_bmp_upload_and_conversion():
     assert data['status'] == 'ok'
     assert data['filename'].endswith('.jpg')
     assert data['raw_filename'].endswith('.bmp')
+
+
+def test_wave2_ui_redesign_and_scrolling():
+    """Проверка редизайна колонки термограммы (как NDVI), кнопки 📷 и скролла таблицы."""
+    res = client.get('/?set_exp=exp_1792918800')
+    assert res.status_code == 200
+    html = res.text
+    # 1. Option A: no max-height constraint trapping table scroll
+    assert 'max-height: 420px;' not in html
+    assert 'max-height: 320px;' not in html
+    # 2. Table has sticky top header
+    assert 'position: sticky; top: 0;' in html
+    # 3. Action column has teal camera button and hidden file input
+    assert 'file_th_' in html
+    assert 'uploadThermalImage' in html
+    assert 'openImageViewer' in html
