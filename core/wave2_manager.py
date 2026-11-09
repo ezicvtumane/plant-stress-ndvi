@@ -160,51 +160,82 @@ def get_agronomic_ndvi_lut() -> np.ndarray:
 AGRONOMIC_NDVI_LUT = get_agronomic_ndvi_lut()
 
 
-def detect_aruco_scale_on_floor(gray_img: np.ndarray, real_size_cm: float = 1.5) -> float:
+class ScaleResult(float):
+    """Прозрачный float с метаданными детекции ArUco."""
+    detected: bool = False
+    id: Optional[int] = None
+    corners: Optional[np.ndarray] = None
+    side_px: float = 0.0
+
+    def __new__(cls, val, detected=False, marker_id=None, corners=None, side_px=0.0):
+        obj = super().__new__(cls, val)
+        obj.detected = detected
+        obj.id = marker_id
+        obj.corners = corners
+        obj.side_px = side_px
+        return obj
+
+
+def detect_aruco_scale_on_floor(gray_img: np.ndarray, real_size_cm: float = 1.5, secondary_img: np.ndarray = None) -> ScaleResult:
     """
-    Детекция ArUco-маркера 15х15 мм на дне бокса.
+    Детекция ArUco-маркера 15х15 мм на дне бокса с адаптивной контрастной нормализацией (CLAHE).
     Возвращает масштаб: пикселей на сантиметр (px/cm) на плоскости дна.
     Если маркер не найден, возвращает базовое калибровочное значение (40.0 px/cm).
     """
     default_px_per_cm = 40.0
-    try:
-        # Инфракрасный канал имеет узкий динамический диапазон (0-30 DN).
-        # Растягиваем гистограмму и применяем CLAHE для уверенной детекции ArUco.
-        if gray_img.max() > gray_img.min():
-            norm_u8 = cv2.normalize(gray_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-            gray_u8 = clahe.apply(norm_u8)
-        elif gray_img.dtype != np.uint8:
-            gray_u8 = np.clip(gray_img, 0, 255).astype(np.uint8)
-        else:
-            gray_u8 = gray_img
+    images_to_try = [gray_img]
+    if secondary_img is not None:
+        images_to_try.append(secondary_img)
 
-        aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-        params = (
-            cv2.aruco.DetectorParameters()
-            if hasattr(cv2.aruco, 'DetectorParameters')
-            else cv2.aruco.DetectorParameters_create()
-        )
-        if hasattr(cv2.aruco, 'ArucoDetector'):
-            detector = cv2.aruco.ArucoDetector(aruco_dict, params)
-            corners, ids, _ = detector.detectMarkers(gray_u8)
-        else:
-            corners, ids, _ = cv2.aruco.detectMarkers(gray_u8, aruco_dict, parameters=params)
-        
-        if ids is not None and len(corners) > 0:
-            c = corners[0][0]
-            # Длина стороны маркера в пикселях (среднее по 4 граням)
-            side_px = (
-                np.linalg.norm(c[0] - c[1]) +
-                np.linalg.norm(c[1] - c[2]) +
-                np.linalg.norm(c[2] - c[3]) +
-                np.linalg.norm(c[3] - c[0])
-            ) / 4.0
-            if side_px > 5.0:
-                return float(side_px / real_size_cm)
-    except Exception as e:
-        pass
-    return default_px_per_cm
+    for cur_img in images_to_try:
+        if cur_img is None:
+            continue
+        try:
+            # Адаптивная контрастная нормализация (CLAHE):
+            # Инфракрасный канал имеет узкий динамический диапазон (0-30 DN).
+            # Растягиваем гистограмму и применяем CLAHE для уверенной детекции ArUco.
+            if cur_img.max() > cur_img.min():
+                norm_u8 = cv2.normalize(cur_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+                gray_u8 = clahe.apply(norm_u8)
+            elif cur_img.dtype != np.uint8:
+                gray_u8 = np.clip(cur_img, 0, 255).astype(np.uint8)
+            else:
+                gray_u8 = cur_img
+
+            aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+            params = (
+                cv2.aruco.DetectorParameters()
+                if hasattr(cv2.aruco, 'DetectorParameters')
+                else cv2.aruco.DetectorParameters_create()
+            )
+            params.adaptiveThreshWinSizeMin = 3
+            params.adaptiveThreshWinSizeMax = 53
+            params.adaptiveThreshWinSizeStep = 4
+
+            if hasattr(cv2.aruco, 'ArucoDetector'):
+                detector = cv2.aruco.ArucoDetector(aruco_dict, params)
+                corners, ids, _ = detector.detectMarkers(gray_u8)
+            else:
+                corners, ids, _ = cv2.aruco.detectMarkers(gray_u8, aruco_dict, parameters=params)
+            
+            if ids is not None and len(corners) > 0:
+                c = corners[0][0]
+                side_px = (
+                    np.linalg.norm(c[0] - c[1]) +
+                    np.linalg.norm(c[1] - c[2]) +
+                    np.linalg.norm(c[2] - c[3]) +
+                    np.linalg.norm(c[3] - c[0])
+                ) / 4.0
+                if side_px > 5.0:
+                    scale = float(side_px / real_size_cm)
+                    mid = int(ids[0][0])
+                    print(f"[ArUco Scale]: Обнаружен маркер ID={mid}, грань={side_px:.1f}px, масштаб дна={scale:.2f} px/cm")
+                    return ScaleResult(scale, detected=True, marker_id=mid, corners=c, side_px=side_px)
+        except Exception as e:
+            print(f"[ArUco Scale Warning]: {e}")
+
+    return ScaleResult(default_px_per_cm, detected=False)
 
 
 def compute_single_pot_phenotyping(
@@ -278,7 +309,7 @@ def compute_single_pot_phenotyping(
             
     # 3. Автоматический расчет Z-масштаба (подобие треугольников)
     # Z_дно = 24.5 см, Z_лист = 24.5 - 7.5 = 17.0 см
-    px_per_cm_floor = detect_aruco_scale_on_floor(nir_channel)
+    px_per_cm_floor = detect_aruco_scale_on_floor(nir_channel, secondary_img=red_channel)
     z_ratio = z_camera_cm / max(1.0, (z_camera_cm - h_pot_cm))  # 24.5 / 17.0 ≈ 1.441
     px_per_cm_leaf = px_per_cm_floor * z_ratio
     cm2_per_pixel = 1.0 / (px_per_cm_leaf ** 2)
@@ -326,6 +357,17 @@ def compute_single_pot_phenotyping(
         cv2.rectangle(annotated, (min_x, badge_y1), (badge_x2, badge_y2), (0, 0, 0), -1)
         cv2.rectangle(annotated, (min_x, badge_y1), (badge_x2, badge_y2), (0, 255, 0), 1)
         cv2.putText(annotated, meta_text, (min_x + 7, badge_y2 - 5), font, font_scale, (255, 255, 255), thickness)
+
+    # Отрисовка обнаруженного ArUco-маркера масштаба на кадре
+    if getattr(px_per_cm_floor, 'detected', False) and getattr(px_per_cm_floor, 'corners', None) is not None:
+        try:
+            pts = px_per_cm_floor.corners.astype(np.int32)
+            cv2.polylines(annotated, [pts], isClosed=True, color=(255, 200, 0), thickness=2)
+            cx = int(pts[:, 0].mean())
+            cy = int(pts[:, 1].mean())
+            cv2.putText(annotated, f"ArUco #{px_per_cm_floor.id} ({px_per_cm_floor:.1f} px/cm)", (max(5, cx - 40), max(15, cy - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 200, 0), 1, cv2.LINE_AA)
+        except Exception:
+            pass
         
     metrics = {
         "pot_id": pot_id,
