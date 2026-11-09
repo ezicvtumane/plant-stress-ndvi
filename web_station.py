@@ -3639,12 +3639,18 @@ def auto_mount_uti_rw() -> bool:
     uti_devs = glob.glob('/dev/disk/by-id/usb-STM_UTi120S_*-part1')
     candidate_devs = uti_devs + ['/dev/sdb1', '/dev/sda1', '/dev/sdc1', '/dev/sdd1']
 
+    # Если точка монтирования зависла после переподключения USB:
+    subprocess.run(['sudo', 'umount', '-l', '/media/uti120s'], capture_output=True, timeout=5)
+
     for dev in candidate_devs:
         if os.path.exists(dev):
             os.makedirs('/media/uti120s', exist_ok=True)
             subprocess.run(['sudo', 'mount', '-o', 'rw,noatime,sync', dev, '/media/uti120s'], capture_output=True, timeout=5)
-            if os.path.exists(UTI_DIR):
-                return True
+            try:
+                if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
+                    return True
+            except Exception:
+                pass
     return False
 
 
