@@ -86,3 +86,42 @@ def test_wave2_dashboard_and_routes():
 
     # 3. Возврат на Серию 1 по умолчанию
     client.get('/?set_exp=exp_1791463544')
+
+
+def test_wave2_update_record_and_thermal():
+    """Проверка inline-обновления строки без перезагрузки и загрузки термограммы."""
+    # 1. Обновление параметров горшка K1 (масса 92.5 г, T_листа 21.8 °C, T_air 24.0 °C)
+    res_up = client.post('/api/wave2/update_record', data={
+        'pot_id': 'K1',
+        'weight_g': '92.5',
+        't_leaf': '21.8',
+        't_air': '24.0',
+        'turgor_score': '4'
+    })
+    assert res_up.status_code == 200
+    data = res_up.json()
+    assert data['status'] == 'ok'
+    assert data['pot_id'] == 'K1'
+    assert '-2.2°' in data['delta_t']
+    assert '7.5 мл' in data['dose']
+
+    # 2. Ручной ввод имени термограммы
+    res_th_name = client.post('/api/wave2/update_record', data={
+        'pot_id': 'K1',
+        'thermal_filename': 'IMG_0042.JPG'
+    })
+    assert res_th_name.status_code == 200
+    data_th = res_th_name.json()
+    assert data_th['status'] == 'ok'
+    assert data_th['thermal_file'] == 'IMG_0042.JPG'
+    # Масса и доза должны сохраниться!
+    assert '7.5 мл' in data_th['dose']
+
+    # 3. Загрузка файла термограммы через /api/wave2/upload_thermal
+    fake_img = b"FAKE_JPEG_DATA_STREAM"
+    res_upload = client.post('/api/wave2/upload_thermal', data={'pot_id': 'K1'}, files={'thermal_file': ('K1_test.jpg', fake_img, 'image/jpeg')})
+    assert res_upload.status_code == 200
+    up_data = res_upload.json()
+    assert up_data['status'] == 'ok'
+    assert 'K1_' in up_data['filename']
+    assert up_data['filename'].endswith('.jpg')

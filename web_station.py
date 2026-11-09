@@ -3244,7 +3244,8 @@ async def handle_wave2_capture_and_save(
     t_leaf: str = Form(""),
     t_air: str = Form(""),
     turgor_score: str = Form("4"),
-    thermal_file: UploadFile = File(None)
+    thermal_file: UploadFile = File(None),
+    thermal_filename: str = Form("")
 ):
     try:
         pot_id = pot_id.strip().upper()
@@ -3351,7 +3352,9 @@ async def handle_wave2_update_record(
     t_leaf: str = Form(""),
     turgor_score: str = Form("4"),
     t_air: str = Form(""),
-    moisture_pct: str = Form("")
+    moisture_pct: str = Form(""),
+    thermal_filename: str = Form(""),
+    thermal_file: UploadFile = File(None)
 ):
     try:
         pot_id = pot_id.strip().upper()
@@ -3377,6 +3380,11 @@ async def handle_wave2_update_record(
                 parsed_weight = float(weight_g.strip().replace(',', '.'))
             except ValueError:
                 pass
+        elif existing and existing.get('Weight_g') not in (None, '', '--'):
+            try:
+                parsed_weight = float(str(existing.get('Weight_g')).replace(',', '.'))
+            except ValueError:
+                pass
 
         parsed_t_leaf = None
         if t_leaf and t_leaf.strip() and t_leaf.strip() != "--":
@@ -3384,16 +3392,31 @@ async def handle_wave2_update_record(
                 parsed_t_leaf = float(t_leaf.strip().replace(',', '.'))
             except ValueError:
                 pass
+        elif existing and existing.get('T_Leaf_C') not in (None, '', '--'):
+            try:
+                parsed_t_leaf = float(str(existing.get('T_Leaf_C')).replace(',', '.'))
+            except ValueError:
+                pass
 
-        parsed_turgor = 4
+        parsed_turgor = None
         if turgor_score and turgor_score.strip() and turgor_score.strip() != "--":
             try:
                 parsed_turgor = int(turgor_score.strip())
             except ValueError:
                 pass
+        elif existing and existing.get('Turgor_Score') not in (None, '', '--'):
+            try:
+                parsed_turgor = int(existing.get('Turgor_Score'))
+            except ValueError:
+                pass
+        if parsed_turgor is None:
+            parsed_turgor = 4
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        dose = calculate_water_dose(parsed_weight, 100.0)
+        
+        # Учет нарастания листовой поверхности PLA при расчете дозы
+        pla_val = existing.get('Leaf_Area_cm2') if existing else None
+        dose = calculate_water_dose(parsed_weight, 100.0, pla_val)
 
         parsed_soil = None
         if moisture_pct and moisture_pct.strip() and moisture_pct.strip() != "--":
@@ -3401,17 +3424,61 @@ async def handle_wave2_update_record(
                 parsed_soil = float(moisture_pct.strip().replace(',', '.'))
             except ValueError:
                 pass
+        elif existing and existing.get('Moisture_Pct') not in (None, '', '--'):
+            try:
+                parsed_soil = float(str(existing.get('Moisture_Pct')).replace(',', '.'))
+            except ValueError:
+                pass
 
-        update_dict = {
-            'ID': pot_id,
-            'Weight_g': round(parsed_weight, 1) if parsed_weight is not None else '--',
-            'T_Leaf_C': round(parsed_t_leaf, 1) if parsed_t_leaf is not None else '--',
-            'Delta_T_C': delta_t if delta_t is not None else '--',
-            'Turgor_Score': parsed_turgor,
-            'Water_Dose_ml': dose if dose is not None else '--'
-        }
+        update_dict = {'ID': pot_id}
+        if parsed_weight is not None:
+            update_dict['Weight_g'] = round(parsed_weight, 1)
+        elif existing and existing.get('Weight_g') not in (None, '', '--'):
+            update_dict['Weight_g'] = existing.get('Weight_g')
+
+        if parsed_t_leaf is not None:
+            update_dict['T_Leaf_C'] = round(parsed_t_leaf, 1)
+        elif existing and existing.get('T_Leaf_C') not in (None, '', '--'):
+            update_dict['T_Leaf_C'] = existing.get('T_Leaf_C')
+
+        if delta_t is not None:
+            update_dict['Delta_T_C'] = delta_t
+        elif existing and existing.get('Delta_T_C') not in (None, '', '--'):
+            update_dict['Delta_T_C'] = existing.get('Delta_T_C')
+
+        update_dict['Turgor_Score'] = parsed_turgor
+
+        if dose is not None:
+            update_dict['Water_Dose_ml'] = dose
+        elif existing and existing.get('Water_Dose_ml') not in (None, '', '--'):
+            update_dict['Water_Dose_ml'] = existing.get('Water_Dose_ml')
+
         if t_air and t_air.strip() and t_air.strip() != "--":
             update_dict['T_Air_C'] = round(effective_t_air, 1)
+        elif existing and existing.get('T_Air_C') not in (None, '', '--'):
+            update_dict['T_Air_C'] = existing.get('T_Air_C')
+
+        # Обработка снимка термограммы (загрузка файла или ввод имени)
+        saved_th_name = None
+        if thermal_file and thermal_file.filename:
+            ext = os.path.splitext(thermal_file.filename)[1].lower()
+            if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp'):
+                ext = '.jpg'
+            ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
+            saved_th_name = f"{pot_id}_{ts_f}_thermal{ext}"
+            th_save_path = os.path.join(wave2_storage.images_dir, saved_th_name)
+            with open(th_save_path, "wb") as buf:
+                shutil.copyfileobj(thermal_file.file, buf)
+            try:
+                shutil.copyfile(th_save_path, os.path.join(STATIC_DIR, saved_th_name))
+            except Exception:
+                pass
+            update_dict['Thermal_File'] = saved_th_name
+        elif thermal_filename and thermal_filename.strip() and thermal_filename.strip() != "--":
+            saved_th_name = thermal_filename.strip()
+            update_dict['Thermal_File'] = saved_th_name
+        elif existing and existing.get('Thermal_File') not in (None, '', '--'):
+            saved_th_name = existing.get('Thermal_File')
 
         has_probe = POTS_CATALOG.get(pot_id, {}).get('has_probe', False) or pot_id in ('K1', 'R1', 'P1')
         if has_probe:
@@ -3422,7 +3489,14 @@ async def handle_wave2_update_record(
             update_dict['Moisture_V'] = '--' 
 
         ok, msg = wave2_storage.save_or_update_record(update_dict)
-        return JSONResponse({'status': 'ok', 'message': msg})
+        return JSONResponse({
+            'status': 'ok' if ok else 'error',
+            'message': msg,
+            'pot_id': pot_id,
+            'delta_t': (('+' if delta_t > 0 else '') + f"{delta_t:.1f}°") if delta_t is not None else '--',
+            'dose': f"{dose:.1f} мл" if dose is not None else '--',
+            'thermal_file': saved_th_name
+        })
     except Exception as e:
         return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
 

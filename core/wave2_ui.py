@@ -212,26 +212,36 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
         }}
     }}
 
-    async function saveRowEdit(pid) {{
-        const wt = document.getElementById('cell_wt_' + pid).value;
-        const tl = document.getElementById('cell_tl_' + pid).value;
-        const tr = document.getElementById('cell_tr_' + pid).value;
+    async function saveRowEdit(pid, isAuto = false) {{
+        const wtEl = document.getElementById('cell_wt_' + pid);
+        const tlEl = document.getElementById('cell_tl_' + pid);
+        const trEl = document.getElementById('cell_tr_' + pid);
+        const soilEl = document.getElementById('cell_soil_' + pid);
+        const rowEl = document.getElementById('row_' + pid);
         const btn = document.getElementById('btn_save_' + pid);
-        if (btn) {{
+
+        const wt = wtEl ? wtEl.value : '';
+        const tl = tlEl ? tlEl.value : '';
+        const tr = trEl ? trEl.value : '4';
+
+        if (btn && !isAuto) {{
             btn.disabled = true;
-            btn.innerText = '⏳...';
+            btn.innerText = '⏳';
         }}
-        
+
         const formData = new FormData();
         formData.append('pot_id', pid);
         formData.append('weight_g', wt);
         formData.append('t_leaf', tl);
         formData.append('turgor_score', tr);
-        const elSoil = document.getElementById('cell_soil_' + pid);
-        if (elSoil) {{
-            formData.append('moisture_pct', elSoil.value);
+        if (soilEl) {{
+            formData.append('moisture_pct', soilEl.value);
         }}
-        
+        const taEl = document.getElementById('cell_ta_' + pid);
+        if (taEl && taEl.dataset && taEl.dataset.ta) {{
+            formData.append('t_air', taEl.dataset.ta);
+        }}
+
         try {{
             const resp = await fetch('/api/wave2/update_record', {{
                 method: 'POST',
@@ -239,20 +249,135 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             }});
             const res = await resp.json();
             if (res.status === 'ok') {{
-                location.reload();
-            }} else {{
-                alert('Ошибка обновления: ' + (res.error || 'Неизвестная ошибка'));
+                if (res.delta_t !== undefined) {{
+                    const dtCell = document.getElementById('cell_dt_' + pid);
+                    if (dtCell) dtCell.innerText = res.delta_t;
+                }}
+                if (res.dose !== undefined) {{
+                    const doseCell = document.getElementById('cell_dose_' + pid);
+                    if (doseCell) doseCell.innerText = res.dose;
+                }}
+                if (rowEl) {{
+                    rowEl.style.transition = 'background-color 0.3s ease';
+                    rowEl.style.backgroundColor = '#ecfdf5';
+                    setTimeout(() => {{
+                        rowEl.style.backgroundColor = '';
+                    }}, 1200);
+                }}
                 if (btn) {{
                     btn.disabled = false;
-                    btn.innerText = '💾';
+                    btn.innerText = '✅';
+                    setTimeout(() => {{
+                        btn.innerText = '💾';
+                    }}, 1200);
+                }}
+            }} else {{
+                if (!isAuto) {{
+                    alert('Ошибка обновления [' + pid + ']: ' + (res.error || res.message || 'Неизвестная ошибка'));
+                }}
+                if (btn) {{
+                    btn.disabled = false;
+                    btn.innerText = '❌';
+                    setTimeout(() => {{ btn.innerText = '💾'; }}, 1500);
                 }}
             }}
         }} catch(err) {{
-            alert('Ошибка сохранения: ' + err);
+            console.error('Ошибка сохранения [' + pid + ']:', err);
+            if (!isAuto) {{
+                alert('Ошибка сохранения: ' + err);
+            }}
             if (btn) {{
                 btn.disabled = false;
-                btn.innerText = '💾';
+                btn.innerText = '❌';
+                setTimeout(() => {{ btn.innerText = '💾'; }}, 1500);
             }}
+        }}
+    }}
+
+    async function uploadThermalImage(pid, inputEl) {{
+        if (!inputEl || !inputEl.files || inputEl.files.length === 0) return;
+        const file = inputEl.files[0];
+        
+        const cell = document.getElementById('cell_th_' + pid);
+        if (cell) cell.innerHTML = '<span style="color:#0284c7;font-size:11px;font-weight:700;">⏳ Загрузка...</span>';
+
+        const formData = new FormData();
+        formData.append('pot_id', pid);
+        formData.append('thermal_file', file);
+
+        try {{
+            const resp = await fetch('/api/wave2/upload_thermal', {{
+                method: 'POST',
+                body: formData
+            }});
+            const res = await resp.json();
+            if (res.status === 'ok') {{
+                const fname = res.filename;
+                if (cell) {{
+                    cell.innerHTML = `
+                        <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}]'); return false;" title="Открыть термограмму [${{pid}}]" style="color: #059669; font-weight: 700; font-size: 11px; white-space: nowrap; text-decoration: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">✓ ${{fname}} 🔍</a>
+                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Заменить снимок термограммы" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">📁</button>
+                        <button type="button" onclick="promptThermalFilename('${{pid}}')" title="Изменить имя вручную" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">✏️</button>
+                        <input type="file" id="file_th_${{pid}}" accept="image/*" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
+                    `;
+                }}
+                const rowEl = document.getElementById('row_' + pid);
+                if (rowEl) {{
+                    rowEl.style.transition = 'background-color 0.3s ease';
+                    rowEl.style.backgroundColor = '#ecfdf5';
+                    setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
+                }}
+            }} else {{
+                alert('Ошибка загрузки термограммы: ' + (res.error || res.message || 'Ошибка'));
+                if (cell) {{
+                    cell.innerHTML = `
+                        <input type="file" id="file_th_${{pid}}" accept="image/*" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
+                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Загрузить снимок термограммы с ПК/флешки" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">📷 Файл</button>
+                        <button type="button" onclick="promptThermalFilename('${{pid}}')" title="Ввести имя файла вручную" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap;">✏️ Имя</button>
+                    `;
+                }}
+            }}
+        }} catch(err) {{
+            alert('Сетевая ошибка при загрузке: ' + err);
+        }}
+    }}
+
+    async function promptThermalFilename(pid) {{
+        const curCell = document.getElementById('cell_th_' + pid);
+        const promptVal = prompt('Введите имя файла термограммы (с флешки UTi120S) для [' + pid + ']:\n(например: IMG_0012.JPG или ' + pid + '_thermal.jpg)', '');
+        if (!promptVal || !promptVal.trim()) return;
+
+        const cleanVal = promptVal.trim();
+        const formData = new FormData();
+        formData.append('pot_id', pid);
+        formData.append('thermal_filename', cleanVal);
+
+        try {{
+            const resp = await fetch('/api/wave2/update_record', {{
+                method: 'POST',
+                body: formData
+            }});
+            const res = await resp.json();
+            if (res.status === 'ok') {{
+                if (curCell) {{
+                    curCell.innerHTML = `
+                        <a href="/wave2_image/${{cleanVal}}" target="_blank" onclick="openImageViewer('/wave2_image/${{cleanVal}}', 'Термограмма UTi120S — Горшок [${{pid}}]'); return false;" title="Открыть термограмму [${{pid}}]" style="color: #059669; font-weight: 700; font-size: 11px; white-space: nowrap; text-decoration: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">✓ ${{cleanVal}} 🔍</a>
+                        <button type="button" onclick="document.getElementById('file_th_${{pid}}').click()" title="Заменить снимок термограммы" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">📁</button>
+                        <button type="button" onclick="promptThermalFilename('${{pid}}')" title="Изменить имя вручную" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">✏️</button>
+                        <input type="file" id="file_th_${{pid}}" accept="image/*" style="display:none;" onchange="uploadThermalImage('${{pid}}', this)">
+                    `;
+                }}
+                const rowEl = document.getElementById('row_' + pid);
+                if (rowEl) {{
+                    rowEl.style.transition = 'background-color 0.3s ease';
+                    rowEl.style.backgroundColor = '#ecfdf5';
+                    setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
+                }}
+            }} else {{
+                alert('Ошибка сохранения: ' + (res.error || res.message));
+            }}
+        }} catch(err) {{
+            alert('Сетевая ошибка: ' + err);
         }}
     }}
 
@@ -406,6 +531,15 @@ def render_wave2_active_pot_card(
                 </select>
             </div>
 
+            <!-- Поле 4: Термограмма UTi120S (файл) -->
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px;">
+                    4. Термограмма UTi120S (файл):
+                </label>
+                <input type="file" name="thermal_file" id="wave2_thermal_file" accept="image/*"
+                    style="width: 100%; font-size: 12px; padding: 7px 8px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; background: #fff;">
+            </div>
+
             <!-- Кнопка запуска съемки -->
             <div>
                 <button type="submit" id="btnCaptureWave2"
@@ -517,19 +651,32 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             else:
                 ndvi_cell = f'''<span style="font-family: monospace; font-size: 11px; color: #334155; font-weight: 600;">{ndvi_txt}</span>'''
 
-            # Ячейка Термограммы с интерактивным просмотром
+            # Ячейка Термограммы с интерактивным просмотром и кнопками загрузки/ввода
             if th_file and th_file != "--":
                 clean_th = os.path.basename(th_file)
-                th_cell = f'''<a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}]\'); return false;" title="Открыть термограмму [{rec_id}]" style="color: #059669; font-weight: 700; font-size: 11px; white-space: nowrap; text-decoration: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">✓ {clean_th} 🔍</a>'''
+                th_cell = f'''<div id="cell_th_{rec_id}" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                    <a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}]\'); return false;" title="Открыть термограмму [{rec_id}]" style="color: #059669; font-weight: 700; font-size: 11px; white-space: nowrap; text-decoration: none; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">✓ {clean_th} 🔍</a>
+                    <button type="button" onclick="document.getElementById(\'file_th_{rec_id}\').click()" title="Заменить снимок термограммы" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">📁</button>
+                    <button type="button" onclick="promptThermalFilename(\'{rec_id}\')" title="Изменить имя вручную" style="border:none; background:none; cursor:pointer; font-size:12px; padding:0 2px;">✏️</button>
+                    <input type="file" id="file_th_{rec_id}" accept="image/*" style="display:none;" onchange="uploadThermalImage(\'{rec_id}\', this)">
+                </div>'''
             else:
-                th_cell = '<span style="color: #94a3b8; font-size: 11px;">—</span>'
+                th_cell = f'''<div id="cell_th_{rec_id}" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                    <input type="file" id="file_th_{rec_id}" accept="image/*" style="display:none;" onchange="uploadThermalImage(\'{rec_id}\', this)">
+                    <button type="button" onclick="document.getElementById(\'file_th_{rec_id}\').click()" title="Загрузить снимок термограммы с ПК/флешки" style="background: #f1f5f9; color: #0f766e; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                        📷 Файл
+                    </button>
+                    <button type="button" onclick="promptThermalFilename(\'{rec_id}\')" title="Ввести имя файла вручную" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap;">
+                        ✏️ Имя
+                    </button>
+                </div>'''
 
             meta = POTS_CATALOG.get(rec_id, {})
             color = meta.get("color", "#475569")
             has_probe = meta.get("has_probe", False) or rec_id in ("K1", "R1", "P1")
             soil = r.get("Moisture_Pct", "--")
             if has_probe:
-                soil_cell = f'''<input type="number" step="0.1" value="{soil if soil != '--' else ''}" placeholder="--" id="cell_soil_{rec_id}" onkeydown="if(event.key===\'Enter\') saveRowEdit(\'{rec_id}\')" style="width: 55px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center;">'''
+                soil_cell = f'''<input type="number" step="0.1" value="{soil if soil != '--' else ''}" placeholder="--" id="cell_soil_{rec_id}" onchange="saveRowEdit(\'{rec_id}\', true)" onkeydown="if(event.key===\'Enter\') this.blur();" style="width: 55px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center;">'''
             else:
                 soil_cell = '<span style="color: #94a3b8; font-weight: 600;">--</span>'
 
@@ -539,33 +686,39 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                 <td style="padding: 8px 10px; font-size: 11px; color: #64748b;">{ts}</td>
                 <td style="padding: 6px 4px;">
                     <input type="number" step="0.1" value="{wt if wt != '--' else ''}" placeholder="--" id="cell_wt_{rec_id}" 
-                        onkeydown="if(event.key==='Enter') saveRowEdit('{rec_id}')"
+                        onchange="saveRowEdit('{rec_id}', true)"
+                        onkeydown="if(event.key==='Enter') this.blur();"
                         style="width: 70px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px;">
                 </td>
                 <td style="padding: 6px 4px;">
                     <input type="number" step="0.1" value="{t_leaf if t_leaf != '--' else ''}" placeholder="--" id="cell_tl_{rec_id}" 
-                        onkeydown="if(event.key==='Enter') saveRowEdit('{rec_id}')"
+                        onchange="saveRowEdit('{rec_id}', true)"
+                        onkeydown="if(event.key==='Enter') this.blur();"
                         style="width: 65px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px;">
                 </td>
-                <td style="padding: 8px 10px; font-size: 12px; color: #64748b;">{t_air}°</td>
-                <td style="padding: 8px 10px; font-size: 12px; font-weight: 700; color: #0284c7;">{dt}</td>
+                <td id="cell_ta_{rec_id}" data-ta="{t_air}" style="padding: 8px 10px; font-size: 12px; color: #64748b;">{t_air}°</td>
+                <td id="cell_dt_{rec_id}" style="padding: 8px 10px; font-size: 12px; font-weight: 700; color: #0284c7;">{dt}</td>
                 <td style="padding: 6px 4px; text-align: center;">{soil_cell}</td>
                 <td style="padding: 6px 4px;">
-                    <select id="cell_tr_{rec_id}" style="padding: 4px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                    <select id="cell_tr_{rec_id}" onchange="saveRowEdit('{rec_id}', true)" style="padding: 4px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
                         <option value="4" {'selected' if str(turgor) == '4' else ''}>4</option>
                         <option value="3" {'selected' if str(turgor) == '3' else ''}>3</option>
                         <option value="2" {'selected' if str(turgor) == '2' else ''}>2</option>
                         <option value="1" {'selected' if str(turgor) == '1' else ''}>1</option>
                     </select>
                 </td>
-                <td style="padding: 8px 10px; font-size: 12px; font-weight: 800; color: #059669;">{dose}</td>
+                <td id="cell_dose_{rec_id}" style="padding: 8px 10px; font-size: 12px; font-weight: 800; color: #059669;">{dose}</td>
                 <td style="padding: 8px 10px;">{ndvi_cell}</td>
-                <td style="padding: 8px 10px; font-size: 12px;">{pla}</td>
+                <td id="cell_pla_{rec_id}" data-pla="{pla}" style="padding: 8px 10px; font-size: 12px;">{pla}</td>
                 <td style="padding: 8px 10px;">{th_cell}</td>
                 <td style="padding: 6px 4px; text-align: center; white-space: nowrap;">
-                    <button type="button" id="btn_save_{rec_id}" onclick="saveRowEdit('{rec_id}')" title="Сохранить изменения" 
+                    <button type="button" id="btn_save_{rec_id}" onclick="saveRowEdit('{rec_id}', false)" title="Сохранить изменения" 
                         style="background: #0284c7; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer;">
                         💾
+                    </button>
+                    <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить термограмму" 
+                        style="background: #0d9488; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 6px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
+                        📷
                     </button>
                     <button type="button" onclick="reshootWave2Pot('{rec_id}')" title="Выбрать этот горшок и переснять" 
                         style="background: #f59e0b; color: #fff; font-size: 11px; font-weight: 700; padding: 4px 7px; border: none; border-radius: 4px; cursor: pointer; margin-left: 3px;">
