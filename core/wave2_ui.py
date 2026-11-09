@@ -749,13 +749,9 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                 <td id="cell_pla_{rec_id}" data-pla="{pla}" style="padding: 8px 10px; font-size: 12px;">{pla}</td>
                 <td style="padding: 8px 10px;">{th_cell}</td>
                 <td style="padding: 6px 4px; text-align: center; white-space: nowrap;">
-                    <button type="button" id="btn_save_{rec_id}" onclick="saveRowEdit('{rec_id}', false)" title="Сохранить изменения" 
-                        style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s ease;">
-                        💾
-                    </button>
                     <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('{rec_id}', this)">
                     <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить снимок с компьютера через проводник" 
-                        style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px; transition: all 0.15s ease;">
+                        style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s ease;">
                         📷
                     </button>
                     <button type="button" onclick="openUtiFolderModal('{rec_id}')" title="Открыть папку Images на тепловизоре (выбрать, резервировать и стереть)" 
