@@ -983,7 +983,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                 }}
 
                 html += `
-                    <tr style="border-bottom:1px solid #f1f5f9;">
+                    <tr id="uti_row_${safeName}" style="border-bottom:1px solid #f1f5f9;">
                         <!-- Превью верхней части с температурой -->
                         <td style="padding:8px 10px; text-align:center; width:135px;">
                             <img src="/api/wave2/uti_preview_thumb/${{f.name}}?mode=top" alt="${{f.name}}" loading="lazy"
@@ -1069,6 +1069,12 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                     rowEl.style.backgroundColor = '#ecfdf5';
                     setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
                 }}
+
+                // Сразу убираем импортированный и удаленный файл из открытого списка модалки
+                const fileRow = document.getElementById('uti_row_' + filename.replace(/[^a-zA-Z0-9_-]/g, '_'));
+                if (fileRow) {
+                    fileRow.remove();
+                }
 
                 closeUtiFolderModal();
             }} else {{

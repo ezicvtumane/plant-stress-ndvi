@@ -3629,29 +3629,67 @@ async def api_wave2_anova_report():
 
 
 def auto_mount_uti_rw() -> bool:
-    """Монтирует накопитель UTi120S в режиме rw для возможности перемещения в DONE."""
+    """Монтирует накопитель UTi120S в режиме rw с полными правами записи для пользователя станции."""
     try:
         if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
-            return True
+            test_file = os.path.join(UTI_DIR, '.mount_test_rw')
+            try:
+                with open(test_file, 'w') as f:
+                    f.write('1')
+                os.remove(test_file)
+                return True
+            except Exception:
+                pass
     except Exception:
         pass
 
     uti_devs = glob.glob('/dev/disk/by-id/usb-STM_UTi120S_*-part1')
     candidate_devs = uti_devs + ['/dev/sdb1', '/dev/sda1', '/dev/sdc1', '/dev/sdd1']
 
-    # Если точка монтирования зависла после переподключения USB:
     subprocess.run(['sudo', 'umount', '-l', '/media/uti120s'], capture_output=True, timeout=5)
 
     for dev in candidate_devs:
         if os.path.exists(dev):
             os.makedirs('/media/uti120s', exist_ok=True)
-            subprocess.run(['sudo', 'mount', '-o', 'rw,noatime,sync', dev, '/media/uti120s'], capture_output=True, timeout=5)
+            subprocess.run(['sudo', 'mount', '-o', 'rw,noatime,sync,uid=1000,gid=1000,umask=000', dev, '/media/uti120s'], capture_output=True, timeout=5)
             try:
                 if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
                     return True
             except Exception:
                 pass
     return False
+
+
+def delete_file_from_uti(file_path: str) -> tuple:
+    """
+    Гарантированно стирает файл с карты памяти тепловизора:
+    1. Пробует os.remove().
+    2. При PermissionError или сбое применяет sudo rm -f.
+    3. Сбрасывает дисковый буфер (sync), чтобы vfat сразу обновила таблицу FAT.
+    4. Проверяет факт отсутствия файла.
+    """
+    if not os.path.exists(file_path):
+        return True, "Файл уже отсутствует"
+
+    try:
+        os.remove(file_path)
+        subprocess.run(['sync'], capture_output=True, timeout=3)
+        if not os.path.exists(file_path):
+            return True, "Успешно удален через os.remove"
+    except Exception as e:
+        print(f"[delete_file_from_uti] os.remove failed: {e}, fallback to sudo rm")
+
+    try:
+        subprocess.run(['sudo', 'rm', '-f', file_path], capture_output=True, timeout=5)
+        subprocess.run(['sync'], capture_output=True, timeout=3)
+        if not os.path.exists(file_path):
+            return True, "Успешно удален через sudo rm"
+    except Exception as e:
+        print(f"[delete_file_from_uti] sudo rm failed: {e}")
+
+    if os.path.exists(file_path):
+        return False, "Не удалось удалить файл с накопителя тепловизора (проверьте блокировку карты памяти)"
+    return True, "Успешно удален" 
 
 
 def grab_latest_uti_thermal_image(pot_id: str, images_dir: str):
@@ -3910,14 +3948,21 @@ async def handle_wave2_uti_import_file(
         shutil.copyfile(src_path, raw_save_path)
         
         # 3. СТИРАНИЕ файла с карты памяти тепловизора
+        del_ok, del_detail = delete_file_from_uti(src_path)
         erase_msg = ""
-        try:
-            os.remove(src_path)
+        if del_ok:
             erase_msg = f"Оригинал {safe_name} успешно стерт с тепловизора."
             print(f"[UTi Clean]: {erase_msg} Резерв сохранен в {reserve_dest}")
-        except Exception as rm_err:
-            erase_msg = f"Предупреждение при удалении: {rm_err}"
-            print(f"[UTi Clean Error]: {erase_msg}")
+            try:
+                cache = load_uti_ocr_cache()
+                if safe_name in cache:
+                    del cache[safe_name]
+                    save_uti_ocr_cache(cache)
+            except Exception:
+                pass
+        else:
+            erase_msg = f"Предупреждение: {del_detail}"
+            print(f"[UTi Clean Warning]: {erase_msg}")
         
         # 4. Конвертация BMP в universal web-JPEG + OCR температуры
         display_name, ocr_temp = process_and_convert_thermal_image(raw_save_path, pot_id, wave2_storage.images_dir)
