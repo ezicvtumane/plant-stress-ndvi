@@ -5,6 +5,7 @@
 """
 
 import os
+import html
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from core.wave2_manager import (
@@ -166,6 +167,71 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
 
     <!-- Клиентские обработчики для Волны 2 -->
     <script>
+    function _escHtml(v) {{
+        return String(v ?? '').replace(/[&<>"']/g, function(ch) {{
+            return ({{'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}})[ch];
+        }});
+    }}
+
+    function _applyThermalResponseToRow(pid, res, titleSuffix) {{
+        const fname = res.filename || '';
+        const safeFname = _escHtml(encodeURIComponent(fname));
+        const safePid = _escHtml(pid);
+        let thTxt = '✓';
+        if (res.ocr_temp !== null && res.ocr_temp !== undefined) {{
+            const tlEl = document.getElementById('cell_tl_' + pid);
+            if (tlEl) tlEl.value = res.ocr_temp;
+            thTxt = res.ocr_temp + '°';
+        }} else {{
+            const tlEl = document.getElementById('cell_tl_' + pid);
+            if (tlEl && tlEl.value && tlEl.value !== '--') {{
+                thTxt = tlEl.value + '°';
+            }}
+        }}
+        if (res.delta_t !== undefined) {{
+            const dtCell = document.getElementById('cell_dt_' + pid);
+            if (dtCell) {{
+                if (res.delta_t === null) {{
+                    dtCell.innerText = '--';
+                }} else {{
+                    const numDt = Number(res.delta_t);
+                    dtCell.innerText = (!Number.isNaN(numDt)) ? ((numDt > 0 ? '+' : '') + numDt.toFixed(1) + '°') : String(res.delta_t);
+                }}
+            }}
+        }}
+        const doseCell = document.getElementById('cell_dose_' + pid);
+        if (doseCell && res.dose_html !== undefined) {{
+            doseCell.innerHTML = res.dose_html;
+        }}
+        const safeTxt = _escHtml(thTxt);
+        const safeSuffix = _escHtml(titleSuffix || '');
+        const cell = document.getElementById('cell_th_' + pid);
+        if (cell) {{
+            cell.innerHTML = '';
+            const link = document.createElement('a');
+            link.href = '/wave2_image/' + encodeURIComponent(fname);
+            link.target = '_blank';
+            link.title = 'Термограмма [' + pid + '] — ' + thTxt + (titleSuffix ? ' ' + titleSuffix : '');
+            link.style.cssText = 'color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;';
+            link.onclick = function() {{
+                openImageViewer('/wave2_image/' + encodeURIComponent(fname), 'Термограмма UTi120S — Горшок [' + pid + '] (' + thTxt + (safeSuffix ? ' ' + safeSuffix : '') + ')');
+                return false;
+            }};
+            const sp = document.createElement('span');
+            sp.style.cssText = 'font-family: monospace; font-size: 11px;';
+            sp.textContent = thTxt;
+            link.appendChild(sp);
+            link.appendChild(document.createTextNode(' 🔍'));
+            cell.appendChild(link);
+        }}
+        const rowEl = document.getElementById('row_' + pid);
+        if (rowEl) {{
+            rowEl.style.transition = 'background-color 0.3s ease';
+            rowEl.style.backgroundColor = '#ecfdf5';
+            setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
+        }}
+    }}
+
     function selectWave2Pot(pid) {{
         const url = new URL(window.location.href);
         url.searchParams.set('pot', pid);
@@ -217,7 +283,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
 
         const wt = wtEl ? wtEl.value : '';
         const tl = tlEl ? tlEl.value : '';
-        const tr = trEl ? trEl.value : '4';
+        const tr = trEl ? trEl.value : '--';
 
         if (btn && !isAuto) {{
             btn.disabled = true;
@@ -315,38 +381,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             }});
             const res = await resp.json();
             if (res.status === 'ok') {{
-                const fname = res.filename;
-                let thTxt = '✓';
-                if (res.ocr_temp) {{
-                    const tlEl = document.getElementById('cell_tl_' + pid);
-                    if (tlEl) {{
-                        tlEl.value = res.ocr_temp;
-                    }}
-                    if (res.delta_t !== undefined) {{
-                        const dtCell = document.getElementById('cell_dt_' + pid);
-                        if (dtCell) dtCell.innerText = res.delta_t;
-                    }}
-                    thTxt = res.ocr_temp + '°';
-                    saveRowEdit(pid, true);
-                }} else {{
-                    const tlEl = document.getElementById('cell_tl_' + pid);
-                    if (tlEl && tlEl.value && tlEl.value !== '--') {{
-                        thTxt = tlEl.value + '°';
-                    }}
-                }}
-                if (cell) {{
-                    cell.innerHTML = `
-                        <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}] (${{thTxt}})'); return false;" title="Открыть термограмму [${{pid}}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;">
-                            <span style="font-family: monospace; font-size: 11px;">${{thTxt}}</span> 🔍
-                        </a>
-                    `;
-                }}
-                const rowEl = document.getElementById('row_' + pid);
-                if (rowEl) {{
-                    rowEl.style.transition = 'background-color 0.3s ease';
-                    rowEl.style.backgroundColor = '#ecfdf5';
-                    setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
-                }}
+                _applyThermalResponseToRow(pid, res, '');
             }} else {{
                 alert('Ошибка загрузки термограммы: ' + (res.error || res.message || 'Ошибка'));
                 if (cell) {{
@@ -377,38 +412,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             }});
             const res = await resp.json();
             if (res.status === 'ok') {{
-                const fname = res.filename;
-                let thTxt = '✓';
-                if (res.ocr_temp) {{
-                    const tlEl = document.getElementById('cell_tl_' + pid);
-                    if (tlEl) {{
-                        tlEl.value = res.ocr_temp;
-                    }}
-                    if (res.delta_t !== undefined) {{
-                        const dtCell = document.getElementById('cell_dt_' + pid);
-                        if (dtCell) dtCell.innerText = res.delta_t;
-                    }}
-                    thTxt = res.ocr_temp + '°';
-                    saveRowEdit(pid, true);
-                }} else {{
-                    const tlEl = document.getElementById('cell_tl_' + pid);
-                    if (tlEl && tlEl.value && tlEl.value !== '--') {{
-                        thTxt = tlEl.value + '°';
-                    }}
-                }}
-                if (cell) {{
-                    cell.innerHTML = `
-                        <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{pid}}] (${{thTxt}})'); return false;" title="Открыть термограмму [${{pid}}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;">
-                            <span style="font-family: monospace; font-size: 11px;">${{thTxt}}</span> 🔍
-                        </a>
-                    `;
-                }}
-                const rowEl = document.getElementById('row_' + pid);
-                if (rowEl) {{
-                    rowEl.style.transition = 'background-color 0.3s ease';
-                    rowEl.style.backgroundColor = '#ecfdf5';
-                    setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
-                }}
+                _applyThermalResponseToRow(pid, res, '');
             }} else {{
                 alert('Тепловизор UTi120S: ' + (res.message || res.error || 'Не удалось считать'));
                 if (cell) {{
@@ -817,13 +821,16 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             else:
                 ndvi_txt = "--"
 
+            safe_id = html.escape(str(rec_id), quote=True)
+            safe_ndvi_txt = html.escape(str(ndvi_txt), quote=True)
             if opt_file and opt_file != "--":
-                ndvi_cell = f'''<a href="/wave2_image/{opt_file}" target="_blank" onclick="openImageViewer(\'/wave2_image/{opt_file}\', \'Карта NDVI — Горшок [{rec_id}] ({ndvi_txt})\'); return false;" title="Открыть карту NDVI [{rec_id}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{ndvi_txt}</span> 🔍</a>'''
+                safe_opt = html.escape(os.path.basename(str(opt_file)), quote=True)
+                ndvi_cell = f'''<a href="/wave2_image/{safe_opt}" target="_blank" onclick="openImageViewer(\'/wave2_image/{safe_opt}\', \'Карта NDVI — Горшок [{safe_id}] ({safe_ndvi_txt})\'); return false;" title="Открыть карту NDVI [{safe_id}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{safe_ndvi_txt}</span> 🔍</a>'''
             else:
-                ndvi_cell = f'''<span style="font-family: monospace; font-size: 11px; color: #334155; font-weight: 600;">{ndvi_txt}</span>'''
+                ndvi_cell = f'''<span style="font-family: monospace; font-size: 11px; color: #334155; font-weight: 600;">{safe_ndvi_txt}</span>'''
 
             if th_file and th_file != "--":
-                clean_th = os.path.basename(th_file)
+                clean_th = html.escape(os.path.basename(str(th_file)), quote=True)
                 if t_leaf and t_leaf != "--":
                     try:
                         th_txt = f"{float(t_leaf):.1f}°"
@@ -831,7 +838,8 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                         th_txt = f"{t_leaf}°"
                 else:
                     th_txt = "✓"
-                th_inner = f'''<a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}] ({th_txt} OCR)\'); return false;" title="Термограмма [{rec_id}] — {th_txt} (распознано OCR)" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{th_txt}</span> 🔍</a>'''
+                safe_th_txt = html.escape(str(th_txt), quote=True)
+                th_inner = f'''<a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{safe_id}] ({safe_th_txt} OCR)\'); return false;" title="Термограмма [{safe_id}] — {safe_th_txt} (распознано OCR)" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{safe_th_txt}</span> 🔍</a>'''
             else:
                 th_inner = '''<span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span>'''
 
@@ -1181,32 +1189,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             const res = await resp.json();
 
             if (res.status === 'ok') {{
-                const fname = res.filename;
-                let thTxt = '✓';
-                if (res.ocr_temp !== null && res.ocr_temp !== undefined) {{
-                    const tlEl = document.getElementById('cell_tl_' + targetPot);
-                    if (tlEl) tlEl.value = res.ocr_temp;
-                    if (res.delta_t !== undefined && res.delta_t !== null) {{
-                        const dtCell = document.getElementById('cell_dt_' + targetPot);
-                        if (dtCell) dtCell.innerText = res.delta_t;
-                    }}
-                    thTxt = res.ocr_temp + '°';
-                    saveRowEdit(targetPot, true);
-                }}
-                const cell = document.getElementById('cell_th_' + targetPot);
-                if (cell) {{
-                    cell.innerHTML = `
-                        <a href="/wave2_image/${{fname}}" target="_blank" onclick="openImageViewer('/wave2_image/${{fname}}', 'Термограмма UTi120S — Горшок [${{targetPot}}] (${{thTxt}} OCR)'); return false;" title="Термограмма [${{targetPot}}] — ${{thTxt}} (распознано OCR)" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;">
-                            <span style="font-family: monospace; font-size: 11px;">${{thTxt}}</span> 🔍
-                        </a>
-                    `;
-                }}
-                const rowEl = document.getElementById('row_' + targetPot);
-                if (rowEl) {{
-                    rowEl.style.transition = 'background-color 0.3s ease';
-                    rowEl.style.backgroundColor = '#ecfdf5';
-                    setTimeout(() => {{ rowEl.style.backgroundColor = ''; }}, 1200);
-                }}
+                _applyThermalResponseToRow(targetPot, res, 'OCR');
 
                 // Сразу убираем импортированный и удаленный файл из открытого списка модалки
                 const fileRow = document.getElementById('uti_row_' + filename.replace(/[^a-zA-Z0-9_-]/g, '_'));

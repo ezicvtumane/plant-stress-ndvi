@@ -14,7 +14,7 @@
 
 import asyncio
 import threading
-from typing import Optional
+from typing import Optional, Dict, Any
 from concurrent.futures import ThreadPoolExecutor
 from hardware.hal import get_climate_sensor, get_soil_sensor, get_relay_controller
 
@@ -24,6 +24,7 @@ import numexpr as ne
 i2c_executor = ThreadPoolExecutor(max_workers=1)
 
 import os
+import html
 import time
 import json
 import csv
@@ -63,7 +64,7 @@ from core.wave2_manager import (
     Wave2Storage, compute_single_pot_phenotyping,
     calculate_water_dose, calculate_delta_t, evaluate_cohort_cluster_status,
     evaluate_pot_watering_with_projection, format_watering_decision_output,
-    normalize_and_validate_pot_id
+    normalize_and_validate_pot_id, _extract_record_date
 )
 
 
@@ -3388,6 +3389,8 @@ async def handle_wave2_capture_and_save(
             'Water_Dose_ml': dose if dose is not None else '--'
         }
         ok, msg = wave2_storage.save_or_update_record(row_data)
+        if ok:
+            wave2_storage.sync_cohort_water_doses()
 
         # 4. Определение следующего горшка в очереди
         idx = BATCH_QUEUE_WAVE2.index(pot_id) if pot_id in BATCH_QUEUE_WAVE2 else 0
@@ -3438,8 +3441,8 @@ def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: st
         try:
             jpg_name = os.path.splitext(base_name)[0] + '.jpg'
             jpg_path = os.path.join(images_dir, jpg_name)
-            im = Image.open(src_path)
-            im.convert('RGB').save(jpg_path, 'JPEG', quality=95)
+            with Image.open(src_path) as im:
+                im.convert('RGB').save(jpg_path, 'JPEG', quality=95)
             try:
                 shutil.copyfile(jpg_path, os.path.join(STATIC_DIR, jpg_name))
                 shutil.copyfile(jpg_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
@@ -3465,6 +3468,77 @@ def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: st
         return (base_name, ocr_temp)
 
 
+def _apply_thermal_ocr_and_save_wave2(
+    wave2_storage: Wave2Storage,
+    pot_id: str,
+    display_name: str,
+    ocr_temp: Optional[float],
+) -> Dict[str, Any]:
+    """
+    Общий helper для привязки термограммы (upload / grab / import):
+    обновляет Thermal_File, T_Leaf_C, пересчитывает Delta_T_C (без синтетического 24.0),
+    пересчитывает Water_Dose_ml с учётом кворума 4/6 и синхронизирует дозы когорты.
+    """
+    today_recs = wave2_storage.load_today_records()
+    existing = next(
+        (r for r in today_recs if (normalize_and_validate_pot_id(r.get('ID')) or '') == pot_id),
+        None,
+    )
+
+    update_dict: Dict[str, Any] = {
+        'ID': pot_id,
+        'Thermal_File': display_name,
+    }
+    t_air_val = None
+    if existing and existing.get('T_Air_C') not in (None, '', '--'):
+        try:
+            t_air_val = float(str(existing.get('T_Air_C')).replace(',', '.'))
+        except (ValueError, TypeError):
+            t_air_val = None
+
+    delta_t_val: Optional[float] = None
+    if ocr_temp is not None:
+        ocr_val = round(float(ocr_temp), 1)
+        update_dict['T_Leaf_C'] = ocr_val
+        if t_air_val is not None:
+            delta_t_val = calculate_delta_t(ocr_val, t_air_val)
+            update_dict['Delta_T_C'] = delta_t_val if delta_t_val is not None else '--'
+        else:
+            update_dict['Delta_T_C'] = '--'
+    elif existing and existing.get('Delta_T_C') not in (None, '', '--'):
+        try:
+            delta_t_val = float(str(existing.get('Delta_T_C')).replace(',', '.'))
+        except (ValueError, TypeError):
+            delta_t_val = None
+
+    existing_weight = existing.get('Weight_g') if existing else None
+    raw_deficit = calculate_water_dose(existing_weight, 100.0)
+    decision, cluster_status = evaluate_pot_watering_with_projection(
+        today_recs, pot_id, update_dict, raw_deficit
+    )
+    dose = decision['effective_dose']
+    dose_out = format_watering_decision_output(decision)
+    if dose is not None:
+        update_dict['Water_Dose_ml'] = dose
+    elif existing and existing.get('Water_Dose_ml') not in (None, '', '--'):
+        update_dict['Water_Dose_ml'] = existing.get('Water_Dose_ml')
+
+    ok, msg = wave2_storage.save_or_update_record(update_dict)
+    if ok:
+        wave2_storage.sync_cohort_water_doses()
+
+    return {
+        'ok': ok,
+        'message': msg,
+        'delta_t': delta_t_val,
+        'dose': dose_out['dose_text'],
+        'dose_html': dose_out['dose_html'],
+        'watering_allowed': decision['watering_allowed'],
+        'watering_reason': decision['reason'],
+        'cluster_status': cluster_status,
+    }
+
+
 @app.post('/api/wave2/update_record')
 async def handle_wave2_update_record(
     request: Request,
@@ -3483,17 +3557,21 @@ async def handle_wave2_update_record(
             return err_resp
         wave2_storage = Wave2Storage(DATA_DIR)
         today_recs = wave2_storage.load_today_records()
-        existing = next((r for r in today_recs if r.get('ID', '').strip().upper() == pot_id), None)
-        
-        effective_t_air = 24.0
-        if t_air and t_air.strip() and t_air.strip() != "--":
+        existing = next(
+            (r for r in today_recs if (normalize_and_validate_pot_id(r.get('ID')) or '') == pot_id),
+            None,
+        )
+
+        t_air_explicitly_cleared = bool(t_air and t_air.strip() == "--")
+        effective_t_air: Optional[float] = None
+        if t_air and t_air.strip() and not t_air_explicitly_cleared:
             try:
                 effective_t_air = float(t_air.strip().replace(',', '.'))
             except ValueError:
                 pass
-        elif existing and existing.get('T_Air_C') not in (None, '', '--'):
+        elif not t_air_explicitly_cleared and existing and existing.get('T_Air_C') not in (None, '', '--'):
             try:
-                effective_t_air = float(existing.get('T_Air_C'))
+                effective_t_air = float(str(existing.get('T_Air_C')).replace(',', '.'))
             except ValueError:
                 pass
 
@@ -3510,12 +3588,13 @@ async def handle_wave2_update_record(
                 pass
 
         parsed_t_leaf = None
-        if t_leaf and t_leaf.strip() and t_leaf.strip() != "--":
+        t_leaf_explicitly_cleared = bool(t_leaf and t_leaf.strip() == "--")
+        if t_leaf and t_leaf.strip() and not t_leaf_explicitly_cleared:
             try:
                 parsed_t_leaf = float(t_leaf.strip().replace(',', '.'))
             except ValueError:
                 pass
-        elif existing and existing.get('T_Leaf_C') not in (None, '', '--'):
+        elif not t_leaf_explicitly_cleared and existing and existing.get('T_Leaf_C') not in (None, '', '--'):
             try:
                 parsed_t_leaf = float(str(existing.get('T_Leaf_C')).replace(',', '.'))
             except ValueError:
@@ -3537,10 +3616,11 @@ async def handle_wave2_update_record(
         raw_deficit = calculate_water_dose(parsed_weight, 100.0)
 
         soil_explicitly_cleared = bool(moisture_pct and moisture_pct.strip() == "--")
+        soil_explicitly_set = bool(moisture_pct and moisture_pct.strip() and not soil_explicitly_cleared)
         parsed_soil = None
-        if moisture_pct and moisture_pct.strip() and moisture_pct.strip() != "--":
+        if soil_explicitly_set:
             try:
-                parsed_soil = float(moisture_pct.strip().replace(',', '.'))
+                parsed_soil = float(moisture_pct.strip().replace(',', '.').replace('%', '').strip())
             except ValueError:
                 pass
         elif not soil_explicitly_cleared and existing and existing.get('Moisture_Pct') not in (None, '', '--'):
@@ -3555,22 +3635,26 @@ async def handle_wave2_update_record(
         elif existing and existing.get('Weight_g') not in (None, '', '--'):
             update_dict['Weight_g'] = existing.get('Weight_g')
 
-        if parsed_t_leaf is not None:
+        if t_leaf_explicitly_cleared:
+            update_dict['T_Leaf_C'] = '--'
+        elif parsed_t_leaf is not None:
             update_dict['T_Leaf_C'] = round(parsed_t_leaf, 1)
         elif existing and existing.get('T_Leaf_C') not in (None, '', '--'):
             update_dict['T_Leaf_C'] = existing.get('T_Leaf_C')
 
-        if delta_t is not None:
-            update_dict['Delta_T_C'] = delta_t
-        elif existing and existing.get('Delta_T_C') not in (None, '', '--'):
-            update_dict['Delta_T_C'] = existing.get('Delta_T_C')
-
-        update_dict['Turgor_Score'] = parsed_turgor if parsed_turgor is not None else '--'
-
-        if t_air and t_air.strip() and t_air.strip() != "--":
+        if t_air_explicitly_cleared:
+            update_dict['T_Air_C'] = '--'
+        elif effective_t_air is not None:
             update_dict['T_Air_C'] = round(effective_t_air, 1)
         elif existing and existing.get('T_Air_C') not in (None, '', '--'):
             update_dict['T_Air_C'] = existing.get('T_Air_C')
+
+        if delta_t is not None:
+            update_dict['Delta_T_C'] = delta_t
+        else:
+            update_dict['Delta_T_C'] = '--'
+
+        update_dict['Turgor_Score'] = parsed_turgor if parsed_turgor is not None else '--'
 
         # Обработка снимка термограммы (загрузка файла или ввод имени)
         saved_th_name = None
@@ -3594,7 +3678,7 @@ async def handle_wave2_update_record(
                 parsed_t_leaf = ocr_th
                 update_dict['T_Leaf_C'] = round(ocr_th, 1)
                 delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-                update_dict['Delta_T_C'] = delta_t
+                update_dict['Delta_T_C'] = delta_t if delta_t is not None else '--'
         elif thermal_filename and thermal_filename.strip() and thermal_filename.strip() != "--":
             saved_th_name = thermal_filename.strip()
             update_dict['Thermal_File'] = saved_th_name
@@ -3606,8 +3690,10 @@ async def handle_wave2_update_record(
             if soil_explicitly_cleared:
                 update_dict['Moisture_Pct'] = '--'
                 update_dict['Moisture_V'] = '--'
-            elif parsed_soil is not None:
-                update_dict['Moisture_Pct'] = round(parsed_soil, 1)
+            elif soil_explicitly_set and parsed_soil is not None:
+                clamped_soil = round(max(0.0, min(100.0, parsed_soil)), 1)
+                update_dict['Moisture_Pct'] = clamped_soil
+                update_dict['Moisture_V'] = round(V_DRY - (clamped_soil / 100.0) * (V_DRY - V_WET), 3)
         else:
             update_dict['Moisture_Pct'] = '--'
             update_dict['Moisture_V'] = '--'
@@ -3623,6 +3709,8 @@ async def handle_wave2_update_record(
             update_dict['Water_Dose_ml'] = existing.get('Water_Dose_ml')
 
         ok, msg = wave2_storage.save_or_update_record(update_dict)
+        if ok:
+            wave2_storage.sync_cohort_water_doses()
         return JSONResponse({
             'status': 'ok' if ok else 'error',
             'message': msg,
@@ -3651,7 +3739,10 @@ async def handle_wave2_delete_record(
         if err_resp is not None:
             return err_resp
         wave2_storage = Wave2Storage(DATA_DIR)
-        ok, msg = wave2_storage.delete_record(pot_id)
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        ok, msg = wave2_storage.delete_record(pot_id, date_str=today_str)
+        if ok:
+            wave2_storage.sync_cohort_water_doses(date_str=today_str)
         return JSONResponse({'status': 'ok' if ok else 'error', 'message': msg})
     except Exception as e:
         return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
@@ -3677,14 +3768,15 @@ async def api_wave2_anova_report():
     try:
         wave2_storage = Wave2Storage(DATA_DIR)
         records = wave2_storage.load_today_records()
-        if len(records) < 6:
+        if not records:
             all_recs = wave2_storage.load_all_records()
-            latest_by_id = {}
-            for r in all_recs:
-                pid = str(r.get('ID', '')).strip().upper()
-                if pid:
-                    latest_by_id[pid] = r
-            records = list(latest_by_id.values())
+            dated_pairs = [(_extract_record_date(r), r) for r in all_recs]
+            valid_dates = [d for d, _ in dated_pairs if d]
+            if valid_dates:
+                latest_date = max(valid_dates)
+                records = [r for d, r in dated_pairs if d == latest_date]
+            else:
+                records = all_recs
 
         res = analyze_wave2_dataset(
             records,
@@ -4037,32 +4129,18 @@ async def handle_wave2_uti_import_file(
         
         # 4. Конвертация BMP в universal web-JPEG + OCR температуры
         display_name, ocr_temp = process_and_convert_thermal_image(raw_save_path, pot_id, wave2_storage.images_dir)
-        
-        update_dict = {
-            'ID': pot_id,
-            'Thermal_File': display_name
-        }
-        delta_t_val = None
-        if ocr_temp is not None:
-            ocr_val = round(float(ocr_temp), 1)
-            update_dict['T_Leaf_C'] = ocr_val
-            today_recs = wave2_storage.load_today_records()
-            existing = next((r for r in today_recs if r.get('ID', '').strip().upper() == pot_id), None)
-            t_air = existing.get('T_Air_C') if existing else None
-            if t_air not in (None, '', '--'):
-                try:
-                    delta_t_val = round(ocr_val - float(t_air), 2)
-                    update_dict['Delta_T_C'] = delta_t_val
-                except Exception:
-                    pass
-        
-        ok, msg = wave2_storage.save_or_update_record(update_dict)
+        saved = _apply_thermal_ocr_and_save_wave2(wave2_storage, pot_id, display_name, ocr_temp)
+
         return JSONResponse({
-            'status': 'ok' if ok else 'error',
+            'status': 'ok' if saved['ok'] else 'error',
             'pot_id': pot_id,
             'filename': display_name,
             'ocr_temp': ocr_temp,
-            'delta_t': delta_t_val,
+            'delta_t': saved['delta_t'],
+            'dose': saved['dose'],
+            'dose_html': saved['dose_html'],
+            'watering_allowed': saved['watering_allowed'],
+            'cluster_status': saved['cluster_status'],
             'message': f"Снимок {safe_name} привязан к [{pot_id}]. {erase_msg} Резервная копия сохранена на станции."
         })
     except Exception as e:
@@ -4083,19 +4161,17 @@ async def handle_wave2_grab_uti_thermal(
         if not ok:
             return JSONResponse({'status': 'error', 'message': msg}, status_code=400)
 
-        update_dict = {
-            'ID': pot_id,
-            'Thermal_File': display_name
-        }
-        if ocr_temp is not None:
-            update_dict['T_Leaf_C'] = round(ocr_temp, 1)
-
-        save_ok, save_msg = wave2_storage.save_or_update_record(update_dict)
+        saved = _apply_thermal_ocr_and_save_wave2(wave2_storage, pot_id, display_name, ocr_temp)
         return JSONResponse({
-            'status': 'ok' if save_ok else 'error',
+            'status': 'ok' if saved['ok'] else 'error',
             'pot_id': pot_id,
             'filename': display_name,
             'ocr_temp': ocr_temp,
+            'delta_t': saved['delta_t'],
+            'dose': saved['dose'],
+            'dose_html': saved['dose_html'],
+            'watering_allowed': saved['watering_allowed'],
+            'cluster_status': saved['cluster_status'],
             'message': msg
         })
     except Exception as e:
@@ -4112,8 +4188,10 @@ async def handle_wave2_upload_thermal(
         pot_id, err_resp = _validate_wave2_pot_or_400(pot_id)
         if err_resp is not None:
             return err_resp
+        if not thermal_file or not thermal_file.filename:
+            return JSONResponse({'status': 'error', 'message': 'Файл термограммы не передан'}, status_code=400)
         wave2_storage = Wave2Storage(DATA_DIR)
-        
+
         ext = os.path.splitext(thermal_file.filename)[1].lower()
         if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp', '.dib'):
             ext = '.jpg'
@@ -4122,7 +4200,7 @@ async def handle_wave2_upload_thermal(
         th_save_path = os.path.join(wave2_storage.images_dir, thermal_saved_name)
         with open(th_save_path, "wb") as buf:
             shutil.copyfileobj(thermal_file.file, buf)
-            
+
         try:
             shutil.copyfile(th_save_path, os.path.join(STATIC_DIR, thermal_saved_name))
         except Exception:
@@ -4130,32 +4208,19 @@ async def handle_wave2_upload_thermal(
 
         # Конвертация BMP в универсальный JPEG + OCR температуры
         display_name, ocr_temp = process_and_convert_thermal_image(th_save_path, pot_id, wave2_storage.images_dir)
-            
-        update_dict = {
-            'ID': pot_id,
-            'Thermal_File': display_name
-        }
-        # Вариант 1: автоматическая запись OCR температуры в T_Leaf_C и расчет Delta_T
-        if ocr_temp is not None:
-            ocr_val = round(float(ocr_temp), 1)
-            update_dict['T_Leaf_C'] = ocr_val
-            today_recs = wave2_storage.load_today_records()
-            existing = next((r for r in today_recs if r.get('ID', '').strip().upper() == pot_id), None)
-            t_air = existing.get('T_Air_C') if existing else None
-            if t_air not in (None, '', '--'):
-                try:
-                    update_dict['Delta_T_C'] = round(ocr_val - float(t_air), 2)
-                except Exception:
-                    pass
+        saved = _apply_thermal_ocr_and_save_wave2(wave2_storage, pot_id, display_name, ocr_temp)
 
-        ok, msg = wave2_storage.save_or_update_record(update_dict)
         return JSONResponse({
-            'status': 'ok' if ok else 'error', 
-            'filename': display_name, 
+            'status': 'ok' if saved['ok'] else 'error',
+            'filename': display_name,
             'raw_filename': thermal_saved_name,
             'ocr_temp': ocr_temp,
-            'delta_t': update_dict.get('Delta_T_C'),
-            'message': msg
+            'delta_t': saved['delta_t'],
+            'dose': saved['dose'],
+            'dose_html': saved['dose_html'],
+            'watering_allowed': saved['watering_allowed'],
+            'cluster_status': saved['cluster_status'],
+            'message': saved['message']
         })
     except Exception as e:
         return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
@@ -4193,10 +4258,12 @@ async def handle_wave2_image_view(filename: str):
         if os.path.exists(p):
             if ext.lower() in ('.bmp', '.dib'):
                 try:
-                    cached_jpg = os.path.join(STATIC_DIR, 'uti_cache', base_no_ext + '.jpg')
+                    cache_dir = os.path.join(STATIC_DIR, 'uti_cache')
+                    os.makedirs(cache_dir, exist_ok=True)
+                    cached_jpg = os.path.join(cache_dir, base_no_ext + '.jpg')
                     if not os.path.exists(cached_jpg):
-                        im = Image.open(p)
-                        im.convert('RGB').save(cached_jpg, 'JPEG', quality=95)
+                        with Image.open(p) as im:
+                            im.convert('RGB').save(cached_jpg, 'JPEG', quality=95)
                     return FileResponse(cached_jpg, media_type='image/jpeg')
                 except Exception:
                     return FileResponse(p, media_type='image/bmp')
@@ -4206,7 +4273,7 @@ async def handle_wave2_image_view(filename: str):
                 return FileResponse(p, media_type='image/png')
             return FileResponse(p)
         
-    return HTMLResponse(f"Изображение '{safe_name}' не найдено на станции", status_code=404)
+    return HTMLResponse(f"Изображение '{html.escape(safe_name)}' не найдено на станции", status_code=404)
 
 
 if __name__ == '__main__':

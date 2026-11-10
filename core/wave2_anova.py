@@ -18,6 +18,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from core.agronomic_rules import (
+    parse_optional_float,
     parse_optional_turgor,
     evaluate_cohort_reaction_trigger,
     evaluate_cohort_prevention_trigger,
@@ -265,10 +266,8 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     latest_by_pot: Dict[str, Dict[str, Any]] = {}
     duplicate_pots_collapsed = 0
     for r in records:
-        pid = str(r.get("ID", "")).strip().upper()
-        if not pid or pid not in ["K1", "K2", "K3", "K4", "K5", "K6",
-                                  "P1", "P2", "P3", "P4", "P5", "P6",
-                                  "R1", "R2", "R3", "R4", "R5", "R6"]:
+        pid = _normalize_grcbd_pot_id(r.get("ID", ""))
+        if not pid or pid not in _CANONICAL_GRCBD_LAYOUT:
             continue
         if pid in latest_by_pot:
             duplicate_pots_collapsed += 1
@@ -306,8 +305,8 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         tr = parse_optional_turgor(r.get("Turgor_Score"))
 
         # Опциональные метрики урожая
-        dw = float(r.get("DW_g")) if r.get("DW_g") not in (None, "", "--") else None
-        fw = float(r.get("FW_g")) if r.get("FW_g") not in (None, "", "--") else None
+        dw = parse_optional_float(r.get("DW_g"))
+        fw = parse_optional_float(r.get("FW_g"))
 
         rows.append({
             "pot_id": pid,
@@ -403,8 +402,46 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
                 slice_dates.append(date.fromisoformat(m_dt.group(1)))
             except ValueError:
                 pass
+    distinct_dates = sorted(set(slice_dates))
+    has_mixed_dates = len(distinct_dates) > 1
+    if has_mixed_dates:
+        mixed_note = (
+            f"Смешаны замеры разных дат ({', '.join(d.isoformat() for d in distinct_dates)}): "
+            "подтверждающий 2-way GRCBD ANOVA по разнодневному срезу запрещён"
+        )
+        all_balanced = False
+        unavailable_reasons.insert(0, mixed_note)
+        for t in traits:
+            tr_item = traits_results[t]
+            if tr_item.get("confirmatory_allowed"):
+                tr_item["is_balanced_grcbd"] = False
+                tr_item["confirmatory_allowed"] = False
+                tr_item["confirmatory_status"] = "unavailable_mixed_dates"
+                tr_item["model_mode"] = "grcbd_violated_descriptive"
+                tr_item["model_label"] = "Описательно (смешаны разные даты)"
+                tr_item["balance_note"] = mixed_note
+                tr_item["f_cohort"] = None
+                tr_item["p_cohort"] = None
+                tr_item["f_block"] = None
+                tr_item["p_block"] = None
+                tr_item["ms_error"] = None
+                tr_item["lsd_05"] = None
+        for row in summary_table:
+            if row.get("confirmatory_allowed"):
+                row["is_balanced_grcbd"] = False
+                row["confirmatory_allowed"] = False
+                row["confirmatory_status"] = "unavailable_mixed_dates"
+                row["model_mode"] = "grcbd_violated_descriptive"
+                row["model_label"] = "Описательно (смешаны разные даты)"
+                row["balance_note"] = mixed_note
+                row["f_cohort"] = None
+                row["p_cohort"] = None
+                row["f_block"] = None
+                row["p_block"] = None
+                row["lsd_05"] = None
+
     day0_anchor = date(2026, 11, 9)
-    max_slice_date = max(slice_dates) if slice_dates else None
+    max_slice_date = max(distinct_dates) if distinct_dates else None
     day_num = (max_slice_date - day0_anchor).days if max_slice_date is not None else 0
     is_day0_slice = (max_slice_date is None) or (max_slice_date <= day0_anchor)
 
@@ -448,7 +485,7 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         badge_color = "#059669"
         verdict = f"Первичная конечная точка (сухая биомасса DW): Превенция {p_dw_mean} г vs Реакция {r_dw_mean} г (разница {diff_pct:+}%, {dw_stat_txt})."
 
-    elif r_eval["is_triggered"]:
+    elif not has_mixed_dates and r_eval["is_triggered"]:
         phase = "reaction_trigger"
         status_badge = "🔵 СТРЕСС-ФАЗА: КРИТИЧЕСКИЙ СТРЕСС УВЯДАНИЯ (РЕАКЦИЯ)"
         badge_color = "#2563eb"
@@ -660,7 +697,8 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         "",
         "*Отчет сгенерирован автоматически аналитическим ядром станции `PlantStation`.*",
     ])
-    open(report_path, "w", encoding="utf-8").write("\n".join(md_lines))
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(md_lines))
 
     return {
         "ok": True,

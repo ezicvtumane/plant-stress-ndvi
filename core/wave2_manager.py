@@ -5,15 +5,18 @@
 """
 
 import os
-import json
 import csv
 import re
-import time
-import math
+import logging
+import tempfile
+import threading
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import cv2
+
+logger = logging.getLogger(__name__)
+_STORAGE_LOCK = threading.RLock()
 from core.agronomic_rules import (
     CONTROL_BASELINE_MIN_QUORUM,
     evaluate_cohort_prevention_trigger,
@@ -789,8 +792,8 @@ class Wave2Storage:
                 writer = csv.writer(f)
                 writer.writerow(CSV_HEADER_WAVE2)
 
-    def load_all_records(self) -> List[Dict[str, Any]]:
-        records = []
+    def _read_all_records_unlocked(self, strict: bool = False) -> List[Dict[str, Any]]:
+        records: List[Dict[str, Any]] = []
         if not os.path.exists(self.csv_path):
             return records
         try:
@@ -798,118 +801,181 @@ class Wave2Storage:
                 reader = csv.DictReader(f)
                 for row in reader:
                     records.append(dict(row))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to read Wave 2 CSV %s: %s", self.csv_path, exc)
+            if strict:
+                raise
+            return []
         return records
+
+    def _write_records_atomic_unlocked(self, records: List[Dict[str, Any]]) -> None:
+        fd, temp_csv = tempfile.mkstemp(
+            dir=self.wave2_dir,
+            prefix=".tmp_wave2_",
+            suffix=".csv",
+        )
+        try:
+            with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=CSV_HEADER_WAVE2)
+                writer.writeheader()
+                writer.writerows(records)
+            os.replace(temp_csv, self.csv_path)
+        except Exception:
+            if os.path.exists(temp_csv):
+                os.remove(temp_csv)
+            raise
+
+    def load_all_records(self) -> List[Dict[str, Any]]:
+        with _STORAGE_LOCK:
+            return self._read_all_records_unlocked(strict=False)
 
     def load_today_records(self, date_str: Optional[str] = None) -> List[Dict[str, Any]]:
         if not date_str:
             date_str = datetime.now().strftime("%Y-%m-%d")
         all_recs = self.load_all_records()
-        today = []
-        for r in all_recs:
-            ts = r.get("Timestamp", "")
-            if ts.startswith(date_str):
-                today.append(r)
-        return today
+        return [r for r in all_recs if r.get("Timestamp", "").startswith(date_str)]
 
     def save_or_update_record(self, record_data: Dict[str, Any]) -> Tuple[bool, str]:
         """
-        Идемпотентная запись: если замер этого горшка за сегодня уже существует,
+        Идемпотентная потокобезопасная запись: если замер этого горшка за сегодня уже существует,
         он корректно обновляется. Если нет — дописывается новая строка.
         """
         now = datetime.now()
         today_prefix = now.strftime("%Y-%m-%d")
-        pot_id = str(record_data.get("ID", "")).strip().upper()
-        
-        all_records = self.load_all_records()
-        updated = False
-        
-        for idx, row in enumerate(all_records):
-            if row.get("ID", "").strip().upper() == pot_id and row.get("Timestamp", "").startswith(today_prefix):
-                # Обновляем существующую запись
-                for k in CSV_HEADER_WAVE2:
-                    if k in record_data:
-                        row[k] = str(record_data[k])
-                if "Timestamp" in record_data and record_data["Timestamp"]:
-                    row["Timestamp"] = str(record_data["Timestamp"])
-                all_records[idx] = row
-                updated = True
-                break
-                
-        if not updated:
-            # Создаем новую запись
-            new_row = {k: "--" for k in CSV_HEADER_WAVE2}
-            new_row.update({k: str(v) for k, v in record_data.items() if k in CSV_HEADER_WAVE2})
-            if "Timestamp" not in record_data or not record_data["Timestamp"]:
-                new_row["Timestamp"] = now.strftime("%Y-%m-%d %H:%M:%S")
-            all_records.append(new_row)
-            
-        # Запись обратно в CSV
-        temp_csv = self.csv_path + ".tmp"
-        try:
-            with open(temp_csv, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=CSV_HEADER_WAVE2)
-                writer.writeheader()
-                writer.writerows(all_records)
-            os.replace(temp_csv, self.csv_path)
-            return True, ("Запись обновлена" if updated else "Новая запись добавлена")
-        except Exception as e:
-            if os.path.exists(temp_csv):
-                os.remove(temp_csv)
-            return False, f"Ошибка записи: {str(e)}"
+        raw_id = str(record_data.get("ID", "")).strip()
+        pot_id = normalize_and_validate_pot_id(raw_id) or raw_id.upper()
 
-    def delete_record(self, pot_id: str, date_str: Optional[str] = None) -> Tuple[bool, str]:
-        """Удаление замера горшка из measurements_wave2.csv."""
-        pot_id = str(pot_id).strip().upper()
-        all_records = self.load_all_records()
-        new_records = []
-        deleted = False
-        deleted_opt_file = None
-        
-        target_idx = None
-        for i, r in enumerate(all_records):
-            if r.get("ID", "").strip().upper() == pot_id:
-                if date_str and r.get("Timestamp", "").startswith(date_str):
-                    target_idx = i
+        with _STORAGE_LOCK:
+            try:
+                all_records = self._read_all_records_unlocked(strict=True)
+            except Exception as e:
+                return False, f"Ошибка чтения журнала: {e}"
+
+            updated = False
+            for idx, row in enumerate(all_records):
+                row_pid = normalize_and_validate_pot_id(row.get("ID")) or str(row.get("ID", "")).strip().upper()
+                if row_pid == pot_id and row.get("Timestamp", "").startswith(today_prefix):
+                    for k in CSV_HEADER_WAVE2:
+                        if k in record_data:
+                            row[k] = str(record_data[k])
+                    row["ID"] = pot_id
+                    if "Timestamp" in record_data and record_data["Timestamp"]:
+                        row["Timestamp"] = str(record_data["Timestamp"])
+                    all_records[idx] = row
+                    updated = True
                     break
-                elif not date_str:
-                    target_idx = i
-        
-        if target_idx is None:
+
+            if not updated:
+                new_row = {k: "--" for k in CSV_HEADER_WAVE2}
+                new_row.update({k: str(v) for k, v in record_data.items() if k in CSV_HEADER_WAVE2})
+                new_row["ID"] = pot_id
+                if "Timestamp" not in record_data or not record_data["Timestamp"]:
+                    new_row["Timestamp"] = now.strftime("%Y-%m-%d %H:%M:%S")
+                all_records.append(new_row)
+
+            try:
+                self._write_records_atomic_unlocked(all_records)
+                return True, ("Запись обновлена" if updated else "Новая запись добавлена")
+            except Exception as e:
+                return False, f"Ошибка записи: {e}"
+
+    def sync_cohort_water_doses(self, date_str: Optional[str] = None) -> int:
+        """
+        Пересчитывает `Water_Dose_ml` для уже сохранённых за дату горшков Превенции и Реакции,
+        чтобы при срабатывании или сбросе кворума 4/6 CSV оставался согласованным с UI.
+        """
+        target_date = date_str or datetime.now().strftime("%Y-%m-%d")
+        with _STORAGE_LOCK:
+            try:
+                all_records = self._read_all_records_unlocked(strict=True)
+            except Exception:
+                return 0
+
+            date_rows = [r for r in all_records if str(r.get("Timestamp", "")).startswith(target_date)]
+            if not date_rows:
+                return 0
+
+            cluster_status = evaluate_cohort_cluster_status(date_rows)
+            changed = 0
+            for row in all_records:
+                if not str(row.get("Timestamp", "")).startswith(target_date):
+                    continue
+                pid = normalize_and_validate_pot_id(row.get("ID"))
+                if pid is None or POTS_CATALOG[pid]["cohort"] not in ("Prevention", "Reaction"):
+                    continue
+                raw_def = calculate_water_dose(row.get("Weight_g"), POTS_CATALOG[pid].get("target_weight", 100.0))
+                if raw_def is None:
+                    continue
+                decision = resolve_cohort_watering_decision(pid, raw_def, cluster_status)
+                eff_str = str(decision["effective_dose"])
+                if row.get("Water_Dose_ml") != eff_str:
+                    row["Water_Dose_ml"] = eff_str
+                    changed += 1
+
+            if changed > 0:
+                self._write_records_atomic_unlocked(all_records)
+            return changed
+
+    def delete_record(
+        self,
+        pot_id: str,
+        date_str: Optional[str] = None,
+        allow_fallback_any_date: bool = False,
+    ) -> Tuple[bool, str]:
+        """Потокобезопасное удаление замера горшка (по умолчанию только за активную дату, без порчи архива)."""
+        raw_id = str(pot_id).strip()
+        norm_id = normalize_and_validate_pot_id(raw_id) or raw_id.upper()
+        target_date = date_str if date_str is not None else datetime.now().strftime("%Y-%m-%d")
+
+        with _STORAGE_LOCK:
+            try:
+                all_records = self._read_all_records_unlocked(strict=True)
+            except Exception as e:
+                return False, f"Ошибка чтения при удалении: {e}"
+
+            target_idx = None
             for i, r in enumerate(all_records):
-                if r.get("ID", "").strip().upper() == pot_id:
+                row_pid = normalize_and_validate_pot_id(r.get("ID")) or str(r.get("ID", "")).strip().upper()
+                if row_pid == norm_id and str(r.get("Timestamp", "")).startswith(target_date):
                     target_idx = i
                     break
-        
-        if target_idx is None:
-            return False, f"Замер для горшка {pot_id} не найден"
-            
-        for i, r in enumerate(all_records):
-            if i == target_idx:
-                deleted = True
-                deleted_opt_file = r.get("Opt_File")
-            else:
-                new_records.append(r)
-        
-        temp_csv = self.csv_path + ".tmp"
-        try:
-            with open(temp_csv, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=CSV_HEADER_WAVE2)
-                writer.writeheader()
-                writer.writerows(new_records)
-            os.replace(temp_csv, self.csv_path)
 
-            if deleted_opt_file and deleted_opt_file != "--":
-                img_file_path = os.path.join(self.images_dir, deleted_opt_file)
-                if os.path.exists(img_file_path):
+            if target_idx is None and allow_fallback_any_date:
+                for i, r in enumerate(all_records):
+                    row_pid = normalize_and_validate_pot_id(r.get("ID")) or str(r.get("ID", "")).strip().upper()
+                    if row_pid == norm_id:
+                        target_idx = i
+
+            if target_idx is None:
+                return False, f"Замер для горшка {norm_id} за {target_date} не найден"
+
+            removed_row = all_records[target_idx]
+            new_records = [r for i, r in enumerate(all_records) if i != target_idx]
+
+            try:
+                self._write_records_atomic_unlocked(new_records)
+            except Exception as e:
+                return False, f"Ошибка при удалении: {e}"
+
+            still_referenced = {
+                os.path.basename(str(r.get(col, "")).strip())
+                for r in new_records
+                for col in ("Opt_File", "Thermal_File")
+                if r.get(col) not in (None, "", "--")
+            }
+            for col in ("Opt_File", "Thermal_File"):
+                fname = str(removed_row.get(col) or "").strip()
+                if not fname or fname == "--":
+                    continue
+                safe_fname = os.path.basename(fname)
+                if safe_fname in still_referenced:
+                    continue
+                img_file_path = os.path.join(self.images_dir, safe_fname)
+                if os.path.isfile(img_file_path):
                     try:
                         os.remove(img_file_path)
-                    except Exception:
-                        pass
-            return True, f"Замер горшка {pot_id} успешно удален"
-        except Exception as e:
-            if os.path.exists(temp_csv):
-                os.remove(temp_csv)
-            return False, f"Ошибка при удалении: {e}"
+                    except OSError as exc:
+                        logger.warning("Could not remove %s: %s", img_file_path, exc)
+
+            return True, f"Замер горшка {norm_id} за {target_date} успешно удален"
 

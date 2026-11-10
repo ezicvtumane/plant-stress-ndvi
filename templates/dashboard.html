@@ -784,6 +784,12 @@ function closeNewExpModal() {
 </div>
 
 <script>
+function _escAnovaHtml(v) {
+    return String(v ?? '').replace(/[&<>"']/g, function(ch) {
+        return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[ch];
+    });
+}
+
 async function openAnovaModal() {
     let m = document.getElementById('anovaModal');
     if (!m) return;
@@ -809,18 +815,18 @@ async function openAnovaModal() {
             badge.style.background = '#e11d48';
             badge.innerText = '⚠️ Недостаточно данных';
             verdict.innerText = data.message || 'Ошибка обработки данных';
-            tbody.innerHTML = `<tr><td colspan="9" style="padding:20px; color:#e11d48;">${data.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="padding:20px; color:#e11d48;">${_escAnovaHtml(data.message)}</td></tr>`;
             return;
         }
 
         badge.style.background = data.badge_color || '#059669';
         badge.innerText = data.status_badge || 'ANOVA Complete';
-        let verdictHtml = `<strong>Вердикт:</strong> ${data.verdict}`;
+        let verdictHtml = `<strong>Вердикт:</strong> ${_escAnovaHtml(data.verdict)}`;
         if (data.confirmatory_grcbd_performed === false) {
             const reasonsTxt = (data.confirmatory_unavailable_reasons && data.confirmatory_unavailable_reasons.length)
                 ? data.confirmatory_unavailable_reasons[0]
                 : 'Нарушена структура сбалансированной матрицы GRCBD 3×3×2.';
-            verdictHtml += `<div style="margin-top:6px; padding:6px 10px; background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; color:#92400e; font-size:12px;">⚠️ <strong>Подтверждающий GRCBD ANOVA не выполнен:</strong> ${reasonsTxt}</div>`;
+            verdictHtml += `<div style="margin-top:6px; padding:6px 10px; background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; color:#92400e; font-size:12px;">⚠️ <strong>Подтверждающий GRCBD ANOVA не выполнен:</strong> ${_escAnovaHtml(reasonsTxt)}</div>`;
         }
         verdict.innerHTML = verdictHtml;
 
@@ -841,15 +847,15 @@ async function openAnovaModal() {
 
             htmlRows += `
                 <tr style="border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:7px 10px; text-align:left; font-weight:700; color:#1e293b;">${row.label}</td>
-                    <td style="padding:7px 6px; color:#059669; font-weight:600;">${row.k_str}</td>
-                    <td style="padding:7px 6px; color:#d97706; font-weight:600;">${row.p_str}</td>
-                    <td style="padding:7px 6px; color:#2563eb; font-weight:600;">${row.r_str}</td>
-                    <td style="padding:7px 6px; color:#475569;">${fc}</td>
-                    <td style="padding:7px 6px; color:${pColor}; font-weight:${pWeight};">${pc}</td>
-                    <td style="padding:7px 6px; color:#64748b;">${fb}</td>
-                    <td style="padding:7px 6px; color:#64748b;">${pb}</td>
-                    <td style="padding:7px 6px; color:#0f172a; font-weight:600;">${lsd}</td>
+                    <td style="padding:7px 10px; text-align:left; font-weight:700; color:#1e293b;">${_escAnovaHtml(row.label)}</td>
+                    <td style="padding:7px 6px; color:#059669; font-weight:600;">${_escAnovaHtml(row.k_str)}</td>
+                    <td style="padding:7px 6px; color:#d97706; font-weight:600;">${_escAnovaHtml(row.p_str)}</td>
+                    <td style="padding:7px 6px; color:#2563eb; font-weight:600;">${_escAnovaHtml(row.r_str)}</td>
+                    <td style="padding:7px 6px; color:#475569;">${_escAnovaHtml(fc)}</td>
+                    <td style="padding:7px 6px; color:${pColor}; font-weight:${pWeight};">${_escAnovaHtml(pc)}</td>
+                    <td style="padding:7px 6px; color:#64748b;">${_escAnovaHtml(fb)}</td>
+                    <td style="padding:7px 6px; color:#64748b;">${_escAnovaHtml(pb)}</td>
+                    <td style="padding:7px 6px; color:#0f172a; font-weight:600;">${_escAnovaHtml(lsd)}</td>
                 </tr>
             `;
         });
@@ -857,7 +863,7 @@ async function openAnovaModal() {
             htmlRows += `
                 <tr style="background:#f8fafc; border-top:1px solid #e2e8f0;">
                     <td colspan="9" style="padding:8px 10px; text-align:left; font-size:11px; color:#475569;">
-                        <strong>Разведочный 1-way ANOVA (НЕ подтверждающий анализ и НЕ подтверждает гипотезу):</strong> ${exploratoryItems.join(' · ')}
+                        <strong>Разведочный 1-way ANOVA (НЕ подтверждающий анализ и НЕ подтверждает гипотезу):</strong> ${_escAnovaHtml(exploratoryItems.join(' · '))}
                     </td>
                 </tr>
             `;
