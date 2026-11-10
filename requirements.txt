@@ -1,10 +1,11 @@
 # Plant Stress Active Phenotyping System & Web Station
-# Core numerical and scientific computing
+# Core numerical, imaging, and scientific computing
 numpy>=1.22.0
 scipy>=1.9.0
 pandas>=1.4.0
 matplotlib>=3.5.0
 opencv-python>=4.5.0
+Pillow>=9.5.0
 
 # FastAPI Station Operator Web Interface
 fastapi>=0.100.0
@@ -14,12 +15,18 @@ python-multipart>=0.0.6
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 numexpr>=2.8.0
+# Thermal OCR requires system binary `tesseract-ocr` on PATH
 pytesseract>=0.3.10
 
 # Hardware control on Linux / Orange Pi / Raspberry Pi
-Adafruit-Blinka>=8.0.0
-adafruit-circuitpython-ads1x15>=2.2.0
-smbus2>=0.4.0
+# Note: GPIO control (`gpiod`) uses OS package `python3-libgpiod` on Armbian/Debian (with `i2c-tools`)
+Adafruit-Blinka>=8.0.0; sys_platform == "linux"
+adafruit-circuitpython-ads1x15>=2.2.0; sys_platform == "linux"
+smbus2>=0.4.0; sys_platform == "linux"
+
+# Optional auxiliary utility dependencies (not required for station runtime or CI):
+# - imageio-ffmpeg (scripts/create_soldering_montage.py)
+# - micloud (tools/fetch_xiaomi_cloud.py)
 
 # Testing and verification
 pytest>=7.0.0

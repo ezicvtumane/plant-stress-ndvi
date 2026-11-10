@@ -12,18 +12,23 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_task12_harvest_validation_scales_compat_and_dw():
-    """CSV контрольного взвешивания сохраняет исторические массы и обратную совместимость заголовков."""
+    """Исторический CSV контрольного взвешивания не мутируется лишними колонками и сохраняет значения 0.73..0.35 г."""
     csv_path = os.path.join(PROJECT_ROOT, "data", "harvest_validation_scales_day11.csv")
     with open(csv_path, "r", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
+        reader = csv.DictReader(f)
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
 
+    assert fieldnames == [
+        "Cohort_ID", "Cohort_Name", "ArUco_ID", "Icon_Symbol",
+        "Fresh_Weight_g", "Scale_Precision_g", "Tare_Weight_g",
+        "Scale_Photo_Filename", "Physiological_Status",
+    ]
     assert len(rows) == 5
     expected_dw = {"K1": 0.73, "K2": 0.55, "K3": 0.35, "K4": 0.65, "K5": 0.49}
     for row in rows:
         cid = row["Cohort_ID"]
         assert float(row["Fresh_Weight_g"]) == expected_dw[cid]
-        assert float(row["Air_Dry_Weight_DW_g"]) == expected_dw[cid]
-        assert "air_dried_cohort_sum_DW" in row["Measurement_Note"]
 
 
 def test_task12_series1_fresh_biomass_sums_intact():

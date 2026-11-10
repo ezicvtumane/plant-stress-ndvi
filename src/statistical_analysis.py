@@ -63,10 +63,54 @@ class ExperimentStatistics:
         })
         return summary
 
+    def get_telemetry_correlations(self) -> Dict[str, Dict[str, float]]:
+        """
+        Вычисляет воспроизводимые корреляции (Пирсон и Спирмен) по повторным суточным замерам
+        `data/measurements.csv` (разведочный характер временных рядов).
+        """
+        if self.df is None:
+            self.load_dataset()
+
+        sub_moist = self.df.dropna(subset=["Moisture_Pct"]).copy()
+
+        r_dt_ndvi, p_dt_ndvi = stats.pearsonr(self.df["Delta_T_C"], self.df["NDVI_Mean"])
+        rho_dt_ndvi, prho_dt_ndvi = stats.spearmanr(self.df["Delta_T_C"], self.df["NDVI_Mean"])
+
+        r_mdt, p_mdt = stats.pearsonr(sub_moist["Moisture_Pct"], sub_moist["Delta_T_C"])
+        rho_mdt, prho_mdt = stats.spearmanr(sub_moist["Moisture_Pct"], sub_moist["Delta_T_C"])
+
+        r_mw, p_mw = stats.pearsonr(sub_moist["Moisture_Pct"], sub_moist["Weight_g"])
+        rho_mw, prho_mw = stats.spearmanr(sub_moist["Moisture_Pct"], sub_moist["Weight_g"])
+
+        return {
+            "delta_t_vs_ndvi_all": {
+                "n": int(len(self.df)),
+                "pearson_r": float(r_dt_ndvi),
+                "pearson_p": float(p_dt_ndvi),
+                "spearman_rho": float(rho_dt_ndvi),
+                "spearman_p": float(prho_dt_ndvi),
+            },
+            "moisture_vs_delta_t": {
+                "n": int(len(sub_moist)),
+                "pearson_r": float(r_mdt),
+                "pearson_p": float(p_mdt),
+                "spearman_rho": float(rho_mdt),
+                "spearman_p": float(prho_mdt),
+            },
+            "moisture_vs_weight": {
+                "n": int(len(sub_moist)),
+                "pearson_r": float(r_mw),
+                "pearson_p": float(p_mw),
+                "spearman_rho": float(rho_mw),
+                "spearman_p": float(prho_mw),
+            },
+        }
+
     def compare_groups(self, group_a: str = "Контроль", group_b: str = "Засуха") -> Dict[str, Any]:
         """
-        Compares two cohorts using Student's t-test and Mann-Whitney U test
-        for Delta_T and NDVI.
+        Разведочное (exploratory) сравнение временных рядов двух кассетных когорт
+        по t-критерию Уэлча и U-тесту Манна–Уитни для Delta_T и NDVI.
+        Повторные суточные измерения кассет (N=1) не являются независимыми биологическими повторностями.
         """
         if self.df is None:
             self.load_dataset()
@@ -86,6 +130,7 @@ class ExperimentStatistics:
         u_ndvi, p_ndvi_u = stats.mannwhitneyu(sub_a["NDVI_Mean"].dropna(), sub_b["NDVI_Mean"].dropna(), alternative="two-sided")
 
         return {
+            "exploratory_status": "cassette_pseudoreplicated_n1",
             "group_a": group_a, "group_b": group_b,
             "n_a": len(sub_a), "n_b": len(sub_b),
             "delta_t": {

@@ -181,3 +181,17 @@
 
   * [`01_substrate_prep_cat_inspector.jpg`](images/01_substrate_prep_cat_inspector.jpg) — Подготовка субстрата и лабораторный контроль.
 
+  * [`17_wave2_pot_marking_shapes_and_probes.jpg`](images/17_wave2_pot_marking_shapes_and_probes.jpg) — Двухконтурная маркировка сосудов белым маркером (боковые фигуры + индексы `1–6`) и реперные датчики на позициях `№ 1`.
+
+  * [`18_wave2_pot_marking_top_rim_dots.jpg`](images/18_wave2_pot_marking_top_rim_dots.jpg) — Надирный вид: точечная разметка на верхнем торце бортиков (`0` / `2` / `4` точки) и ArUco-маркеры.
+
+  * [`19_wave2_station_queue_pipeline_ui.jpg`](images/19_wave2_station_queue_pipeline_ui.jpg) — Интерфейс веб-станции с очередью конвейера (`K1–K6 -> R1–R6 -> P1–P6 -> C20 / X0`).
+
+  * [`20_wave2_phytotron_tray_soil_sensors_bbch12.jpg`](images/20_wave2_phytotron_tray_soil_sensors_bbch12.jpg) — Размещение растений в фитотроне под светодиодной фитолинейкой (фаза BBCH 12).
+
+  * [`21_wave2_pots_geometric_marking_grcbd.jpg`](images/21_wave2_pots_geometric_marking_grcbd.jpg) — Геометрическая маркировка сосудов комплекса GRCBD (круги, треугольники, квадраты).
+
+  * [`22_wave2_alice_marking_pots_paint_marker.jpg`](images/22_wave2_alice_marking_pots_paint_marker.jpg) — Личный вклад автора: Алиса Ковалева наносит перманентную маркировку на сосуды.
+
+  * [`23_wave2_alice_operating_photometric_station_day0.jpg`](images/23_wave2_alice_operating_photometric_station_day0.jpg) — Алиса проводит базовый срез Дня 0 (09.11.2026) на измерительной станции `PlantStation`.
+
