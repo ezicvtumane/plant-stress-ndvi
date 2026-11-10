@@ -35,6 +35,10 @@ jobs:
         run: |
           python -c "from web_station import app; from src.statistical_analysis import ExperimentStatistics; df = ExperimentStatistics().load_dataset(); assert len(df) > 0, 'Empty Wave 1 dataset'; print(f'Smoke OK: FastAPI={app.title}, Wave1 rows={len(df)}')"
 
+      - name: Verify Wave 2 image links and full Pillow decode
+        run: |
+          python scripts/verify_wave2_image_links.py
+
       - name: Verify tests did not mutate tracked data or docs
         run: |
           git status --porcelain

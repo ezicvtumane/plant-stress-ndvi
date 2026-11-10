@@ -5,9 +5,12 @@
 (`data/experiments/exp_1792918800/measurements_wave2.csv`).
 
 Классифицирует каждую ссылку `Opt_File` и `Thermal_File`:
-- ok (найдено): файл существует, не пустой, валидный заголовок (JPEG/PNG/BMP), префикс совпадает с ID.
-- missing (отсутствует): файл указан в CSV, но не найден на диске либо пустой/битый (0 байт / FAKE_JPEG).
-- ambiguous (неоднозначно): префикс имени не соответствует ID, несовпадение формата, или один файл указан для разных ID.
+- ok (найдено): файл существует, не пустой, валидный заголовок (JPEG/PNG/BMP),
+  полностью декодируется Pillow (width > 0, height > 0), формат совпадает с расширением, префикс совпадает с ID.
+- missing (отсутствует/повреждён): файл не найден, пустой (0 байт), содержит заглушку
+  или не прошёл полное декодирование (битый/усечённый JPEG/PNG/BMP, нулевые размеры).
+- ambiguous (неоднозначно): префикс имени не соответствует ID, несовпадение реального формата с расширением,
+  либо один файл указан для разных ID.
 - unlinked ('--'): явный прочерк в CSV (снимок ещё не привязан).
 """
 
@@ -18,6 +21,7 @@ import os
 import sys
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
+from PIL import Image, ImageFile
 
 if sys.platform == "win32":
     try:
@@ -34,6 +38,7 @@ _CYR_TO_LAT = str.maketrans({"К": "K", "П": "P", "Р": "R"})
 
 
 def _inspect_image_header(fpath: str) -> Dict[str, Any]:
+    """Проверяет размер, сигнатуру, соответствие формата расширению и выполняет полное декодирование Pillow."""
     size = os.path.getsize(fpath)
     with open(fpath, "rb") as f:
         head = f.read(64)
@@ -41,17 +46,55 @@ def _inspect_image_header(fpath: str) -> Dict[str, Any]:
     if b"FAKE_JPEG_DATA_STREAM" in head or size == 0:
         return {"valid": False, "format": "corrupt_or_dummy", "size_bytes": size}
     if head.startswith(b"\xff\xd8\xff"):
-        fmt = "jpeg"
-        ext_ok = ext in (".jpg", ".jpeg")
+        sig_fmt = "jpeg"
     elif head.startswith(b"\x89PNG\r\n\x1a\n"):
-        fmt = "png"
-        ext_ok = ext == ".png"
+        sig_fmt = "png"
     elif head.startswith(b"BM"):
-        fmt = "bmp"
-        ext_ok = ext in (".bmp", ".dib")
+        sig_fmt = "bmp"
     else:
         return {"valid": False, "format": "unknown", "size_bytes": size}
-    return {"valid": True, "format": fmt, "ext_ok": ext_ok, "size_bytes": size}
+
+    # Полное декодирование через Pillow без модификации исходного файла
+    prev_trunc = ImageFile.LOAD_TRUNCATED_IMAGES
+    ImageFile.LOAD_TRUNCATED_IMAGES = False
+    try:
+        with Image.open(fpath) as im_verify:
+            im_verify.verify()
+        with Image.open(fpath) as im:
+            pil_raw_fmt = (im.format or "").upper()
+            im.load()
+            width, height = im.size
+    except Exception as exc:
+        return {
+            "valid": False,
+            "format": f"decode_error:{sig_fmt}",
+            "size_bytes": size,
+            "decode_error": f"{type(exc).__name__}: {exc}",
+        }
+    finally:
+        ImageFile.LOAD_TRUNCATED_IMAGES = prev_trunc
+
+    if width <= 0 or height <= 0:
+        return {
+            "valid": False,
+            "format": f"invalid_dimensions:{width}x{height}",
+            "size_bytes": size,
+            "width": width,
+            "height": height,
+        }
+
+    pil_fmt = {"JPEG": "jpeg", "PNG": "png", "BMP": "bmp", "DIB": "bmp"}.get(pil_raw_fmt, pil_raw_fmt.lower())
+    ext_map = {"jpeg": (".jpg", ".jpeg"), "png": (".png",), "bmp": (".bmp", ".dib")}
+    ext_ok = (sig_fmt == pil_fmt) and (ext in ext_map.get(pil_fmt, ()))
+    return {
+        "valid": True,
+        "format": pil_fmt,
+        "signature_format": sig_fmt,
+        "ext_ok": ext_ok,
+        "size_bytes": size,
+        "width": width,
+        "height": height,
+    }
 
 
 def verify_image_links(

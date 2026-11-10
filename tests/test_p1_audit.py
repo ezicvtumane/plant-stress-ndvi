@@ -209,6 +209,16 @@ def test_task8_kbal_calibration_profiles_versioned():
     assert cfg.ACTIVE_KBAL_CALIBRATION_PROFILE == "series2_imx179_v1"
 
 
+def _make_test_image_bytes(fmt: str = "JPEG", size: tuple[int, int] = (16, 16)) -> bytes:
+    """Создает валидное декодируемое изображение заданного формата в памяти."""
+    import io
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", size, color=(40, 140, 60)).save(buf, format=fmt)
+    return buf.getvalue()
+
+
 def test_task4_verify_image_links_script_real_and_broken_cases(tmp_path):
     """P1.4: CLI-скрипт verify_wave2_image_links корректно проверяет реальный День 0 и ловит missing/ambiguous."""
     from scripts.verify_wave2_image_links import verify_image_links
@@ -222,8 +232,9 @@ def test_task4_verify_image_links_script_real_and_broken_cases(tmp_path):
     # Синтетическая проверка missing + ambiguous (чужой ID в имени файла)
     img_dir = tmp_path / "images"
     img_dir.mkdir()
-    (img_dir / "K2_badprefix_opt.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"0" * 50)
-    (img_dir / "K1_ok_th.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"0" * 50)
+    valid_jpg = _make_test_image_bytes("JPEG")
+    (img_dir / "K2_badprefix_opt.jpg").write_bytes(valid_jpg)
+    (img_dir / "K1_ok_th.jpg").write_bytes(valid_jpg)
     csv_file = tmp_path / "m.csv"
     csv_file.write_text(
         "ID,Timestamp,Opt_File,Thermal_File\n"
@@ -237,3 +248,91 @@ def test_task4_verify_image_links_script_real_and_broken_cases(tmp_path):
     assert bad_rep["counts"]["ambiguous"] == 1
     assert bad_rep["counts"]["missing"] == 1
     assert bad_rep["counts"]["unlinked"] == 1
+
+
+def test_p1_3_verify_image_links_full_pillow_decode_and_corruption_cases(tmp_path):
+    """P1.3: Полное декодирование через Pillow отлавливает усечённые, header-only, пустые и подменённые файлы."""
+    import hashlib
+    from pathlib import Path
+    from PIL import ImageFile
+    from scripts.verify_wave2_image_links import DEFAULT_IMAGES_DIR, verify_image_links
+
+    img_root = Path(DEFAULT_IMAGES_DIR)
+    before_hashes = {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(img_root.iterdir())
+        if p.is_file()
+    }
+    full_rep = verify_image_links()
+    after_hashes = {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(img_root.iterdir())
+        if p.is_file()
+    }
+    assert before_hashes == after_hashes
+    assert full_rep["healthy"] is True
+    assert full_rep["rows_checked"] == 38
+    assert full_rep["counts"]["ok"] == 76
+    assert full_rep["counts"]["missing"] == 0
+    assert full_rep["counts"]["ambiguous"] == 0
+
+    # Валидные JPEG, PNG и BMP проходят декодирование
+    valid_dir = tmp_path / "valid_imgs"
+    valid_dir.mkdir()
+    (valid_dir / "K1_opt.jpg").write_bytes(_make_test_image_bytes("JPEG"))
+    (valid_dir / "K1_th.png").write_bytes(_make_test_image_bytes("PNG"))
+    (valid_dir / "K2_opt.bmp").write_bytes(_make_test_image_bytes("BMP"))
+    valid_csv = tmp_path / "valid.csv"
+    valid_csv.write_text(
+        "ID,Timestamp,Opt_File,Thermal_File\n"
+        "K1,2026-11-10,K1_opt.jpg,K1_th.png\n"
+        "K2,2026-11-10,K2_opt.bmp,--\n",
+        encoding="utf-8",
+    )
+    ok_rep = verify_image_links(str(valid_csv), str(valid_dir))
+    assert ok_rep["healthy"] is True
+    assert ok_rep["counts"]["ok"] == 3
+    assert ok_rep["counts"]["missing"] == 0
+    assert ok_rep["counts"]["ambiguous"] == 0
+
+    # Битые файлы: header-only JPEG, усечённый JPEG, пустой файл, PNG с расширением .jpg
+    bad_dir = tmp_path / "bad_imgs"
+    bad_dir.mkdir()
+    real_jpg = _make_test_image_bytes("JPEG", size=(64, 64))
+    (bad_dir / "K1_header_only.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"0" * 50)
+    (bad_dir / "K1_truncated.jpg").write_bytes(real_jpg[: max(20, len(real_jpg) // 2)])
+    (bad_dir / "K2_empty.jpg").write_bytes(b"")
+    (bad_dir / "K2_wrong_ext.jpg").write_bytes(_make_test_image_bytes("PNG"))
+    bad_csv = tmp_path / "bad.csv"
+    bad_csv.write_text(
+        "ID,Timestamp,Opt_File,Thermal_File\n"
+        "K1,2026-11-10,K1_header_only.jpg,K1_truncated.jpg\n"
+        "K2,2026-11-10,K2_empty.jpg,K2_wrong_ext.jpg\n",
+        encoding="utf-8",
+    )
+    prev_truncated_flag = ImageFile.LOAD_TRUNCATED_IMAGES
+    bad_rep = verify_image_links(str(bad_csv), str(bad_dir))
+    assert ImageFile.LOAD_TRUNCATED_IMAGES is prev_truncated_flag
+    assert bad_rep["healthy"] is False
+    assert bad_rep["counts"]["ok"] == 0
+    assert bad_rep["counts"]["missing"] == 3
+    assert bad_rep["counts"]["ambiguous"] == 1
+
+    import subprocess
+    import sys
+
+    script_path = Path(__file__).resolve().parent.parent / "scripts" / "verify_wave2_image_links.py"
+    ok_proc = subprocess.run(
+        [sys.executable, str(script_path), "--csv", str(valid_csv), "--images-dir", str(valid_dir)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert ok_proc.returncode == 0
+    bad_proc = subprocess.run(
+        [sys.executable, str(script_path), "--csv", str(bad_csv), "--images-dir", str(bad_dir)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert bad_proc.returncode == 1
