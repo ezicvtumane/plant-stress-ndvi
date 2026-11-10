@@ -32,7 +32,7 @@ from core.dashboard_view import build_review_view
 
 
 def test_task4_nov9_primary_images_exist_and_match_ids():
-    """Все 38 ссылок из исторического measurements_wave2.csv от 09.11 физически существуют и валидны."""
+    """Все 38 ссылок от 09.11 в measurements_wave2.csv физически существуют, валидны и без тестовых заглушек."""
     exp_dir = os.path.join(PROJECT_ROOT, "data", "experiments", "exp_1792918800")
     csv_path = os.path.join(exp_dir, "measurements_wave2.csv")
     img_dir = os.path.join(exp_dir, "images")
@@ -40,9 +40,10 @@ def test_task4_nov9_primary_images_exist_and_match_ids():
     with open(csv_path, "r", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
 
-    assert len(rows) == 19
+    nov9_rows = [r for r in rows if r["Timestamp"].strip().startswith("2026-11-09")]
+    assert len(nov9_rows) == 19
     referenced = set()
-    for row in rows:
+    for row in nov9_rows:
         pid = row["ID"].strip().upper()
         assert row["Timestamp"].strip() == "2026-11-09"
         for col in ("Opt_File", "Thermal_File"):
@@ -57,7 +58,18 @@ def test_task4_nov9_primary_images_exist_and_match_ids():
             referenced.add(fname)
 
     assert len(referenced) == 38
-    assert set(os.listdir(img_dir)) == referenced
+    actual_files = set(os.listdir(img_dir))
+    assert referenced.issubset(actual_files)
+    # Старые синтетические файлы-заглушки из коммита cc446725 не должны присутствовать
+    removed_dummies = {
+        "K1_20261109_205158_thermal.jpg",
+        "K1_20261109_205915_thermal.jpg",
+        "K1_20261109_211533_thermal.jpg",
+        "K1_20261109_212733_thermal.jpg",
+        "K1_20261109_212813_thermal.jpg",
+        "K2_20261109_205158_thermal.jpg",
+    }
+    assert actual_files.isdisjoint(removed_dummies)
 
 
 def test_task6_pots_catalog_design_alignment():
