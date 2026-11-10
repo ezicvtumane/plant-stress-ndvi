@@ -147,6 +147,7 @@ def test_wave2_bmp_upload_and_conversion():
 
 def test_wave2_ui_redesign_and_scrolling():
     """Проверка редизайна колонки термограммы (как NDVI), кнопки 📷 и скролла таблицы."""
+    client.post('/api/wave2/update_record', data={'pot_id': 'K1', 'weight_g': '92.5'})
     res = client.get('/?set_exp=exp_1792918800')
     assert res.status_code == 200
     html = res.text

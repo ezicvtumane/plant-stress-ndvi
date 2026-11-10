@@ -56,10 +56,12 @@ from PIL import Image
 import pytesseract
 from core.experiments import get_experiment_manager
 from core.xiaomi_climate import get_windowsill_climate
+from core.agronomic_rules import parse_optional_turgor
 from core.wave2_manager import (
     POTS_CATALOG, BATCH_QUEUE_WAVE2, CSV_HEADER_WAVE2,
     Wave2Storage, compute_single_pot_phenotyping,
-    calculate_water_dose, calculate_delta_t, evaluate_cohort_cluster_status
+    calculate_water_dose, calculate_delta_t, evaluate_cohort_cluster_status,
+    evaluate_pot_watering_with_projection, format_watering_decision_output
 )
 from core.wave2_ui import (
     render_wave2_cluster_banner, render_wave2_tray_layout,
@@ -167,6 +169,7 @@ AGRONOMIC_NDVI_LUT = get_agronomic_ndvi_lut()
 
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 DOCS_DIR = os.path.join(BASE_DIR, 'docs')
+WAVE2_DOCS_DIR = os.path.join(DOCS_DIR, 'wave2')
 TH_CACHE_DIR = os.path.join(STATIC_DIR, 'uti_cache')
 UTI_DIR = '/media/uti120s/Images'
 
@@ -1781,7 +1784,7 @@ async def index(
         channels_card_html = render_wave2_channels_card(t_now)
         table_html = render_wave2_measurements_table(all_records)
 
-        status_banner = tray_layout_html
+        status_banner = render_wave2_cluster_banner(records_today) + tray_layout_html
         grid_top_content = active_card_html + channels_card_html
 
         templates = Jinja2Templates(directory=os.path.join(BASE_DIR, 'templates'))
@@ -3255,7 +3258,7 @@ async def handle_wave2_capture_and_save(
     weight_g: str = Form(""),
     t_leaf: str = Form(""),
     t_air: str = Form(""),
-    turgor_score: str = Form("4"),
+    turgor_score: str = Form(""),
     thermal_file: UploadFile = File(None),
     thermal_filename: str = Form("")
 ):
@@ -3289,18 +3292,25 @@ async def handle_wave2_capture_and_save(
             except ValueError:
                 pass
 
-        parsed_turgor = 4
-        if turgor_score and turgor_score.strip() and turgor_score.strip() != "--":
-            try:
-                parsed_turgor = int(turgor_score.strip())
-            except ValueError:
-                pass
+        parsed_turgor = parse_optional_turgor(turgor_score)
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        dose = calculate_water_dose(parsed_weight, 100.0)
+        raw_deficit = calculate_water_dose(parsed_weight, 100.0)
 
         # 3. Сохранение в measurements_wave2.csv
         wave2_storage = Wave2Storage(DATA_DIR)
+        today_recs = wave2_storage.load_today_records()
+        preview_fields = {
+            'ID': pot_id,
+            'Weight_g': round(parsed_weight, 1) if parsed_weight is not None else '--',
+            'Delta_T_C': delta_t if delta_t is not None else '--',
+            'Turgor_Score': parsed_turgor if parsed_turgor is not None else '--',
+        }
+        decision, cluster_status = evaluate_pot_watering_with_projection(
+            today_recs, pot_id, preview_fields, raw_deficit
+        )
+        dose = decision['effective_dose']
+        dose_out = format_watering_decision_output(decision)
         thermal_saved_name = '--'
         if thermal_file and thermal_file.filename:
             ext = os.path.splitext(thermal_file.filename)[1].lower()
@@ -3336,7 +3346,7 @@ async def handle_wave2_capture_and_save(
             'Opt_File': opt_file,
             'Thermal_File': thermal_saved_name,
             'C1': '--', 'C2': '--', 'C3': '--', 'C4': '--', 'C5': '--', 'C6': '--', 'C7': '--', 'C8': '--', 'C9': '--',
-            'Turgor_Score': parsed_turgor,
+            'Turgor_Score': parsed_turgor if parsed_turgor is not None else '--',
             'Water_Dose_ml': dose if dose is not None else '--'
         }
         ok, msg = wave2_storage.save_or_update_record(row_data)
@@ -3350,7 +3360,14 @@ async def handle_wave2_capture_and_save(
             'pot_id': pot_id,
             'next_pot': next_pot,
             'message': msg,
-            'metrics': metrics
+            'metrics': metrics,
+            'turgor_score': parsed_turgor,
+            'dose': dose_out['dose_text'],
+            'dose_html': dose_out['dose_html'],
+            'raw_deficit_ml': raw_deficit,
+            'watering_allowed': decision['watering_allowed'],
+            'watering_reason': decision['reason'],
+            'cluster_status': cluster_status
         })
     except Exception as e:
         return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
@@ -3416,7 +3433,7 @@ async def handle_wave2_update_record(
     pot_id: str = Form(...),
     weight_g: str = Form(""),
     t_leaf: str = Form(""),
-    turgor_score: str = Form("4"),
+    turgor_score: str = Form(""),
     t_air: str = Form(""),
     moisture_pct: str = Form(""),
     thermal_filename: str = Form(""),
@@ -3464,25 +3481,20 @@ async def handle_wave2_update_record(
             except ValueError:
                 pass
 
-        parsed_turgor = None
-        if turgor_score and turgor_score.strip() and turgor_score.strip() != "--":
-            try:
-                parsed_turgor = int(turgor_score.strip())
-            except ValueError:
-                pass
+        raw_turgor_str = turgor_score.strip() if turgor_score else ""
+        if raw_turgor_str == "--":
+            parsed_turgor = None
+        elif raw_turgor_str:
+            parsed_turgor = parse_optional_turgor(raw_turgor_str)
         elif existing and existing.get('Turgor_Score') not in (None, '', '--'):
-            try:
-                parsed_turgor = int(existing.get('Turgor_Score'))
-            except ValueError:
-                pass
-        if parsed_turgor is None:
-            parsed_turgor = 4
+            parsed_turgor = parse_optional_turgor(existing.get('Turgor_Score'))
+        else:
+            parsed_turgor = None
 
         delta_t = calculate_delta_t(parsed_t_leaf, effective_t_air)
-        
-        # Учет нарастания листовой поверхности PLA при расчете дозы
-        pla_val = existing.get('Leaf_Area_cm2') if existing else None
-        dose = calculate_water_dose(parsed_weight, 100.0, pla_val)
+
+        # Option A (аудит): авто-поправка PLA отключена, целевая масса строго 100.0 г
+        raw_deficit = calculate_water_dose(parsed_weight, 100.0)
 
         parsed_soil = None
         if moisture_pct and moisture_pct.strip() and moisture_pct.strip() != "--":
@@ -3512,12 +3524,7 @@ async def handle_wave2_update_record(
         elif existing and existing.get('Delta_T_C') not in (None, '', '--'):
             update_dict['Delta_T_C'] = existing.get('Delta_T_C')
 
-        update_dict['Turgor_Score'] = parsed_turgor
-
-        if dose is not None:
-            update_dict['Water_Dose_ml'] = dose
-        elif existing and existing.get('Water_Dose_ml') not in (None, '', '--'):
-            update_dict['Water_Dose_ml'] = existing.get('Water_Dose_ml')
+        update_dict['Turgor_Score'] = parsed_turgor if parsed_turgor is not None else '--'
 
         if t_air and t_air.strip() and t_air.strip() != "--":
             update_dict['T_Air_C'] = round(effective_t_air, 1)
@@ -3559,15 +3566,31 @@ async def handle_wave2_update_record(
                 update_dict['Moisture_Pct'] = round(parsed_soil, 1)
         else:
             update_dict['Moisture_Pct'] = '--'
-            update_dict['Moisture_V'] = '--' 
+            update_dict['Moisture_V'] = '--'
+
+        decision, cluster_status = evaluate_pot_watering_with_projection(
+            today_recs, pot_id, update_dict, raw_deficit
+        )
+        dose = decision['effective_dose']
+        dose_out = format_watering_decision_output(decision)
+        if dose is not None:
+            update_dict['Water_Dose_ml'] = dose
+        elif existing and existing.get('Water_Dose_ml') not in (None, '', '--'):
+            update_dict['Water_Dose_ml'] = existing.get('Water_Dose_ml')
 
         ok, msg = wave2_storage.save_or_update_record(update_dict)
         return JSONResponse({
             'status': 'ok' if ok else 'error',
             'message': msg,
             'pot_id': pot_id,
+            'turgor_score': parsed_turgor,
             'delta_t': (('+' if delta_t > 0 else '') + f"{delta_t:.1f}°") if delta_t is not None else '--',
-            'dose': f"{dose:.1f} мл" if dose is not None else '--',
+            'dose': dose_out['dose_text'],
+            'dose_html': dose_out['dose_html'],
+            'raw_deficit_ml': raw_deficit,
+            'watering_allowed': decision['watering_allowed'],
+            'watering_reason': decision['reason'],
+            'cluster_status': cluster_status,
             'thermal_file': saved_th_name
         })
     except Exception as e:
@@ -3597,7 +3620,7 @@ def handle_download_wave2_csv():
 
 @app.get('/download/wave2_anova_report')
 def handle_download_wave2_anova_report():
-    report_path = os.path.join(BASE_DIR, 'docs', 'wave2', 'ANOVA_LATEST_REPORT.md')
+    report_path = os.path.join(WAVE2_DOCS_DIR, 'ANOVA_LATEST_REPORT.md')
     if os.path.exists(report_path):
         return FileResponse(report_path, filename='ANOVA_LATEST_REPORT.md', media_type='text/markdown')
     return HTMLResponse('Отчет ANOVA_LATEST_REPORT.md еще не сформирован. Запустите расчет в интерфейсе.')
@@ -3620,7 +3643,7 @@ async def api_wave2_anova_report():
         res = analyze_wave2_dataset(
             records,
             static_dir=STATIC_DIR,
-            docs_dir=os.path.join(BASE_DIR, 'docs', 'wave2')
+            docs_dir=WAVE2_DOCS_DIR
         )
         return JSONResponse(res)
     except Exception as e:

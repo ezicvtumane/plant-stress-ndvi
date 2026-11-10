@@ -97,59 +97,118 @@ def calc_delta_delta_t(
     return dt, ddt, triggered
 
 
+def parse_optional_turgor(value: Any) -> Optional[int]:
+    """Парсит оценку тургора 1..4; отсутствующие значения (None, '', '--') возвращает как None."""
+    if value is None or isinstance(value, bool):
+        return None
+    s = str(value).strip()
+    if not s or s in ("--", "None", "nan", "NaN", "null"):
+        return None
+    try:
+        score = int(float(s.replace(",", ".")))
+    except (ValueError, TypeError):
+        return None
+    return score if 1 <= score <= 4 else None
+
+
+def _build_cluster_quorum_status(
+    valid_count: int,
+    triggered_count: int,
+    min_plants: int,
+    total_plants: int,
+) -> Tuple[bool, bool, bool, str]:
+    """Единая оценка кворума (>= min_plants) и достаточности выборки когорты."""
+    is_triggered = triggered_count >= min_plants
+    is_insufficient = (valid_count < total_plants) and not is_triggered
+    sufficient_data = not is_insufficient
+    state = "triggered" if is_triggered else ("insufficient_data" if is_insufficient else "blocked")
+    return is_triggered, is_insufficient, sufficient_data, state
+
+
 def evaluate_cohort_prevention_trigger(
     prevention_plants_ddt: List[Optional[float]],
     threshold: float = DELTA_DELTA_T_THRESHOLD_C,
-    min_plants: int = PREVENTION_MIN_TRIGGERED_PLANTS
+    min_plants: int = PREVENTION_MIN_TRIGGERED_PLANTS,
+    total_plants: int = TOTAL_COHORT_PLANTS
 ) -> Dict[str, Any]:
     """
     Оценивает кворум срабатывания триггера для когорты Превенция (П1–П6):
     Триггер сработал, если минимум у 4 из 6 растений зафиксирован ΔΔT >= +0.6°C.
     """
-    valid_ddts = [val for val in prevention_plants_ddt if val is not None]
+    valid_ddts: List[float] = []
+    for val in prevention_plants_ddt:
+        if val is None or isinstance(val, bool):
+            continue
+        s = str(val).strip()
+        if not s or s in ("--", "None", "nan", "NaN", "null"):
+            continue
+        try:
+            valid_ddts.append(float(s.replace(",", ".")))
+        except (ValueError, TypeError):
+            continue
+
     triggered_count = sum(1 for val in valid_ddts if val >= threshold)
     total_measured = len(valid_ddts)
-    is_triggered = triggered_count >= min_plants
+    is_triggered, is_insufficient, sufficient_data, state = _build_cluster_quorum_status(
+        total_measured, triggered_count, min_plants, total_plants
+    )
+
+    if is_triggered:
+        status_text = f"🚨 ТРИГГЕР ПРЕВЕНЦИИ СРАБОТАЛ ({triggered_count}/{total_plants} растений ≥ +{threshold}°C)"
+    elif is_insufficient:
+        status_text = f"⚠️ Недостаточно данных ({total_measured}/{total_plants} измерено, {triggered_count} со стрессом)"
+    else:
+        status_text = f"✅ Норма когорты ({triggered_count}/{total_plants} превышений порога)"
 
     return {
         "is_triggered": is_triggered,
         "triggered_count": triggered_count,
         "total_measured": total_measured,
+        "total_plants": total_plants,
         "required_quorum": min_plants,
         "threshold_c": threshold,
-        "status_text": (
-            f"🚨 ТРИГГЕР ПРЕВЕНЦИИ СРАБОТАЛ ({triggered_count}/{min_plants} растений ≥ +{threshold}°C)"
-            if is_triggered else
-            f"✅ Норма когорты ({triggered_count}/{min_plants} превышений порога)"
-        )
+        "sufficient_data": sufficient_data,
+        "is_insufficient": is_insufficient,
+        "state": state,
+        "status_text": status_text
     }
 
 
 def evaluate_cohort_reaction_trigger(
     reaction_plants_turgor: List[Optional[int]],
     threshold_score: int = TURGOR_REACTION_TRIGGER_SCORE,
-    min_plants: int = REACTION_MIN_TRIGGERED_PLANTS
+    min_plants: int = REACTION_MIN_TRIGGERED_PLANTS,
+    total_plants: int = TOTAL_COHORT_PLANTS
 ) -> Dict[str, Any]:
     """
     Оценивает кворум срабатывания триггера для когорты Реакция (Р1–Р6):
     Триггер сработал, если минимум у 4 из 6 растений тургор <= 2 (лист лёг на бортик горшка или коллапс).
     """
-    valid_scores = [val for val in reaction_plants_turgor if val is not None]
-    triggered_count = sum(1 for val in valid_scores if int(val) <= threshold_score)
+    valid_scores = [s for s in (parse_optional_turgor(v) for v in reaction_plants_turgor) if s is not None]
+    triggered_count = sum(1 for val in valid_scores if val <= threshold_score)
     total_measured = len(valid_scores)
-    is_triggered = triggered_count >= min_plants
+    is_triggered, is_insufficient, sufficient_data, state = _build_cluster_quorum_status(
+        total_measured, triggered_count, min_plants, total_plants
+    )
+
+    if is_triggered:
+        status_text = f"🚨 ТРИГГЕР РЕАКЦИИ СРАБОТАЛ ({triggered_count}/{total_plants} растений с баллом тургора ≤ {threshold_score})"
+    elif is_insufficient:
+        status_text = f"⚠️ Недостаточно данных ({total_measured}/{total_plants} измерено, {triggered_count} увяло)"
+    else:
+        status_text = f"✅ Тургор когорты в норме ({triggered_count}/{total_plants} растений с потерей тургора)"
 
     return {
         "is_triggered": is_triggered,
         "triggered_count": triggered_count,
         "total_measured": total_measured,
+        "total_plants": total_plants,
         "required_quorum": min_plants,
         "threshold_score": threshold_score,
-        "status_text": (
-            f"🚨 ТРИГГЕР РЕАКЦИИ СРАБОТАЛ ({triggered_count}/{min_plants} растений с баллом тургора ≤ {threshold_score})"
-            if is_triggered else
-            f"✅ Тургор когорты в норме ({triggered_count}/{min_plants} растений с потерей тургора)"
-        )
+        "sufficient_data": sufficient_data,
+        "is_insufficient": is_insufficient,
+        "state": state,
+        "status_text": status_text
     }
 
 

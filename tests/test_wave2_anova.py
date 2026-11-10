@@ -149,7 +149,7 @@ def test_wave2_dashboard_contains_anova_ui():
     assert 'id="anovaChartImg"' in html
 
 
-def test_wave2_anova_reads_csv_column_names():
+def test_wave2_anova_reads_csv_column_names(tmp_path):
     """Проверка корректного считывания колонок NDVI_Mean и Leaf_Area_cm2 из CSV."""
     records = []
     for pid in ["K1", "K2", "K3", "K4", "K5", "K6",
@@ -163,7 +163,11 @@ def test_wave2_anova_reads_csv_column_names():
             "Leaf_Area_cm2": "12.5",
             "Turgor_Score": "4"
         })
-    res = analyze_wave2_dataset(records)
+    res = analyze_wave2_dataset(
+        records,
+        static_dir=str(tmp_path / "static"),
+        docs_dir=str(tmp_path / "docs"),
+    )
     assert res["ok"] is True
     for row in res["summary_table"]:
         if row["trait"] == "ndvi":

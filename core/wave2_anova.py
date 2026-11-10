@@ -15,6 +15,7 @@ import scipy.stats as stats
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from core.agronomic_rules import parse_optional_turgor
 
 TRAIT_LABELS = {
     "weight_g": "Масса сосуда (г)",
@@ -181,10 +182,7 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         except (ValueError, TypeError):
             pla = None
             
-        try:
-            tr = int(r.get("Turgor_Score", 4)) if r.get("Turgor_Score") not in (None, "", "--") else 4
-        except ValueError:
-            tr = 4
+        tr = parse_optional_turgor(r.get("Turgor_Score"))
 
         # Опциональные метрики урожая
         dw = float(r.get("DW_g")) if r.get("DW_g") not in (None, "", "--") else None
@@ -223,22 +221,21 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     traits_results = {}
     summary_table = []
 
+    def _cohort_mean_se(series: pd.Series) -> tuple:
+        clean = series.dropna()
+        if len(clean) == 0:
+            return None, None, "--"
+        m = round(float(clean.mean()), 2)
+        se = round(float(clean.std() / math.sqrt(len(clean))), 2) if len(clean) > 1 else 0.0
+        return m, se, f"{m} ± {se}"
+
     for t in traits:
         res = dospekhov_two_way_anova_engine(df, t)
         
-        # Считаем средние по когортам M ± SE
-        k_vals = df[df["cohort"] == "Control"][t].dropna()
-        p_vals = df[df["cohort"] == "Prevention"][t].dropna()
-        r_vals = df[df["cohort"] == "Reaction"][t].dropna()
-        
-        k_mean = round(float(k_vals.mean()), 2) if len(k_vals) > 0 else 0.0
-        k_se = round(float(k_vals.std() / math.sqrt(len(k_vals))), 2) if len(k_vals) > 1 else 0.0
-        
-        p_mean = round(float(p_vals.mean()), 2) if len(p_vals) > 0 else 0.0
-        p_se = round(float(p_vals.std() / math.sqrt(len(p_vals))), 2) if len(p_vals) > 1 else 0.0
-
-        r_mean = round(float(r_vals.mean()), 2) if len(r_vals) > 0 else 0.0
-        r_se = round(float(r_vals.std() / math.sqrt(len(r_vals))), 2) if len(r_vals) > 1 else 0.0
+        # Считаем средние по когортам M ± SE (только по непустым значениям, без подстановки 4 или 0)
+        k_mean, k_se, k_str = _cohort_mean_se(df[df["cohort"] == "Control"][t])
+        p_mean, p_se, p_str = _cohort_mean_se(df[df["cohort"] == "Prevention"][t])
+        r_mean, r_se, r_str = _cohort_mean_se(df[df["cohort"] == "Reaction"][t])
 
         res["k_mean"] = k_mean
         res["k_se"] = k_se
@@ -251,9 +248,9 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         summary_table.append({
             "trait": t,
             "label": TRAIT_LABELS.get(t, t),
-            "k_str": f"{k_mean} ± {k_se}",
-            "p_str": f"{p_mean} ± {p_se}",
-            "r_str": f"{r_mean} ± {r_se}",
+            "k_str": k_str,
+            "p_str": p_str,
+            "r_str": r_str,
             "f_cohort": res.get("f_cohort", 0.0),
             "p_cohort": res.get("p_cohort", 1.0),
             "f_block": res.get("f_block"),
@@ -261,9 +258,11 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
             "lsd_05": res.get("lsd_05")
         })
 
-    # Автоматическая диагностика контекста / фазы
-    mean_turgor = df["turgor"].mean() if "turgor" in df else 4.0
-    r_turgor = traits_results.get("turgor", {}).get("r_mean", 4.0)
+    # Автоматическая диагностика контекста / фазы (только по фактически измеренному тургору)
+    valid_turgor_series = df["turgor"].dropna() if "turgor" in df else pd.Series(dtype=float)
+    r_valid_turgor = df[df["cohort"] == "Reaction"]["turgor"].dropna() if "turgor" in df else pd.Series(dtype=float)
+    mean_turgor = round(float(valid_turgor_series.mean()), 2) if len(valid_turgor_series) > 0 else None
+    r_turgor = round(float(r_valid_turgor.mean()), 2) if len(r_valid_turgor) > 0 else None
     dt_res = traits_results.get("delta_t", {})
     p_val_dt = dt_res.get("p_cohort", 1.0)
     has_dw = "dw_g" in traits
@@ -280,29 +279,36 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         badge_color = "#059669"
         verdict = f"Первичная конечная точка (сухая биомасса DW): Превенция {p_dw_mean} г vs Реакция {r_dw_mean} г (разница {diff_pct:+}%, p = {dw_p})."
     
-    elif r_turgor <= 2.5:
+    elif r_turgor is not None and len(r_valid_turgor) >= 4 and r_turgor <= 2.5:
         phase = "reaction_trigger"
         status_badge = "🔵 СТРЕСС-ФАЗА: КРИТИЧЕСКИЙ СТРЕСС УВЯДАНИЯ (РЕАКЦИЯ)"
         badge_color = "#2563eb"
-        verdict = f"Традиционный порог увядания зафиксирован: потеря тургора когорты Реакция статистически подтверждена (балл {r_turgor} против контроля {traits_results['turgor']['k_mean']}). Реакционный полив активирован!"
+        k_turgor_disp = traits_results['turgor']['k_mean'] if traits_results['turgor']['k_mean'] is not None else "--"
+        verdict = f"Традиционный порог увядания зафиксирован: потеря тургора когорты Реакция статистически подтверждена (балл {r_turgor} против контроля {k_turgor_disp}). Реакционный полив активирован!"
 
-    elif dt_res.get("f_cohort", 0.0) > 3.0 and p_val_dt <= 0.05 and r_turgor > 2.5:
+    elif dt_res.get("f_cohort", 0.0) > 3.0 and p_val_dt <= 0.05 and r_turgor is not None and r_turgor > 2.5:
         phase = "prevention_alert"
         status_badge = "🚨 СТРЕСС-ФАЗА: ДЕТЕКЦИЯ СКРЫТОЙ ЗАСУХИ (ПРЕВЕНЦИЯ)"
         badge_color = "#eab308"
         verdict = f"Термографический триггер подтвержден ANOVA: достоверный перегрев кроны (ΔT F={dt_res['f_cohort']}, p={p_val_dt}) при сохранении визуального тургора (средний балл Реакции {r_turgor:.1f}). Превентивный полив активирован!"
 
-    elif mean_turgor >= 3.7 and p_val_dt > 0.05:
+    elif mean_turgor is not None and len(valid_turgor_series) >= 12 and mean_turgor >= 3.7 and p_val_dt > 0.05:
         phase = "baseline"
         status_badge = "🟢 ДЕНЬ 0: ИСХОДНАЯ ОДНОРОДНОСТЬ (BASELINE HOMOGENEITY)"
         badge_color = "#059669"
         verdict = f"Нулевая гипотеза подтверждена (H0: p > 0.05). Различия между группами по массе (p={traits_results['weight_g']['p_cohort']}) и ΔT (p={p_val_dt}) отсутствуют. Стартовый перекос исключен. Старт стресс-фазы разрешен!"
     
+    elif len(valid_turgor_series) < 6:
+        phase = "incomplete_turgor"
+        status_badge = "⚠️ НЕДОСТАТОЧНО ОЦЕНОК ТУРГОРА"
+        badge_color = "#64748b"
+        verdict = f"Замерено {total_measured}/18 сосудов, но валидные оценки тургора заполнены только у {len(valid_turgor_series)}/18. Пропуски сохранены как NaN и исключены из расчёта."
+
     else:
         phase = "monitoring"
         status_badge = "📊 ТЕКУЩИЙ МОНИТОРИНГ GRCBD"
         badge_color = "#4f46e5"
-        verdict = f"Замер {total_measured}/18 сосудов выполнен. Промежуточные дисперсии стабильны."
+        verdict = f"Замер {total_measured}/18 сосудов выполнен (оценок тургора: {len(valid_turgor_series)}/18). Промежуточные дисперсии стабильны."
 
     # Генерация графика боксплотов
     os.makedirs(os.path.join(static_dir, "charts"), exist_ok=True)

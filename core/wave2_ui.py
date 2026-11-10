@@ -9,8 +9,11 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from core.wave2_manager import (
     POTS_CATALOG, BATCH_QUEUE_WAVE2, TURGOR_SCALE,
-    evaluate_cohort_cluster_status, calculate_water_dose, WAVE2_EXPERIMENT_META
+    evaluate_cohort_cluster_status, resolve_cohort_watering_decision,
+    format_watering_decision_output,
+    calculate_water_dose, WAVE2_EXPERIMENT_META
 )
+from core.agronomic_rules import parse_optional_turgor
 
 
 def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
@@ -34,7 +37,7 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
                 {p['status_text']}
             </div>
             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Триггер: &Delta;T &ge; +0.6 °C у &ge;4 растений. Замерено: {p['measured_count']}/6.
+                Триггер: &Delta;&Delta;T &ge; +0.6 °C у &ge;4 растений. Замерено: {p['measured_count']}/6.
             </div>
         </div>
 
@@ -50,7 +53,7 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
                 {r['status_text']}
             </div>
             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Триггер: тургор 2 балла у &ge;4 растений. Замерено: {r['measured_count']}/6.
+                Триггер: тургор &le; 2 балла у &ge;4 растений. Замерено: {r['measured_count']}/6.
             </div>
         </div>
 
@@ -126,7 +129,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             <div style="font-weight: 700; font-size: 15px; color: #0f172a;">
                 📸 ОЧЕРЕДЬ СЪЕМКИ ПО КОГОРТАМ: КОНТРОЛЬ &rarr; РЕАКЦИЯ &rarr; ПРЕВЕНЦИЯ &rarr; САТЕЛЛИТ И ЛИЗИМЕТР
                 <span style="font-size: 12px; font-weight: 400; color: #64748b; margin-left: 8px;">
-                    (Замерено: {len(by_pot)}/21)
+                    (Замерено: {len(by_pot)}/{len(POTS_CATALOG)})
                 </span>
             </div>
             <div style="font-size: 12px; color: #64748b;">
@@ -253,9 +256,13 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
                     const dtCell = document.getElementById('cell_dt_' + pid);
                     if (dtCell) dtCell.innerText = res.delta_t;
                 }}
-                if (res.dose !== undefined) {{
-                    const doseCell = document.getElementById('cell_dose_' + pid);
-                    if (doseCell) doseCell.innerText = res.dose;
+                const doseCell = document.getElementById('cell_dose_' + pid);
+                if (doseCell) {{
+                    if (res.dose_html !== undefined) {{
+                        doseCell.innerHTML = res.dose_html;
+                    }} else if (res.dose !== undefined) {{
+                        doseCell.innerText = res.dose;
+                    }}
                 }}
                 const thSpan = document.querySelector('#cell_th_' + pid + ' a span');
                 if (thSpan && tl) {{
@@ -468,7 +475,8 @@ def render_wave2_active_pot_card(
     cur_v = current_climate.get("cur_v")
     current_weight = rec.get("Weight_g", "")
     current_t_leaf = rec.get("T_Leaf_C", "")
-    current_turgor = rec.get("Turgor_Score", "4")
+    parsed_card_turgor = parse_optional_turgor(rec.get("Turgor_Score"))
+    current_turgor = str(parsed_card_turgor) if parsed_card_turgor is not None else "4"
     
     has_probe = meta.get("has_probe", False) or active_pot_id in ("K1", "R1", "P1")
     if has_probe:
@@ -481,33 +489,37 @@ def render_wave2_active_pot_card(
     else:
         probe_badge = "<span style='color: #94a3b8; font-size: 11px;'>🌱 Датчик почвы: нет (—)</span>" 
 
-    # Оценка триггера когорты
+    # Оценка триггера когорты и единое решение о поливе
     status = evaluate_cohort_cluster_status(records_today)
     cohort = meta["cohort"]
-    
-    # Расчет дозы полива для отображения
+
+    # Расчет дефицита массы без авто-PLA (Option A: целевая масса строго 100.0 г)
     has_wt = current_weight and current_weight != '--'
     raw_dose = calculate_water_dose(float(current_weight) if has_wt else 100.0, 100.0) if has_wt else None
-    
+    watering_decision = resolve_cohort_watering_decision(active_pot_id, raw_dose, status)
+
     if cohort == "Control":
         if raw_dose is not None:
             dose_html = f"<span style='color: #059669; font-weight: 800; font-size: 18px;'>{raw_dose} мл</span> (Ежедневный долив)"
         else:
             dose_html = "<span style='color: #64748b;'>Введите массу для расчета дозы</span>"
-    elif cohort == "Prevention":
-        if status["prevention"]["triggered"]:
-            dose_html = f"<span style='color: #059669; font-weight: 800; font-size: 18px;'>{raw_dose if raw_dose is not None else ''} мл</span> (ТРИГГЕР СРАБОТАЛ — ПОЛИТЬ!)"
-        elif status["prevention"]["all_measured"]:
-            dose_html = "<span style='color: #dc2626; font-weight: 800;'>ПОЛИВ ЗАБЛОКИРОВАН (Засуха)</span>"
+    elif cohort in ("Prevention", "Reaction"):
+        deficit_note = f" (расчётный дефицит: {raw_dose} мл)" if raw_dose is not None else ""
+        if watering_decision["watering_allowed"]:
+            action_note = "ТРИГГЕР СРАБОТАЛ — ПОЛИТЬ!" if cohort == "Prevention" else "УВЯДАНИЕ — РЕАНИМАЦИЯ!"
+            dose_val_txt = f"{raw_dose} мл" if raw_dose is not None else "введите массу"
+            dose_html = f"<span style='color: #059669; font-weight: 800; font-size: 18px;'>{dose_val_txt}</span> ({action_note})"
+        elif watering_decision["reason"] == "insufficient_data":
+            grp_letter = "П" if cohort == "Prevention" else "Р"
+            dose_html = (
+                f"<span style='color: #d97706; font-weight: 800;'>ПОЛИВ ЗАБЛОКИРОВАН — недостаточно данных</span>"
+                f" <span style='color: #64748b; font-weight: 600;'>(откроется после замера всей группы {grp_letter}){deficit_note}</span>"
+            )
         else:
-            dose_html = "<span style='color: #64748b; font-weight: 600;'>Откроется после замера всей группы П</span>"
-    elif cohort == "Reaction":
-        if status["reaction"]["triggered"]:
-            dose_html = f"<span style='color: #059669; font-weight: 800; font-size: 18px;'>{raw_dose if raw_dose is not None else ''} мл</span> (УВЯДАНИЕ — РЕАНИМАЦИЯ!)"
-        elif status["reaction"]["all_measured"]:
-            dose_html = "<span style='color: #2563eb; font-weight: 800;'>ПОЛИВ ЗАБЛОКИРОВАН (Тургор в норме)</span>"
-        else:
-            dose_html = "<span style='color: #64748b; font-weight: 600;'>Откроется после замера всей группы Р</span>"
+            if cohort == "Prevention":
+                dose_html = f"<span style='color: #dc2626; font-weight: 800;'>ПОЛИВ ЗАБЛОКИРОВАН (Засуха)</span><span style='color: #64748b;'>{deficit_note}</span>"
+            else:
+                dose_html = f"<span style='color: #2563eb; font-weight: 800;'>ПОЛИВ ЗАБЛОКИРОВАН (Тургор в норме)</span><span style='color: #64748b;'>{deficit_note}</span>"
     elif cohort == "Lysimeter_Blank":
         if raw_dose is not None:
             dose_html = f"<span style='color: #475569; font-weight: 800; font-size: 18px;'>{raw_dose} мл</span> (Долив до 100.0 г / учет испарения почвы E)"
@@ -660,15 +672,37 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
         </tr>
         """)
     else:
+        records_by_date: Dict[str, List[Dict[str, Any]]] = {}
+        for rec_item in records:
+            rec_ts = str(rec_item.get("Timestamp", "--")).strip()
+            records_by_date.setdefault(rec_ts, []).append(rec_item)
+        cluster_by_date = {
+            ts_key: evaluate_cohort_cluster_status(day_recs)
+            for ts_key, day_recs in records_by_date.items()
+        }
+
         for r in reversed(records[-30:]):  # последние 30 записей
             rec_id = r.get("ID", "--")
-            ts = r.get("Timestamp", "--")
+            ts = str(r.get("Timestamp", "--")).strip()
             wt = r.get("Weight_g", "")
             t_leaf = r.get("T_Leaf_C", "")
             t_air = r.get("T_Air_C", "--")
             dt = r.get("Delta_T_C", "--")
-            turgor = r.get("Turgor_Score", "4")
+            parsed_turgor = parse_optional_turgor(r.get("Turgor_Score"))
+            turgor = str(parsed_turgor) if parsed_turgor is not None else "--"
             dose = r.get("Water_Dose_ml", "--")
+            raw_deficit = None
+            if wt not in (None, "", "--"):
+                try:
+                    raw_deficit = calculate_water_dose(float(str(wt).replace(",", ".")), 100.0)
+                except (ValueError, TypeError):
+                    raw_deficit = None
+            row_cluster = cluster_by_date.get(ts) or evaluate_cohort_cluster_status([])
+            decision = resolve_cohort_watering_decision(rec_id, raw_deficit, row_cluster)
+            if decision["watering_allowed"] and decision["effective_dose"] is None:
+                dose_display = f'<span style="color: #059669; font-weight: 800;">{dose}</span>'
+            else:
+                dose_display = format_watering_decision_output(decision)["dose_html"]
             ndvi = r.get("NDVI_Mean", "--")
             pla = r.get("Leaf_Area_cm2", "--")
             opt_file = r.get("Opt_File", "")
@@ -738,13 +772,14 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                 <td style="padding: 6px 4px; text-align: center;">{soil_cell}</td>
                 <td style="padding: 6px 4px;">
                     <select id="cell_tr_{rec_id}" onchange="saveRowEdit('{rec_id}', true)" style="padding: 4px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                        <option value="--" {'selected' if str(turgor) == '--' else ''}>--</option>
                         <option value="4" {'selected' if str(turgor) == '4' else ''}>4</option>
                         <option value="3" {'selected' if str(turgor) == '3' else ''}>3</option>
                         <option value="2" {'selected' if str(turgor) == '2' else ''}>2</option>
                         <option value="1" {'selected' if str(turgor) == '1' else ''}>1</option>
                     </select>
                 </td>
-                <td id="cell_dose_{rec_id}" style="padding: 8px 10px; font-size: 12px; font-weight: 800; color: #059669;">{dose}</td>
+                <td id="cell_dose_{rec_id}" style="padding: 8px 10px; font-size: 12px; font-weight: 800; color: #059669;">{dose_display}</td>
                 <td style="padding: 8px 10px;">{ndvi_cell}</td>
                 <td id="cell_pla_{rec_id}" data-pla="{pla}" style="padding: 8px 10px; font-size: 12px;">{pla}</td>
                 <td style="padding: 8px 10px;">{th_cell}</td>

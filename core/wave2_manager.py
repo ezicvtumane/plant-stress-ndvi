@@ -13,6 +13,11 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import cv2
+from core.agronomic_rules import (
+    evaluate_cohort_prevention_trigger,
+    evaluate_cohort_reaction_trigger,
+    parse_optional_turgor,
+)
 
 # ==============================================================================
 # 1. КОНФИГУРАЦИЯ КОГОРТ И ДИЗАЙНА GRCBD (20 ГОРШКОВ)
@@ -390,15 +395,17 @@ def compute_single_pot_phenotyping(
 def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Кластерный расчет для групп Превенция [П1-П6] и Реакция [Р1-Р6].
-    Правило: триггер срабатывает строго при пороге >= 4 из 6 растений.
+    Делегирует классификацию единым правилам core/agronomic_rules.py:
+    - Превенция: ΔΔT >= +0.6 °C минимум у 4 из 6 растений.
+    - Реакция: Turgor_Score <= 2 минимум у 4 из 6 растений.
+    Пропуски (None / '' / '--') не подменяются значениями по умолчанию и не считаются замеренными.
     """
-    # Собираем словари по ID горшка за сегодня
     by_pot: Dict[str, Dict[str, Any]] = {}
     for r in records_today:
         pid = str(r.get("ID", "")).strip().upper()
         if pid:
             by_pot[pid] = r
-            
+
     # Базовый живой эталон Контроля (К1-К6 снимаются первыми)
     k_ids = ["K1", "K2", "K3", "K4", "K5", "K6"]
     k_delta_ts = []
@@ -406,80 +413,200 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
         if kid in by_pot:
             val = by_pot[kid].get("Delta_T_C")
             try:
-                if val is not None and val != "" and val != "--":
-                    k_delta_ts.append(float(val))
+                if val is not None and str(val).strip() not in ("", "--", "None", "nan"):
+                    k_delta_ts.append(float(str(val).replace(",", ".")))
             except (ValueError, TypeError):
                 pass
     mean_control_dt = (sum(k_delta_ts) / len(k_delta_ts)) if k_delta_ts else None
 
-    # --- 1. Оценка когорты Превенция (П1-П6) с нормировкой по живому Контролю (CWSI) ---
+    # --- 1. Оценка когорты Превенция (П1-П6) ---
     p_ids = ["P1", "P2", "P3", "P4", "P5", "P6"]
-    p_measured = [pid for pid in p_ids if pid in by_pot]
-    p_stressed = []
-
-    for pid in p_measured:
+    p_ddts: List[Optional[float]] = []
+    for pid in p_ids:
+        if pid not in by_pot:
+            p_ddts.append(None)
+            continue
         d_t = by_pot[pid].get("Delta_T_C")
         try:
-            if d_t is not None and d_t != "" and d_t != "--":
-                dt_val = float(d_t)
-                # Нормированный подъем Delta-Delta-T относительно живого Контроля
-                if mean_control_dt is not None:
-                    delta_delta_t = dt_val - mean_control_dt
-                    if delta_delta_t >= WAVE2_EXPERIMENT_META["threshold_delta_t"]:
-                        p_stressed.append(pid)
-                else:
-                    if dt_val >= WAVE2_EXPERIMENT_META["threshold_delta_t"]:
-                        p_stressed.append(pid)
+            if d_t is not None and str(d_t).strip() not in ("", "--", "None", "nan"):
+                dt_val = float(str(d_t).replace(",", "."))
+                p_ddts.append((dt_val - mean_control_dt) if mean_control_dt is not None else dt_val)
+            else:
+                p_ddts.append(None)
         except (ValueError, TypeError):
-            pass
-    p_all_measured = (len(p_measured) == 6)
-    p_triggered = (len(p_stressed) >= WAVE2_EXPERIMENT_META["cluster_min_plants"])
-    
-    # --- 2. Анализ группы РЕАКЦИЯ (Р1-Р6) ---
+            p_ddts.append(None)
+
+    prev_eval = evaluate_cohort_prevention_trigger(
+        p_ddts,
+        threshold=WAVE2_EXPERIMENT_META["threshold_delta_t"],
+        min_plants=WAVE2_EXPERIMENT_META["cluster_min_plants"],
+        total_plants=WAVE2_EXPERIMENT_META["cluster_total_plants"],
+    )
+    p_measured_cnt = prev_eval["total_measured"]
+    p_stressed_cnt = prev_eval["triggered_count"]
+    p_all_measured = p_measured_cnt == WAVE2_EXPERIMENT_META["cluster_total_plants"]
+    p_triggered = prev_eval["is_triggered"]
+    p_insufficient = prev_eval["is_insufficient"]
+
+    # --- 2. Оценка когорты Реакция (Р1-Р6) по 4-балльной шкале (балл <= 2) ---
     r_ids = ["R1", "R2", "R3", "R4", "R5", "R6"]
-    r_measured = [pid for pid in r_ids if pid in by_pot]
-    r_stressed = []
-    
-    for pid in r_measured:
-        t_score = by_pot[pid].get("Turgor_Score")
-        try:
-            if t_score is not None and int(t_score) >= WAVE2_EXPERIMENT_META["turgor_reaction_trigger_score"]:
-                r_stressed.append(pid)
-        except (ValueError, TypeError):
-            pass
-            
-    r_all_measured = (len(r_measured) == 6)
-    r_triggered = (len(r_stressed) >= WAVE2_EXPERIMENT_META["cluster_min_plants"])
-    
+    r_scores: List[Optional[int]] = [
+        parse_optional_turgor(by_pot[pid].get("Turgor_Score")) if pid in by_pot else None
+        for pid in r_ids
+    ]
+    react_eval = evaluate_cohort_reaction_trigger(
+        r_scores,
+        threshold_score=WAVE2_EXPERIMENT_META["turgor_reaction_trigger_score"],
+        min_plants=WAVE2_EXPERIMENT_META["cluster_min_plants"],
+        total_plants=WAVE2_EXPERIMENT_META["cluster_total_plants"],
+    )
+    r_measured_cnt = react_eval["total_measured"]
+    r_stressed_cnt = react_eval["triggered_count"]
+    r_all_measured = r_measured_cnt == WAVE2_EXPERIMENT_META["cluster_total_plants"]
+    r_triggered = react_eval["is_triggered"]
+    r_insufficient = react_eval["is_insufficient"]
+
     return {
         "prevention": {
-            "measured_count": len(p_measured),
-            "stressed_count": len(p_stressed),
+            "measured_count": p_measured_cnt,
+            "stressed_count": p_stressed_cnt,
             "all_measured": p_all_measured,
+            "insufficient_data": p_insufficient,
+            "state": prev_eval["state"],
             "triggered": p_triggered,
             "status_text": (
-                f"ТРИГГЕР СРАБОТАЛ ({len(p_stressed)}/6) — ВЫДАТЬ ВОДУ 100% ДЕФИЦИТА!" if p_triggered
-                else (f"Засуха ({len(p_stressed)}/6) — Полив заблокирован" if p_all_measured 
-                      else f"Идет замер ({len(p_measured)}/6 измерено, {len(p_stressed)} со стрессом)")
+                f"ТРИГГЕР СРАБОТАЛ ({p_stressed_cnt}/6) — ВЫДАТЬ ВОДУ 100% ДЕФИЦИТА!"
+                if p_triggered
+                else (
+                    f"Засуха ({p_stressed_cnt}/6) — Полив заблокирован"
+                    if not p_insufficient
+                    else f"Недостаточно данных ({p_measured_cnt}/6 измерено, {p_stressed_cnt} со стрессом)"
+                )
             ),
-            "badge_color": "#059669" if p_triggered else ("#dc2626" if p_all_measured else "#eab308")
+            "badge_color": "#059669" if p_triggered else ("#dc2626" if not p_insufficient else "#eab308"),
         },
         "reaction": {
-            "measured_count": len(r_measured),
-            "stressed_count": len(r_stressed),
+            "measured_count": r_measured_cnt,
+            "stressed_count": r_stressed_cnt,
             "all_measured": r_all_measured,
+            "insufficient_data": r_insufficient,
+            "state": react_eval["state"],
             "triggered": r_triggered,
             "status_text": (
-                f"УВЯДАНИЕ ({len(r_stressed)}/6) — РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ!" if r_triggered
-                else (f"Тургор в норме ({len(r_stressed)}/6) — Полив заблокирован" if r_all_measured
-                      else f"Идет замер ({len(r_measured)}/6 измерено, {len(r_stressed)} увяло)")
+                f"УВЯДАНИЕ ({r_stressed_cnt}/6) — РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ!"
+                if r_triggered
+                else (
+                    f"Тургор в норме ({r_stressed_cnt}/6) — Полив заблокирован"
+                    if not r_insufficient
+                    else f"Недостаточно данных ({r_measured_cnt}/6 измерено, {r_stressed_cnt} увяло)"
+                )
             ),
-            "badge_color": "#059669" if r_triggered else ("#2563eb" if r_all_measured else "#64748b")
+            "badge_color": "#059669" if r_triggered else ("#2563eb" if not r_insufficient else "#64748b"),
         },
         "satellite": {
             "status_text": "Донор лаковых реплик (долив воды до 100.0 г)",
-            "badge_color": "#8b5cf6"
+            "badge_color": "#8b5cf6",
+        },
+    }
+
+
+def resolve_cohort_watering_decision(
+    pot_id: str,
+    raw_deficit_ml: Optional[float],
+    cluster_status: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Определяет итоговое решение о поливе конкретного горшка с учетом блокировки когорт Превенции/Реакции.
+    Для Контроля, X0 и C20 полив разрешен всегда при наличии дефицита массы;
+    для Превенции и Реакции полив заблокирован до срабатывания кластерного триггера.
+    """
+    pid = str(pot_id).strip().upper()
+    cohort = POTS_CATALOG.get(pid, {}).get("cohort", "Control")
+
+    if cohort in ("Prevention", "Reaction"):
+        key = "prevention" if cohort == "Prevention" else "reaction"
+        st = cluster_status.get(key, {})
+        if st.get("triggered"):
+            return {
+                "watering_allowed": True,
+                "effective_dose": raw_deficit_ml,
+                "raw_deficit": raw_deficit_ml,
+                "reason": "triggered",
+                "status_label": "ПОЛИВ РАЗРЕШЕН (ТРИГГЕР)",
+            }
+        if st.get("insufficient_data", True):
+            return {
+                "watering_allowed": False,
+                "effective_dose": 0.0 if raw_deficit_ml is not None else None,
+                "raw_deficit": raw_deficit_ml,
+                "reason": "insufficient_data",
+                "status_label": "Ожидание замера когорты",
+            }
+        return {
+            "watering_allowed": False,
+            "effective_dose": 0.0 if raw_deficit_ml is not None else None,
+            "raw_deficit": raw_deficit_ml,
+            "reason": "blocked",
+            "status_label": "ПОЛИВ ЗАБЛОКИРОВАН",
         }
+
+    return {
+        "watering_allowed": True,
+        "effective_dose": raw_deficit_ml,
+        "raw_deficit": raw_deficit_ml,
+        "reason": "optimum",
+        "status_label": "Регламентный долив",
+    }
+
+
+def evaluate_pot_watering_with_projection(
+    today_records: List[Dict[str, Any]],
+    pot_id: str,
+    updated_fields: Dict[str, Any],
+    raw_deficit_ml: Optional[float],
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """
+    Проецирует текущее измерение/правку горшка в дневной срез и возвращает
+    (решение_о_поливе, статус_кластера) для всей группы с учетом новых данных.
+    """
+    pid = str(pot_id).strip().upper()
+    existing = next(
+        (dict(r) for r in today_records if str(r.get("ID", "")).strip().upper() == pid),
+        {"ID": pid},
+    )
+    existing.update(updated_fields)
+    projected = [
+        r for r in today_records if str(r.get("ID", "")).strip().upper() != pid
+    ] + [existing]
+    cluster_status = evaluate_cohort_cluster_status(projected)
+    decision = resolve_cohort_watering_decision(pid, raw_deficit_ml, cluster_status)
+    return decision, cluster_status
+
+
+def format_watering_decision_output(decision: Dict[str, Any]) -> Dict[str, str]:
+    """Единое форматирование текста и HTML ячейки дозы полива для API и таблицы UI."""
+    eff = decision.get("effective_dose")
+    raw = decision.get("raw_deficit")
+    if decision.get("watering_allowed"):
+        if eff is not None:
+            return {
+                "dose_text": f"{float(eff):.1f} мл",
+                "dose_html": f'<span style="color: #059669; font-weight: 800;">{float(eff):.1f}</span>',
+            }
+        return {"dose_text": "--", "dose_html": "--"}
+
+    is_insuff = decision.get("reason") == "insufficient_data"
+    label = "БЛОК (недостаточно данных)" if is_insuff else "ПОЛИВ ЗАБЛОКИРОВАН"
+    color = "#d97706" if is_insuff else "#dc2626"
+    def_text = f" (дефицит {float(raw):.1f} мл)" if raw is not None else ""
+    def_html = (
+        f' <span style="color: #64748b; font-weight: 500;">(дефицит {float(raw):.1f})</span>'
+        if raw is not None
+        else ""
+    )
+    return {
+        "dose_text": f"{label}{def_text}",
+        "dose_html": f'<span style="color: {color}; font-weight: 800;">{label}</span>{def_html}',
     }
 
 
