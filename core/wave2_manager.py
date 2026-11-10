@@ -48,9 +48,9 @@ WAVE2_EXPERIMENT_META = {
     "emissivity_lwir": 0.98,
     "k_bal_ptfe": 1.150,
     "k_bal_calibration_version": "calib-kbal-s2-2026-11-07",
-    "nir_threshold_dn": 4.0,
+    "nir_threshold_dn": 6.5,
     "ndvi_threshold": 0.25,
-    "min_leaf_component_px": 100,
+    "min_leaf_component_px": 160,
 }
 
 _CYR_TO_LAT_POT_ID = str.maketrans({"К": "K", "П": "P", "Р": "R", "Х": "X", "С": "C"})
@@ -202,9 +202,9 @@ def detect_aruco_scale_on_floor(gray_img: np.ndarray, real_size_cm: float = 1.5,
     """
     Детекция ArUco-маркера 15х15 мм на дне бокса с адаптивной контрастной нормализацией (CLAHE).
     Возвращает масштаб: пикселей на сантиметр (px/cm) на плоскости дна.
-    Если маркер не найден, возвращает базовое калибровочное значение (40.0 px/cm).
+    Если маркер не найден, возвращает базовое калибровочное значение (45.8 px/cm).
     """
-    default_px_per_cm = 40.0
+    default_px_per_cm = 45.8
     images_to_try = [gray_img]
     if secondary_img is not None:
         images_to_try.append(secondary_img)
@@ -305,29 +305,40 @@ def compute_single_pot_phenotyping(
     nir_thresh = WAVE2_EXPERIMENT_META["nir_threshold_dn"]
     ndvi_thresh = WAVE2_EXPERIMENT_META["ndvi_threshold"]
     raw_mask = (ndvi_clamped > ndvi_thresh) & (nir_f > nir_thresh)
-    
-    # Отсечение боковых стенок и углов бокса (20% по горизонтали, 10% сверху, 16% снизу)
+
+    # Масштаб дна определяем до сегментации, чтобы сразу исключить белую карточку ArUco
+    px_per_cm_floor = detect_aruco_scale_on_floor(nir_channel, secondary_img=red_channel)
+
+    # Отсечение боковых стенок и углов бокса (20% по горизонтали, 6% сверху, 16% снизу)
     margin_x = int(w * 0.20)
-    margin_top = int(h * 0.10)
+    margin_top = int(h * 0.06)
     margin_bottom = int(h * 0.16)
     raw_mask[:, :margin_x] = False
     raw_mask[:, w - margin_x:] = False
     raw_mask[:margin_top, :] = False
     raw_mask[h - margin_bottom:, :] = False
 
+    if getattr(px_per_cm_floor, "detected", False) and getattr(px_per_cm_floor, "corners", None) is not None:
+        pts = np.asarray(px_per_cm_floor.corners, dtype=np.float32)
+        side_px = float(getattr(px_per_cm_floor, "side_px", 0.0) or 60.0)
+        pad = max(14, int(round(side_px * 0.55)))
+        ax1 = max(0, int(np.floor(np.min(pts[:, 0]))) - pad)
+        ay1 = max(0, int(np.floor(np.min(pts[:, 1]))) - pad)
+        ax2 = min(w, int(np.ceil(np.max(pts[:, 0]))) + pad)
+        ay2 = min(h, int(np.ceil(np.max(pts[:, 1]))) + pad)
+        raw_mask[ay1:ay2, ax1:ax2] = False
+
     mask_u8 = raw_mask.astype(np.uint8) * 255
     # Морфологическое связывание и устранение микробликов кутикулы
     kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
     mask_u8 = cv2.morphologyEx(mask_u8, cv2.MORPH_CLOSE, kernel_close)
-    
+
     # Фильтрация шумов через connectedComponentsWithStats с проверкой центроидов
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
     clean_mask = np.zeros_like(mask_u8)
     min_px = WAVE2_EXPERIMENT_META["min_leaf_component_px"]
-    
-    valid_plant_pixels = 0
+
     plant_boxes = []
-    
     for label in range(1, num_labels):
         area = stats[label, cv2.CC_STAT_AREA]
         if area >= min_px:
@@ -336,16 +347,23 @@ def compute_single_pot_phenotyping(
             if cx < w * 0.22 or cx > w * 0.78 or cy > h * 0.82:
                 continue
             clean_mask[labels == label] = 255
-            valid_plant_pixels += area
             x = stats[label, cv2.CC_STAT_LEFT]
             y = stats[label, cv2.CC_STAT_TOP]
             w_box = stats[label, cv2.CC_STAT_WIDTH]
             h_box = stats[label, cv2.CC_STAT_HEIGHT]
             plant_boxes.append((x, y, x + w_box, y + h_box))
-            
+
+    # Заполнение мелких замкнутых дыр от кутикулярных бликов внутри контуров листьев
+    contours, hierarchy = cv2.findContours(clean_mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    if hierarchy is not None:
+        for idx, hinfo in enumerate(hierarchy[0]):
+            if hinfo[3] != -1 and 0 < cv2.contourArea(contours[idx]) <= 400.0:
+                cv2.drawContours(clean_mask, contours, idx, 255, thickness=-1)
+
+    valid_plant_pixels = int(np.count_nonzero(clean_mask))
+
     # 3. Автоматический расчет Z-масштаба (подобие треугольников)
     # Z_дно = 24.5 см, Z_лист = 24.5 - 7.5 = 17.0 см
-    px_per_cm_floor = detect_aruco_scale_on_floor(nir_channel, secondary_img=red_channel)
     z_ratio = z_camera_cm / max(1.0, (z_camera_cm - h_pot_cm))  # 24.5 / 17.0 ≈ 1.441
     px_per_cm_leaf = px_per_cm_floor * z_ratio
     cm2_per_pixel = 1.0 / (px_per_cm_leaf ** 2)

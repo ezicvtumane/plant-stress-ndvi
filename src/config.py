@@ -47,11 +47,11 @@ KBAL_CALIBRATION_PROFILES = {
         "calibration_version": "calib-kbal-s2-2026-11-07",
         "series": "Series 2 (Cucumis sativus, Wave 2)",
         "camera": "Sony IMX179 NoIR M12 (1280x960)",
-        "exposure_profile": "NIR 850nm: 5000us/gain 115; Red 660nm: 100us/gain 40",
+        "exposure_profile": "NIR 850nm: 10000 (gain 120, 2-frame avg); Red 660nm: 50 (gain 40, 3-frame avg)",
         "k_bal": 1.150,
         "date": "2026-11-07",
         "ptfe_reference_archived": False,
-        "notes": "Active runtime value stored in data/calibrated_k_bal.txt; raw PTFE frame from 2026-11-07 not archived",
+        "notes": "Active runtime value stored in data/calibrated_k_bal.txt; raw PTFE frame from 2026-11-07 not archived; exposure & pre-LED dark averaging optimized 2026-11-10",
     },
 }
 FLAT_FIELD_K_FACTOR = 0.0518  # Lens vignetting compensation factor for edge cells

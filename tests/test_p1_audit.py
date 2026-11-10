@@ -25,6 +25,7 @@ from core.wave2_manager import (
     POTS_CATALOG,
     Wave2Storage,
     calculate_water_dose,
+    compute_single_pot_phenotyping,
     detect_aruco_scale_on_floor,
 )
 from core.wave2_ui import render_wave2_active_pot_card
@@ -140,7 +141,7 @@ def test_task10_aruco_rejects_wall_noise_and_accepts_centered_square_marker():
     edge_img[475:535, 1145:1205] = marker_edge
     res_edge = detect_aruco_scale_on_floor(edge_img, real_size_cm=1.5)
     assert res_edge.detected is False
-    assert float(res_edge) == pytest.approx(40.0)
+    assert float(res_edge) == pytest.approx(45.8)
 
     # 2. Слишком мелкий маркер (24x24 px < 30 px) даже в центре отвергается
     tiny_img = np.full((960, 1280), 40, dtype=np.uint8)
@@ -336,3 +337,126 @@ def test_p1_3_verify_image_links_full_pillow_decode_and_corruption_cases(tmp_pat
         check=False,
     )
     assert bad_proc.returncode == 1
+
+
+def test_phenotyping_excludes_aruco_card_fills_glare_holes_and_preserves_top_leaf():
+    """Маска растения исключает белую карточку ArUco и мелкие блики, сохраняет верхний край (6%–10%) и закрывает мелкие бликовые дыры."""
+    h, w = 720, 1280
+    nir = np.zeros((h, w), dtype=np.float32)
+    red = np.zeros((h, w), dtype=np.float32)
+
+    # 1. Валидный ArUco #4 (69x69 px -> 46 px/cm) + белая карточка с ложно-высоким NDVI вокруг него
+    aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+    marker = cv2.aruco.generateImageMarker(aruco_dict, 4, 69)
+    nir[515:598, 595:690] = 24.0
+    red[515:598, 595:690] = 4.0
+    # Белая подложка на 220 (среднее RGB -> nir высокая), внутри сам черный квадрат ArUco
+    nir[525:594, 608:677] = marker.astype(np.float32)
+    red[525:594, 608:677] = marker.astype(np.float32)
+
+    # Сначала проверим, что без реального листа одна карточка ArUco даёт 0 px (полностью маскируется)
+    _, metrics_only_card = compute_single_pot_phenotyping(red, nir, pot_id="CARD_ONLY", k_bal=1.150)
+    assert metrics_only_card["aruco_detected"] is True
+    assert metrics_only_card["aruco_id"] == 4
+    assert metrics_only_card["valid_pixels"] == 0
+    assert metrics_only_card["pla_cm2"] == 0.0
+
+    # 2. Основной лист 100x100 px (10000 px) с мелким бликом 12x12 px внутри (красный > NIR)
+    nir[220:320, 560:660] = 28.0
+    red[220:320, 560:660] = 5.0
+    nir[264:276, 604:616] = 28.0
+    red[264:276, 604:616] = 180.0
+
+    # 3. Верхний лист в зоне y=52..92 (раньше целиком/частично обрезался margin_top=10% = 72 px)
+    nir[52:92, 680:720] = 25.0  # 40x40 = 1600 px
+    red[52:92, 680:720] = 5.0
+
+    # 4. Мелкий блик ободка < 160 px (10x10 = 100 px) — должен отброситься
+    nir[360:370, 820:830] = 25.0
+    red[360:370, 820:830] = 4.0
+
+    _, metrics_full = compute_single_pot_phenotyping(red, nir, pot_id="LEAF_TEST", k_bal=1.150)
+    assert metrics_full["aruco_detected"] is True
+    # Должны войти 10000 px основного листа (вместе с закрашенной бликовой дырой) + 1600 px верхнего = 11600 px
+    assert 11400 <= metrics_full["valid_pixels"] <= 11800
+    assert metrics_full["pla_cm2"] > 0.0
+
+
+def test_do_hardware_capture_wave2_captures_ambient_before_led_and_cleans_up(monkeypatch, tmp_path):
+    """Захват Wave 2 снимает темновой кадр ДО включения реле, применяет 10000/120 + 50/40 и сбрасывает реле в конце."""
+    data_dir = tmp_path / "data"
+    static_dir = tmp_path / "static"
+    data_dir.mkdir(exist_ok=True)
+    static_dir.mkdir(exist_ok=True)
+    (data_dir / "calibrated_k_bal.txt").write_text("1.150\n", encoding="utf-8")
+
+    monkeypatch.setattr(web_station, "DATA_DIR", str(data_dir))
+    monkeypatch.setattr(web_station, "STATIC_DIR", str(static_dir))
+    monkeypatch.setattr(web_station, "CALIBRATION_FILE", str(data_dir / "calibrated_k_bal.txt"))
+    monkeypatch.setattr(web_station, "init_relay", lambda: None)
+
+    v4l2_calls = []
+    monkeypatch.setattr(
+        web_station.subprocess,
+        "run",
+        lambda cmd, **kw: v4l2_calls.append(" ".join(cmd)),
+    )
+
+    events = []
+
+    class FakeRelay:
+        def __init__(self):
+            self.nir = False
+            self.red = False
+
+        def set_nir(self, active):
+            self.nir = bool(active)
+            events.append(("nir", bool(active)))
+
+        def set_red(self, active):
+            self.red = bool(active)
+            events.append(("red", bool(active)))
+
+    fake_rc = FakeRelay()
+    monkeypatch.setattr(web_station, "get_relay_controller", lambda: fake_rc)
+
+    class FakeCap:
+        def __init__(self):
+            self.shape = (720, 1280, 3)
+
+        def grab(self):
+            events.append(("grab", fake_rc.nir, fake_rc.red))
+            return True
+
+        def read(self):
+            events.append(("read", fake_rc.nir, fake_rc.red))
+            img = np.full(self.shape, 5, dtype=np.uint8)
+            if fake_rc.nir:
+                img[220:340, 560:680, :] = 35
+            elif fake_rc.red:
+                img[:, :, 2] = 15
+                img[220:340, 560:680, 2] = 10
+            return True, img
+
+    monkeypatch.setattr(web_station, "get_shared_camera", lambda: FakeCap())
+
+    opt_file, metrics = web_station.do_hardware_capture_wave2("K1")
+
+    assert opt_file.startswith("K1_") and opt_file.endswith("_annotated.jpg")
+    assert fake_rc.nir is False and fake_rc.red is False
+    # Проверяем порядок: сначала read с (nir=False, red=False), затем включение LED и read с True
+    first_nir_on = events.index(("nir", True))
+    nir_amb_reads = [i for i, e in enumerate(events[:first_nir_on]) if e == ("read", False, False)]
+    assert len(nir_amb_reads) == 2
+
+    first_red_on = events.index(("red", True))
+    red_amb_reads = [i for i, e in enumerate(events[first_nir_on:first_red_on]) if e == ("read", False, False)]
+    assert len(red_amb_reads) == 3
+
+    # Проверяем порядок v4l2-ctl: auto_exposure=1 перед exposure_time_absolute и возврат auto_exposure=3
+    assert any("auto_exposure=1" in c for c in v4l2_calls)
+    assert any("exposure_time_absolute=10000,gain=120" in c for c in v4l2_calls)
+    assert any("exposure_time_absolute=50,gain=40" in c for c in v4l2_calls)
+    assert "auto_exposure=3" in v4l2_calls[-1]
+    assert metrics["valid_pixels"] >= 14000
+    assert metrics["ndvi_mean"] > 0.45

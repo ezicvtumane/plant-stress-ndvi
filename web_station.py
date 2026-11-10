@@ -410,6 +410,7 @@ def get_shared_camera():
             cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             _shared_camera = cap
         return _shared_camera
 
@@ -3156,71 +3157,111 @@ def do_hardware_capture_wave2(pot_id: str):
     """Аппаратная съемка NoIR IMX179 для одиночного горшка Волны 2."""
     def set_v4l2_exposure(exp_val, gain_val):
         try:
-            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 
-                            f'auto_exposure=1,exposure_time_absolute={exp_val},gain={gain_val},white_balance_automatic=0,focus_automatic_continuous=0'], 
-                           check=False)
+            subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=1'], check=False)
+            subprocess.run(
+                ['v4l2-ctl', '-d', '/dev/video0', '-c',
+                 f'exposure_time_absolute={exp_val},gain={gain_val},gamma=300,white_balance_automatic=0,focus_automatic_continuous=0'],
+                check=False,
+            )
         except Exception:
             pass
 
+    def extract_band(frame_bgr: np.ndarray, is_nir: bool) -> np.ndarray:
+        if is_nir:
+            return frame_bgr.astype(np.float32).mean(axis=2)
+        return frame_bgr[:, :, 2].astype(np.float32)
+
+    def capture_band_averaged(cap, rc, is_nir: bool, exp_val: int, gain_val: int, flush_amb: int, n_amb: int, flush_lit: int, n_lit: int):
+        set_v4l2_exposure(exp_val, gain_val)
+        set_led = rc.set_nir if is_nir else rc.set_red
+        set_led(False)
+        for _ in range(flush_amb):
+            cap.grab()
+
+        amb_frames = []
+        for _ in range(n_amb):
+            ok_a, f_a = cap.read()
+            if ok_a and f_a is not None:
+                amb_frames.append(extract_band(f_a, is_nir))
+
+        set_led(True)
+        try:
+            for _ in range(flush_lit):
+                cap.grab()
+            lit_frames = []
+            last_bgr = None
+            ok_any = False
+            for _ in range(n_lit):
+                ok_l, f_l = cap.read()
+                if ok_l and f_l is not None:
+                    ok_any = True
+                    last_bgr = f_l
+                    lit_frames.append(extract_band(f_l, is_nir))
+        finally:
+            set_led(False)
+
+        if not amb_frames and not lit_frames:
+            return False, None, None, None
+        amb_mean = np.mean(amb_frames, axis=0) if amb_frames else np.zeros_like(lit_frames[0])
+        lit_mean = np.mean(lit_frames, axis=0) if lit_frames else amb_mean
+        return ok_any, lit_mean, amb_mean, last_bgr
+
     init_relay()
+    rc = get_relay_controller()
     frame_red = None
     frame_nir = None
-    frame_amb_red = None
-    frame_amb_nir = None
+    red_raw = nir_raw = amb_red = amb_nir = None
+    ret_n = ret_r = False
 
     with _camera_lock:
         cap = get_shared_camera()
         try:
-            # 1. Съемка NIR 850 нм (5000 мкс)
-            set_v4l2_exposure(5000, 115)
-            time.sleep(0.20)
-            for _ in range(6): cap.grab()
-            get_relay_controller().set_nir(True)
-            time.sleep(0.35)
-            for _ in range(8): cap.grab()
-            ret_n, frame_nir = cap.read()
-            get_relay_controller().set_nir(False)
+            rc.set_nir(False)
+            rc.set_red(False)
+            cap.grab()  # Гарантируем активный поток UVC до переключения V4L2-экспозиции
 
-            # Ambient NIR (темновой кадр без ИК-подсветки)
-            time.sleep(0.20)
-            for _ in range(6): cap.grab()
-            _, frame_amb_nir = cap.read()
+            # 1. Канал NIR 850 нм (10000 / gain 120, темновой кадр ДО включения диодов, 2-кадровое усреднение)
+            ret_n, nir_raw, amb_nir, frame_nir = capture_band_averaged(
+                cap, rc, is_nir=True, exp_val=10000, gain_val=120,
+                flush_amb=2, n_amb=2, flush_lit=1, n_lit=2,
+            )
 
-            # 2. Съемка RED 660 нм (100 мкс, калиброванная)
-            set_v4l2_exposure(100, 40)
-            time.sleep(0.20)
-            for _ in range(6): cap.grab()
-            get_relay_controller().set_red(True)
-            time.sleep(0.35)
-            for _ in range(8): cap.grab()
-            ret_r, frame_red = cap.read()
-            get_relay_controller().set_red(False)
-
-            # Ambient RED (темновой кадр без красной подсветки)
-            time.sleep(0.20)
-            for _ in range(6): cap.grab()
-            _, frame_amb_red = cap.read()
-
-            if not ret_r or frame_red is None: frame_red = frame_amb_red
-            if not ret_n or frame_nir is None: frame_nir = frame_amb_nir
+            # 2. Канал RED 660 нм (50 / gain 40, темновой кадр ДО включения диодов, 3-кадровое усреднение)
+            ret_r, red_raw, amb_red, frame_red = capture_band_averaged(
+                cap, rc, is_nir=False, exp_val=50, gain_val=40,
+                flush_amb=4, n_amb=3, flush_lit=2, n_lit=3,
+            )
         except Exception as e:
             print(f'[Wave 2 Capture Error]: {e}', flush=True)
-            frame_red = np.zeros((960, 1280, 3), dtype=np.uint8)
-            frame_nir = np.zeros((960, 1280, 3), dtype=np.uint8)
-            frame_amb_red = frame_red
-            frame_amb_nir = frame_nir
         finally:
+            try:
+                rc.set_nir(False)
+                rc.set_red(False)
+            except Exception:
+                pass
             try:
                 subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=3'], check=False)
             except Exception:
                 pass
 
-    # Разделение каналов и вычитание фонового света
-    red_raw = frame_red[:, :, 2].astype(np.float32) if frame_red is not None else np.zeros((960, 1280), dtype=np.float32)
-    nir_raw = frame_nir.astype(np.float32).mean(axis=2) if frame_nir is not None else np.zeros((960, 1280), dtype=np.float32)
-
-    amb_red = frame_amb_red[:, :, 2].astype(np.float32) if frame_amb_red is not None else np.zeros((960, 1280), dtype=np.float32)
-    amb_nir = frame_amb_nir.astype(np.float32).mean(axis=2) if frame_amb_nir is not None else np.zeros((960, 1280), dtype=np.float32)
+    # Разделение каналов и вычитание фонового света с согласованием формы
+    fallback_shape = (720, 1280)
+    for arr in (nir_raw, red_raw, amb_nir, amb_red):
+        if arr is not None:
+            fallback_shape = arr.shape[:2]
+            break
+    if red_raw is None:
+        red_raw = np.zeros(fallback_shape, dtype=np.float32)
+    if amb_red is None:
+        amb_red = np.zeros(fallback_shape, dtype=np.float32)
+    if nir_raw is None:
+        nir_raw = np.zeros(fallback_shape, dtype=np.float32)
+    if amb_nir is None:
+        amb_nir = np.zeros(fallback_shape, dtype=np.float32)
+    if frame_red is None:
+        frame_red = np.zeros((*fallback_shape, 3), dtype=np.uint8)
+    if frame_nir is None:
+        frame_nir = np.zeros((*fallback_shape, 3), dtype=np.uint8)
 
     red_channel = np.maximum(0.0, red_raw - amb_red)
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
