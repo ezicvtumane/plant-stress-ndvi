@@ -173,9 +173,15 @@ def test_wave2_ui_redesign_and_scrolling():
     assert opt_match is not None
     assert '— 1 изм.' in opt_match.group(0)
     assert '— 0 изм.' not in opt_match.group(0)
-    real_exps = ExperimentManager(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")).get_experiments()
+    import csv
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    real_exps = ExperimentManager(data_dir).get_experiments()
     wave2_real = next(e for e in real_exps if e["id"] == "exp_1792918800")
-    assert wave2_real["count"] == 19
+    wave2_csv = os.path.join(data_dir, "experiments", "exp_1792918800", "measurements_wave2.csv")
+    with open(wave2_csv, "r", encoding="utf-8") as f:
+        expected_rows = max(0, sum(1 for r in csv.reader(f) if r) - 1)
+    assert expected_rows >= 19
+    assert wave2_real["count"] == expected_rows
 
 
 def test_wave2_table_renders_all_days_without_30_row_cutoff():
