@@ -80,24 +80,30 @@ class ExperimentManager:
         with open(self.registry_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
+    @staticmethod
+    def _count_csv_rows(csv_path: str) -> int:
+        if not csv_path or not os.path.exists(csv_path):
+            return 0
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                lines = [l for l in f if l.strip()]
+                return max(0, len(lines) - 1)
+        except Exception:
+            return 0
+
     def get_experiments(self) -> list:
         reg = self._load_registry()
         active_id = reg.get('active_id', 'exp_1')
         res = []
         for exp in reg.get('experiments', []):
             exp_copy = dict(exp)
-            csv_path = os.path.join(self.exp_base_dir, exp['folder'], 'measurements.csv')
-            count = 0
-            if os.path.exists(csv_path):
-                try:
-                    with open(csv_path, 'r', encoding='utf-8') as f:
-                        lines = [l for l in f if l.strip()]
-                        count = max(0, len(lines) - 1)
-                except Exception:
-                    count = 0
+            exp_dir = os.path.join(self.exp_base_dir, exp['folder'])
+            wave2_csv = os.path.join(exp_dir, 'measurements_wave2.csv')
+            std_csv = os.path.join(exp_dir, 'measurements.csv')
+            count = self._count_csv_rows(wave2_csv) or self._count_csv_rows(std_csv)
             exp_copy['count'] = count
             exp_copy['is_active'] = (exp['id'] == active_id)
-            exp_copy['abs_path'] = os.path.join(self.exp_base_dir, exp['folder'])
+            exp_copy['abs_path'] = exp_dir
             res.append(exp_copy)
         return res
 
@@ -194,7 +200,8 @@ class ExperimentManager:
 
         folder = target_exp.get('folder', 'exp_1')
         exp_dir = os.path.join(self.exp_base_dir, folder)
-        csv_file = os.path.join(exp_dir, 'measurements.csv')
+        wave2_csv = os.path.join(exp_dir, 'measurements_wave2.csv')
+        csv_file = wave2_csv if self._count_csv_rows(wave2_csv) > 0 else os.path.join(exp_dir, 'measurements.csv')
         img_dir = os.path.join(exp_dir, 'images')
 
         with zipfile.ZipFile(out_zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:

@@ -165,3 +165,14 @@ def test_wave2_ui_redesign_and_scrolling():
     assert 'Увяло:' in html
     assert 'Стресс:' in html
     assert '<!-- Табло Превенции -->' not in html
+    # 5. Experiment selector shows real Wave 2 count from measurements_wave2.csv (not 0 изм.)
+    import os
+    import re
+    from core.experiments import ExperimentManager
+    opt_match = re.search(r'<option value="exp_1792918800".*?</option>', html, re.S)
+    assert opt_match is not None
+    assert '— 1 изм.' in opt_match.group(0)
+    assert '— 0 изм.' not in opt_match.group(0)
+    real_exps = ExperimentManager(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")).get_experiments()
+    wave2_real = next(e for e in real_exps if e["id"] == "exp_1792918800")
+    assert wave2_real["count"] == 19
