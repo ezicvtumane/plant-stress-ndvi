@@ -84,9 +84,12 @@ static/thermal_uploads/
 *.tar.gz
 *.bak
 *.monolith_bak
+*.npz
 archive_*/
+_archive_scratch_workspace/
 scratch/
 scripts/scratch/
+data/last_raw_channels.npz
 
 !tests/test_*.py
 !scripts/run_dospekhov_anova.py

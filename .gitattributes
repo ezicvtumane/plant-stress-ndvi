@@ -1,0 +1,18 @@
+# Cross-platform line-ending auto-detection and binary preservation
+# NOTE: Dedicated LF renormalization of legacy CRLF Python files (e.g. web_station.py)
+# is intentionally deferred until after merging fix/audit-nov-2026 -> main to keep PR diffs clean.
+* text=auto
+*.csv -text
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.bmp binary
+*.dib binary
+*.gif binary
+*.pdf binary
+*.mp4 binary
+*.zip binary
+*.npz binary
+*.stl binary
