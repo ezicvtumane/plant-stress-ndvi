@@ -628,22 +628,32 @@ def format_watering_decision_output(decision: Dict[str, Any]) -> Dict[str, str]:
         if eff is not None:
             return {
                 "dose_text": f"{float(eff):.1f} мл",
-                "dose_html": f'<span style="color: #059669; font-weight: 800;">{float(eff):.1f}</span>',
+                "dose_html": (
+                    f'<span data-watering="allowed" style="display: inline-block; color: #047857; '
+                    f'background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; '
+                    f'padding: 2px 8px; font-weight: 800;" title="Полив разрешён">{float(eff):.1f}</span>'
+                ),
             }
         return {"dose_text": "--", "dose_html": "--"}
 
     is_insuff = decision.get("reason") == "insufficient_data"
     label = "БЛОК (недостаточно данных)" if is_insuff else "ПОЛИВ ЗАБЛОКИРОВАН"
-    color = "#d97706" if is_insuff else "#dc2626"
     def_text = f" (дефицит {float(raw):.1f} мл)" if raw is not None else ""
-    def_html = (
-        f' <span style="color: #64748b; font-weight: 500;">(дефицит {float(raw):.1f})</span>'
-        if raw is not None
+    tooltip = f"{label}{def_text}"
+    dose_val = "0.0" if raw is not None else "--"
+    sub_def_html = (
+        f' <span style="color: #94a3b8; font-weight: 500; font-size: 11px;" '
+        f'title="Расчётный дефицит без полива">({float(raw):.1f})</span>'
+        if (raw is not None and float(raw) > 0.0)
         else ""
     )
     return {
         "dose_text": f"{label}{def_text}",
-        "dose_html": f'<span style="color: {color}; font-weight: 800;">{label}</span>{def_html}',
+        "dose_html": (
+            f'<span data-watering="blocked" style="display: inline-block; color: #dc2626; '
+            f'background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; '
+            f'padding: 2px 8px; font-weight: 800;" title="{tooltip}">{dose_val}</span>{sub_def_html}'
+        ),
     }
 
 

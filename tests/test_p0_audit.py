@@ -156,7 +156,11 @@ def test_task2_ui_card_defaults_4_while_table_preserves_missing():
 
     table_html = render_wave2_measurements_table(records)
     assert '<option value="--" selected>' in table_html
-    assert "ПОЛИВ ЗАБЛОКИРОВАН" in table_html or "БЛОК (недостаточно данных)" in table_html
+    assert 'data-watering="blocked"' in table_html
+    assert "color: #dc2626;" in table_html
+    assert ">0.0</span>" in table_html
+    assert ">ПОЛИВ ЗАБЛОКИРОВАН<" not in table_html
+    assert "БЛОК (недостаточно данных)" in table_html
 
 
 # ------------------------------------------------------------------------------
