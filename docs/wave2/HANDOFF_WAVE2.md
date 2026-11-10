@@ -47,7 +47,7 @@
 
 ```mermaid
 flowchart LR
-    PC["Рабочая станция Windows"] <-->|"Wi-Fi AP 'PlantStation'<br>SSH :22 / HTTP :8000"| OPi["Orange Pi 4 Pro<br>SoC Allwinner, Armbian Linux<br>IP: 192.168.4.1 / 192.168.0.23<br>SSH: локальный доступ по ключу"]
+    PC["Рабочая станция оператора"] <-->|"Wi-Fi AP 'PlantStation'<br>SSH :22 / HTTP :8000"| OPi["Orange Pi 4 Pro<br>SoC Allwinner, Armbian Linux<br>Точка доступа / локальная сеть<br>Доступ по локальному SSH-ключу"]
     
     subgraph OPi_Peripherals["Аппаратный комплекс станции"]
         OPi -->|"USB 2.0 (V4L2)"| CAM["Sony IMX179 8MP NoIR<br>Active Dual LED: 660nm & 850nm"]
@@ -71,19 +71,18 @@ flowchart LR
     end
 ```
 
-### Реквизиты доступа и управление станцией:
-* **Хост:** `192.168.4.1` (основной) или `192.168.0.23` (локальная сеть)
-* **Доступ SSH:** по локальному ключу оператора
+### Управление станцией:
+* **Подключение к веб-интерфейсу:** локальный адрес станции в сети Wi-Fi AP `PlantStation` (`orangepi4pro.local:8000`) или локальной сети.
+* **Учётные данные SSH:** в репозитории не хранятся (используются локальные ключи SSH и локально настроенный пользователь).
 * **Рабочая директория:** `/home/pi/plant-stress-ndvi/`
 * **Системная служба:** `plant-station.service`
   * Перезапуск: `sudo systemctl restart plant-station.service`
   * Статус: `systemctl status plant-station.service`
   * Логи: `journalctl -u plant-station.service -n 50 --no-pager`
-* **Веб-дашборд станции:** `http://192.168.4.1:8000/`
 
 ---
 
-## 4. БИОФИЗИЧЕСКИЙ И МЕТОДОЛОГИЧЕСКИЙ СТАНДАРТ (ДОСПЕХОВ / FAO-56 / CWSI)
+## 4. БИОФИЗИЧЕСКИЙ И МЕТОДОЛОГИЧЕСКИЙ СТАНДАРТ ЭКСПЕРИМЕНТА (ДОСПЕХОВ / FAO-56 / CWSI)
 
 ### 1. Адаптивная компенсация нарастания сырой биомассы ($M_{\text{цель}}$ — опционально, в активном этапе отключено по аудиту Option A)
 Исходная модель предполагала динамическую поправку:

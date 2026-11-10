@@ -28,7 +28,7 @@ EXPERIMENT_META = {
     "target_window": "18:00-18:30",  # Целевое окно (факт 09.11: 19:27-19:40 оптика / 20:48-23:08 тепло)
     "pot_tare_g": 5.0,
     "target_weight_gross_g": 100.0,
-    "biomass_pla_coeff": 0.06,  # Правило №1 (опционально) (опционально; в активном этапе Option A отключено)
+    "biomass_pla_coeff": 0.06,  # Правило №1 (опционально; в активном этапе Option A отключено)
     "emissivity_lwir": 0.98,
     "threshold_delta_delta_t": 0.6,  # Правило №2: нормированный триггер ΔΔT >= +0.6 °C относительно контроля
     "cluster_min_plants": 4,  # Кворум: минимум 4 из 6 растений когорты
@@ -82,7 +82,7 @@ TARGET_WEIGHTS = {pot_id: data["target_weight"] for pot_id, data in POTS_CONFIG.
 
 def calculate_target_weight(pla_cm2: float = 0.0, base_weight: float = 100.0) -> float:
     """
-    Правило №1 (CWSI / FAO-56): Расчет динамической целевой массы с поправкой на рост биомассы.
+    Правило №1: Расчет динамической целевой массы с поправкой на рост биомассы.
     M_цель(t) = 100.0 + (PLA * 0.06 г/см²)
     """
     return round(float(base_weight) + (max(0.0, float(pla_cm2)) * EXPERIMENT_META["biomass_pla_coeff"]), 1)
