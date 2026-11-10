@@ -12,6 +12,7 @@ from fastapi.responses import RedirectResponse
 
 from core.config import settings
 from core.experiments import get_experiment_manager
+from src.config import V_DRY, V_WET
 
 router = APIRouter(tags=["measurements"])
 
@@ -42,16 +43,18 @@ def do_delete_measurement(meas_id: str):
             if not rows or len(rows) <= 1:
                 continue
             header = rows[0]
+            opt_idx = header.index('Opt_File') if 'Opt_File' in header else 14
+            th_idx = header.index('Thermal_File') if 'Thermal_File' in header else 15
             new_data = []
             for r in rows[1:]:
                 if r and str(r[0]).strip() == meas_id:
                     any_found = True
                     try:
-                        if len(r) > 13 and r[13]:
-                            opt_p = os.path.join(STATIC_DIR, r[13])
+                        if len(r) > opt_idx and r[opt_idx] and r[opt_idx] != '--':
+                            opt_p = os.path.join(STATIC_DIR, r[opt_idx])
                             if os.path.exists(opt_p): os.remove(opt_p)
-                        if len(r) > 14 and r[14]:
-                            th_p = os.path.join(STATIC_DIR, r[14])
+                        if len(r) > th_idx and r[th_idx] and r[th_idx] != '--':
+                            th_p = os.path.join(STATIC_DIR, r[th_idx])
                             if os.path.exists(th_p): os.remove(th_p)
                     except Exception:
                         pass
@@ -179,7 +182,7 @@ def handle_update_measurement(
                             ps = round(max(0.0, min(100.0, ps)), 1)
                             if len(r) >= 24:
                                 r[7] = str(ps)
-                                r[6] = str(round(3.0 - (ps / 100.0) * 1.8, 2))
+                                r[6] = str(round(V_DRY - (ps / 100.0) * (V_DRY - V_WET), 3))
                             elif len(r) >= 20:
                                 r[5] = str(ps)
                         except Exception:

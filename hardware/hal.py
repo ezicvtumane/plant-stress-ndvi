@@ -4,6 +4,7 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from abc import ABC, abstractmethod
+from typing import Optional, Tuple
 
 # Определяем, работаем ли мы на реальном железе (aarch64) или на Windows/Mac
 IS_EDGE_DEVICE = platform.machine().lower() in ('aarch64', 'armv7l')
@@ -13,7 +14,7 @@ i2c_executor = ThreadPoolExecutor(max_workers=1)
 # --- Climate Sensor ---
 class ClimateSensor(ABC):
     @abstractmethod
-    async def read_climate(self) -> tuple[float, float, float]:
+    async def read_climate(self) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         pass
 
 import logging
@@ -35,14 +36,14 @@ class RealSHT30(ClimateSensor):
                 if -20.0 <= t_c <= 70.0 and 0.0 <= rh <= 100.0:
                     return round(float(t_c), 1), round(float(rh), 1), 3.30
         except Exception as e:
-            logger.debug("[SHT30 Standby/Unreachable] %s", e)
-        return 24.8, 65.5, 3.21
+            logger.warning("[SHT30 Standby/Unreachable] %s", e)
+        return None, None, None
 
-    async def read_climate(self) -> tuple[float, float, float]:
+    async def read_climate(self) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         return await asyncio.get_running_loop().run_in_executor(i2c_executor, self._read_sync)
 
 class MockSHT30(ClimateSensor):
-    async def read_climate(self) -> tuple[float, float, float]:
+    async def read_climate(self) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         # Детерминированный стендовый режим для отладки UI без записи в исследовательский датасет
         return 24.0, 60.0, 3.30
 
@@ -50,28 +51,30 @@ class MockSHT30(ClimateSensor):
 # --- Soil Sensor ---
 class SoilSensor(ABC):
     @abstractmethod
-    async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
+    async def read_moisture(self, group_name: str = '', allow_all_cohorts: bool = False) -> Tuple[Optional[float], Optional[float]]:
         pass
 
 class RealADS1115(SoilSensor):
-    def _read_sync(self, group_name: str = ''):
+    def _read_sync(self, group_name: str = '', allow_all_cohorts: bool = False):
         try:
             from src.sensors_ads1115 import SoilMoistureReader
-            return SoilMoistureReader().get_active_moisture(group_name)
-        except Exception:
-            return 1.977, 64.0
+            return SoilMoistureReader().get_active_moisture(
+                group_name,
+                allow_all_cohorts=allow_all_cohorts,
+            )
+        except Exception as e:
+            logger.warning("[ADS1115 Unreachable] %s", e)
+            return None, None
 
-    async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
+    async def read_moisture(self, group_name: str = '', allow_all_cohorts: bool = False) -> Tuple[Optional[float], Optional[float]]:
         return await asyncio.get_running_loop().run_in_executor(
-            i2c_executor, self._read_sync, group_name
+            i2c_executor, self._read_sync, group_name, allow_all_cohorts
         )
 
 class MockADS1115(SoilSensor):
-    async def read_moisture(self, group_name: str = '') -> tuple[float, float]:
-        # Детерминированная константа поверки АЦП без псевдослучайных колебаний
-        v = 1.977
-        pct = 64.0
-        return v, pct
+    async def read_moisture(self, group_name: str = '', allow_all_cohorts: bool = False) -> Tuple[Optional[float], Optional[float]]:
+        # На не-edge хостах/CI физический АЦП ADS1115 отсутствует; синтетика в CSV запрещена
+        return None, None
 
 # Получение синглтонов
 def get_climate_sensor() -> ClimateSensor:

@@ -396,27 +396,27 @@
     <div class="climate-bar">
         <div class="clim-item" style="background:rgba(255,255,255,0.7); padding:4px 10px; border-radius:6px; border:1.5px solid #0d9488;" title="Беспроводной датчик Xiaomi Mijia на подоконнике (зона растений, базовый микроклимат)">
             <span class="clim-label" style="color:#0f766e; font-weight:800;">🪟 T возд. (Подоконник)</span>
-            <span class="clim-val val-cyan" style="font-weight:bold; font-size:15px; color:#0d9488;">{{ win_t }} °C</span>
+            <span class="clim-val val-cyan" style="font-weight:bold; font-size:15px; color:#0d9488;">{{ win_t if win_t is not none else '--' }} °C</span>
         </div>
         <div class="clim-divider"></div>
         <div class="clim-item" title="Относительная влажность воздуха на подоконнике">
             <span class="clim-label">💧 Влажность RH</span>
-            <span class="clim-val val-teal">{{ win_rh }}%</span>
+            <span class="clim-val val-teal">{{ win_rh if win_rh is not none else '--' }}%</span>
         </div>
         <div class="clim-divider"></div>
         <div class="clim-item" title="Дефицит упругости водяного пара на подоконнике">
             <span class="clim-label">🌬️ Дефицит VPD</span>
-            <span class="clim-val val-amber">{{ cur_vpd }} кПа</span>
+            <span class="clim-val val-amber">{{ cur_vpd if cur_vpd is not none else '--' }} кПа</span>
         </div>
         <div class="clim-divider"></div>
         <div class="clim-item" title="Датчик Sensirion SHT30 внутри бокса (нагревается от аппаратуры станции)">
             <span class="clim-label" style="color:#64748b;">📦 В боксе (SHT30)</span>
-            <span class="clim-val val-purple" style="font-size:12px;">{{ box_t }} °C <span style="font-size:10px; color:#64748b;">({{ box_rh }}%)</span></span>
+            <span class="clim-val val-purple" style="font-size:12px;">{{ box_t if box_t is not none else '--' }} °C <span style="font-size:10px; color:#64748b;">({{ box_rh if box_rh is not none else '--' }}%)</span></span>
         </div>
         <div class="clim-divider"></div>
         <div class="clim-item">
             <span class="clim-label">⚡ Линия 3.3V</span>
-            <span class="clim-val val-slate">{{ cur_v }} В</span>
+            <span class="clim-val val-slate">{{ cur_v if cur_v is not none else '--' }} В</span>
         </div>
     </div>
 

@@ -14,6 +14,7 @@
 
 import asyncio
 import threading
+from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 from hardware.hal import get_climate_sensor, get_soil_sensor, get_relay_controller
 
@@ -213,7 +214,7 @@ BATCH_CONFIG = {
 
 from core.station_state import BATCH_STATE
 
-LAST_VALID_CLIMATE = (23.2, 52.0, 3.21)
+LAST_VALID_CLIMATE = None
 
 def _read_climate_sync():
     """
@@ -221,16 +222,16 @@ def _read_climate_sync():
     1. Приоритет: Беспроводной датчик Xiaomi Mijia на подоконнике (зона растений),
        так как датчик SHT30 внутри закрытого оптического бокса нагревается от ламп/драйверов (~29°C).
     2. Fallback: Локальный I2C SHT30 в боксе (если шлюз Xiaomi временно недоступен).
+    При недоступности обоих датчиков возвращает `(None, None, None)` без синтетических подстановок.
     """
     global LAST_VALID_CLIMATE
     try:
-        from core.xiaomi_climate import get_windowsill_climate
         win_c = get_windowsill_climate()
         if win_c and win_c.get('is_live') and win_c.get('t_c') is not None:
             t = round(float(win_c['t_c']), 1)
-            rh = round(float(win_c['rh_pct']), 1)
+            rh = round(float(win_c['rh_pct']), 1) if win_c.get('rh_pct') is not None else None
             v_rail = round(float(win_c.get('battery_v', 3.15)), 2)
-            LAST_VALID_CLIMATE = (23.2, 52.0, 3.21)
+            LAST_VALID_CLIMATE = (t, rh, v_rail)
             return t, rh, v_rail
     except Exception:
         pass
@@ -248,24 +249,26 @@ def _read_climate_sync():
                 t = round(float(t_c), 1)
                 rh = round(float(rh), 1)
                 v_rail = 3.30
-                LAST_VALID_CLIMATE = (23.2, 52.0, 3.21)
+                LAST_VALID_CLIMATE = (t, rh, v_rail)
                 return t, rh, v_rail
     except Exception:
         pass
-    return LAST_VALID_CLIMATE
+    return None, None, None
 
 async def read_climate_async():
     import asyncio
     return await asyncio.get_running_loop().run_in_executor(i2c_executor, _read_climate_sync)
 
-def calc_vpd(t_c: float, rh_pct: float) -> float:
+def calc_vpd(t_c: Optional[float], rh_pct: Optional[float]) -> Optional[float]:
     """Расчет дефицита упругости водяного пара (Vapor Pressure Deficit, кПа)."""
+    if t_c is None or rh_pct is None:
+        return None
     try:
-        es = 0.61078 * math.exp((17.27 * t_c) / (t_c + 237.3))
-        ea = es * (rh_pct / 100.0)
+        es = 0.61078 * math.exp((17.27 * float(t_c)) / (float(t_c) + 237.3))
+        ea = es * (float(rh_pct) / 100.0)
         return round(float(es - ea), 2)
     except Exception:
-        return 0.60
+        return None
 
 RU_MONTHS = [
     'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
@@ -438,32 +441,12 @@ def _read_moisture_i2c_sync():
         return bus.read_i2c_block_data(0x48, 0x00, 2)
 
 def read_moisture_mock(group_name: str = ''):
-    """Чтение АЦП ADS1115 через выделенный I2C-пул."""
+    """Чтение АЦП ADS1115 без синтетических подстановок при отсутствии датчика."""
     try:
-        c = i2c_executor.submit(_read_moisture_i2c_sync).result(timeout=1.0)
-        raw = (c[0] << 8) | c[1]
-        if raw > 32767:
-            raw -= 65536
-        v = float(raw * 0.000125)
-        # Расчет влажности субстрата (% ПВ)
-        pct = max(0.0, min(100.0, (V_DRY - v) / (V_DRY - V_WET) * 100.0))  # Торф: V_DRY=2.072V, V_WET=1.923V (Delta_V=0.149V)
-        return round(v, 3), round(pct, 1)
-    except Exception as e:
-        gn = group_name.lower() if group_name else ''
-        if 'засух' in gn or 'drought' in gn:
-            v_base, pct_base = 2.45, 30.5
-        elif 'поздн' in gn or 'late' in gn:
-            v_base, pct_base = 2.41, 32.8
-        elif 'соль' in gn or 'nacl' in gn or 'salin' in gn:
-            v_base, pct_base = 1.62, 76.5
-        elif 'ранн' in gn or 'early' in gn:
-            v_base, pct_base = 1.78, 67.8
-        else:
-            v_base, pct_base = 1.85, 63.9
-        jitter = round(float(np.random.uniform(-0.6, 0.6)), 1)
-        pct_final = round(max(0.0, min(100.0, pct_base + jitter)), 1)
-        v_final = round(V_DRY - (pct_final / 100.0) * (V_DRY - V_WET), 3)
-        return v_final, pct_final
+        from src.sensors_ads1115 import SoilMoistureReader
+        return SoilMoistureReader().get_active_moisture(group_name)
+    except Exception:
+        return None, None
 
 def extract_temperature_from_thermal(img_path: str):
     """
@@ -1539,16 +1522,18 @@ def do_delete_measurement(meas_id: str):
             if not rows or len(rows) <= 1:
                 continue
             header = rows[0]
+            opt_idx = header.index('Opt_File') if 'Opt_File' in header else 14
+            th_idx = header.index('Thermal_File') if 'Thermal_File' in header else 15
             new_data = []
             for r in rows[1:]:
                 if r and str(r[0]).strip() == meas_id:
                     any_found = True
                     try:
-                        if len(r) > 13 and r[13]:
-                            opt_p = os.path.join(STATIC_DIR, r[13])
+                        if len(r) > opt_idx and r[opt_idx] and r[opt_idx] != '--':
+                            opt_p = os.path.join(STATIC_DIR, r[opt_idx])
                             if os.path.exists(opt_p): os.remove(opt_p)
-                        if len(r) > 14 and r[14]:
-                            th_p = os.path.join(STATIC_DIR, r[14])
+                        if len(r) > th_idx and r[th_idx] and r[th_idx] != '--':
+                            th_p = os.path.join(STATIC_DIR, r[th_idx])
                             if os.path.exists(th_p): os.remove(th_p)
                     except Exception:
                         pass
@@ -1676,7 +1661,7 @@ def handle_update_measurement(
                             ps = round(max(0.0, min(100.0, ps)), 1)
                             if len(r) >= 24:
                                 r[7] = str(ps)
-                                r[6] = str(round(3.0 - (ps / 100.0) * 1.8, 2))
+                                r[6] = str(round(V_DRY - (ps / 100.0) * (V_DRY - V_WET), 3))
                             elif len(r) >= 20:
                                 r[5] = str(ps)
                         except Exception:
@@ -1734,7 +1719,7 @@ async def index(
     win_clim = get_windowsill_climate()
     tc_val = win_clim.get('t_c') if win_clim else None
     rh_val = win_clim.get('rh_pct') if win_clim else None
-    if win_clim and tc_val is not None and (win_clim.get('is_live') or tc_val > 0):
+    if win_clim and tc_val is not None and win_clim.get('is_live'):
         cur_t = round(float(tc_val), 1)
         cur_rh = round(float(rh_val), 1) if rh_val is not None else box_rh
     else:
@@ -1779,8 +1764,20 @@ async def index(
             if not active_pot_id:
                 active_pot_id = BATCH_QUEUE_WAVE2[0]
 
+        active_meta = POTS_CATALOG.get(active_pot_id, {})
+        active_has_probe = active_meta.get('has_probe', False) or active_pot_id in ('K1', 'R1', 'P1')
+        soil_v, soil_pct = (
+            await get_soil_sensor().read_moisture(active_meta.get('cohort', ''), allow_all_cohorts=True)
+            if active_has_probe
+            else (None, None)
+        )
+
         tray_layout_html = render_wave2_tray_layout(records_today, active_pot_id)
-        active_card_html = render_wave2_active_pot_card(active_pot_id, records_today, {'t_c': cur_t, 'rh_pct': cur_rh, 'cur_v': cur_v})
+        active_card_html = render_wave2_active_pot_card(
+            active_pot_id,
+            records_today,
+            {'t_c': cur_t, 'rh_pct': cur_rh, 'cur_v': cur_v, 'soil_v': soil_v, 'soil_pct': soil_pct},
+        )
         channels_card_html = render_wave2_channels_card(t_now)
         table_html = render_wave2_measurements_table(all_records)
 
@@ -3267,16 +3264,25 @@ async def handle_wave2_capture_and_save(
         # 1. Аппаратная съемка
         opt_file, metrics = await asyncio.to_thread(do_hardware_capture_wave2, pot_id)
 
-        # 2. Климат и щупы
-        box_t, box_rh, cur_v = await get_climate_sensor().read_climate()
-        
+        # 2. Климат и почвенный датчик ADS1115 (A0)
+        box_t, box_rh, _ = await get_climate_sensor().read_climate()
+        win_clim = get_windowsill_climate()
+        win_live = bool(win_clim and win_clim.get('is_live') and win_clim.get('t_c') is not None)
+        win_t_val = round(float(win_clim['t_c']), 1) if win_live else None
+        win_rh_val = (
+            round(float(win_clim['rh_pct']), 1)
+            if win_live and win_clim.get('rh_pct') is not None
+            else None
+        )
+
         parsed_t_air = None
         if t_air and t_air.strip() and t_air.strip() != "--":
             try:
                 parsed_t_air = float(t_air.strip().replace(',', '.'))
             except ValueError:
                 pass
-        effective_t_air = parsed_t_air if parsed_t_air is not None else box_t
+        effective_t_air = parsed_t_air if parsed_t_air is not None else (win_t_val if win_t_val is not None else box_t)
+        effective_rh = win_rh_val if win_rh_val is not None else box_rh
 
         parsed_t_leaf = None
         if t_leaf and t_leaf.strip() and t_leaf.strip() != "--":
@@ -3327,19 +3333,27 @@ async def handle_wave2_capture_and_save(
                 pass
         meta = POTS_CATALOG.get(pot_id, {})
         has_probe = meta.get('has_probe', False) or pot_id in ('K1', 'R1', 'P1')
-        
+        if has_probe:
+            soil_v, soil_pct = await get_soil_sensor().read_moisture(
+                meta.get('cohort', ''),
+                allow_all_cohorts=True,
+            )
+        else:
+            soil_v, soil_pct = None, None
+        computed_vpd = calc_vpd(effective_t_air, effective_rh)
+
         row_data = {
             'ID': pot_id,
             'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'Group': meta.get('badge', 'Огурец'),
             'Weight_g': round(parsed_weight, 1) if parsed_weight is not None else '--',
             'T_Air_C': round(float(effective_t_air), 1) if effective_t_air is not None else '--',
-            'RH_Air_Pct': round(box_rh, 1) if box_rh is not None else '--',
-            'Moisture_V': round(cur_v, 3) if (has_probe and cur_v is not None and cur_v > 0.05) else '--',
-            'Moisture_Pct': round(max(0.0, min(100.0, (cur_v - 0.5) / 1.5 * 100)), 1) if (has_probe and cur_v is not None and cur_v > 0.05) else '--',
+            'RH_Air_Pct': round(float(effective_rh), 1) if effective_rh is not None else '--',
+            'Moisture_V': round(float(soil_v), 3) if (has_probe and soil_v is not None) else '--',
+            'Moisture_Pct': round(float(soil_pct), 1) if (has_probe and soil_pct is not None) else '--',
             'T_Leaf_C': round(parsed_t_leaf, 1) if parsed_t_leaf is not None else '--',
             'Delta_T_C': delta_t if delta_t is not None else '--',
-            'VPD_kPa': calc_vpd(effective_t_air, box_rh) if effective_t_air is not None and box_rh is not None else '--',
+            'VPD_kPa': computed_vpd if computed_vpd is not None else '--',
             'NDVI_Mean': metrics['ndvi_mean'],
             'NDVI_Std': metrics['ndvi_std'],
             'Leaf_Area_cm2': metrics['pla_cm2'],
@@ -3496,13 +3510,14 @@ async def handle_wave2_update_record(
         # Option A (аудит): авто-поправка PLA отключена, целевая масса строго 100.0 г
         raw_deficit = calculate_water_dose(parsed_weight, 100.0)
 
+        soil_explicitly_cleared = bool(moisture_pct and moisture_pct.strip() == "--")
         parsed_soil = None
         if moisture_pct and moisture_pct.strip() and moisture_pct.strip() != "--":
             try:
                 parsed_soil = float(moisture_pct.strip().replace(',', '.'))
             except ValueError:
                 pass
-        elif existing and existing.get('Moisture_Pct') not in (None, '', '--'):
+        elif not soil_explicitly_cleared and existing and existing.get('Moisture_Pct') not in (None, '', '--'):
             try:
                 parsed_soil = float(str(existing.get('Moisture_Pct')).replace(',', '.'))
             except ValueError:
@@ -3562,7 +3577,10 @@ async def handle_wave2_update_record(
 
         has_probe = POTS_CATALOG.get(pot_id, {}).get('has_probe', False) or pot_id in ('K1', 'R1', 'P1')
         if has_probe:
-            if parsed_soil is not None:
+            if soil_explicitly_cleared:
+                update_dict['Moisture_Pct'] = '--'
+                update_dict['Moisture_V'] = '--'
+            elif parsed_soil is not None:
                 update_dict['Moisture_Pct'] = round(parsed_soil, 1)
         else:
             update_dict['Moisture_Pct'] = '--'

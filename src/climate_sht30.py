@@ -7,17 +7,20 @@
 import time
 import math
 import asyncio
+from typing import Optional, Tuple
 
-def calc_vpd(t_c: float, rh_pct: float) -> float:
+def calc_vpd(t_c: Optional[float], rh_pct: Optional[float]) -> Optional[float]:
     """Расчет дефицита упругости водяного пара (Vapor Pressure Deficit, кПа)."""
+    if t_c is None or rh_pct is None:
+        return None
     try:
-        es = 0.61078 * math.exp((17.27 * t_c) / (t_c + 237.3))
-        ea = es * (rh_pct / 100.0)
+        es = 0.61078 * math.exp((17.27 * float(t_c)) / (float(t_c) + 237.3))
+        ea = es * (float(rh_pct) / 100.0)
         return round(float(es - ea), 2)
     except Exception:
-        return 0.60
+        return None
 
-def read_climate_i2c_sync() -> tuple[float, float, float]:
+def read_climate_i2c_sync() -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Синхронный опрос SHT30 по шине I2C с авто-восстановлением шины."""
     try:
         import smbus2
@@ -32,15 +35,14 @@ def read_climate_i2c_sync() -> tuple[float, float, float]:
                 rh_val = round(float(rh), 1)
                 v_rail = 3.30
                 return t, rh_val, v_rail
-    except Exception as e:
+    except Exception:
         try:
             from src.sensors_ads1115 import recover_i2c_bus
             recover_i2c_bus()
         except Exception:
             pass
-    # Стандартный базис параметров лаборатории при отсутствии аппаратной шины I2C (для CI/CD)
-    return 24.8, 65.5, 3.30
+    return None, None, None
 
-async def read_climate_async() -> tuple[float, float, float]:
+async def read_climate_async() -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Асинхронный неблокирующий опрос I2C."""
     return await asyncio.to_thread(read_climate_i2c_sync)

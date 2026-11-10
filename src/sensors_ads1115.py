@@ -129,20 +129,23 @@ class SoilMoistureReader:
 
         return res
 
-    def get_active_moisture(self, group_name: str = '') -> Tuple[Optional[float], Optional[float]]:
+    def get_active_moisture(
+        self,
+        group_name: str = '',
+        allow_all_cohorts: bool = False,
+    ) -> Tuple[Optional[float], Optional[float]]:
         """
-        Reads soil moisture for the cassette currently placed in the screening box.
-        
+        Reads soil moisture for the pot/cassette currently placed in the screening box.
+
         Hardware architecture:
         - The optical box features a single quick-disconnect plug routed to ADC Channel A0.
-        - Cassettes K1 (Контроль), K2 (Осмос), and K3 (Засуха) connect their probe to A0.
-        - Cohorts K4 (Превенция) and K5 (Реакция) do not use soil probes (gravimetric tracking).
+        - Wave 1: cassettes K1 (Контроль), K2 (Осмос), K3 (Засуха) use probes; K4/K5 do not.
+        - Wave 2: reference pots with `has_probe=True` (`K1`, `P1`, `R1`) pass `allow_all_cohorts=True`.
+        - Disconnected/out-of-range A0 never reuses previous pot readings (returns `(None, None)`).
         """
-        global _LAST_VALID_SOIL
         gn = (group_name or '').lower()
 
-        # Cohorts K4 and K5 do not have embedded probes
-        if any(k in gn for k in ['превен', 'реакц', 'визуал', 'prevent', 'react']):
+        if not allow_all_cohorts and any(k in gn for k in ['превен', 'реакц', 'визуал', 'prevent', 'react']):
             return (None, None)
 
         ch_data = self.read_channels()
@@ -153,18 +156,13 @@ class SoilMoistureReader:
             v = c.get('voltage_V', 0.0)
             if 0.35 <= v <= 2.80:
                 pct = c.get('moisture_percent', 0.0)
-                _LAST_VALID_SOIL = (v, pct)
                 return (v, pct)
-
-        # Fallback to last valid reading if A0 is temporarily unseated or disconnected
-        if _LAST_VALID_SOIL is not None:
-            return _LAST_VALID_SOIL
 
         return (None, None)
 
-    def read_for_group(self, group_name: str) -> Tuple[Optional[float], Optional[float]]:
+    def read_for_group(self, group_name: str, allow_all_cohorts: bool = False) -> Tuple[Optional[float], Optional[float]]:
         """Backward-compatible wrapper for get_active_moisture."""
-        return self.get_active_moisture(group_name)
+        return self.get_active_moisture(group_name, allow_all_cohorts=allow_all_cohorts)
 
 
 _global_reader = SoilMoistureReader()

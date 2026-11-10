@@ -461,8 +461,13 @@ def render_wave2_active_pot_card(
     by_pot = {str(r.get("ID", "")).strip().upper(): r for r in records_today}
     rec = by_pot.get(active_pot_id, {})
     
-    t_air = current_climate.get("t_c", 24.0)
-    cur_v = current_climate.get("cur_v")
+    t_air = current_climate.get("t_c")
+    has_t_air = t_air is not None
+    t_air_disp = f"{float(t_air):.1f} °C" if has_t_air else "-- °C"
+    t_air_input = str(round(float(t_air), 1)) if has_t_air else ""
+    t_air_js = str(round(float(t_air), 2)) if has_t_air else "null"
+    soil_v = current_climate.get("soil_v")
+    soil_pct = current_climate.get("soil_pct")
     current_weight = rec.get("Weight_g", "")
     current_t_leaf = rec.get("T_Leaf_C", "")
     parsed_card_turgor = parse_optional_turgor(rec.get("Turgor_Score"))
@@ -470,12 +475,11 @@ def render_wave2_active_pot_card(
     
     has_probe = meta.get("has_probe", False) or active_pot_id in ("K1", "R1", "P1")
     if has_probe:
-        if cur_v is not None and cur_v > 0.05:
-            live_soil = round(max(0.0, min(100.0, (cur_v - 0.5) / 1.5 * 100)), 1)
-            probe_badge = f"<span style='background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid #bae6fd;'>🌱 Датчик почвы: {live_soil}% ({cur_v:.2f}В)</span>"
+        if soil_v is not None and soil_pct is not None:
+            probe_badge = f"<span style='background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid #bae6fd;'>🌱 Датчик почвы: {float(soil_pct):.1f}% ({float(soil_v):.3f}В)</span>"
         else:
             rec_soil = rec.get("Moisture_Pct", "--")
-            probe_badge = f"<span style='background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid #bae6fd;'>🌱 Датчик почвы: {rec_soil}%</span>" if rec_soil != '--' else "<span style='background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid #bae6fd;'>🌱 Датчик почвы (подключен)</span>"
+            probe_badge = f"<span style='background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid #bae6fd;'>🌱 Датчик почвы (запись): {rec_soil}%</span>" if rec_soil not in (None, "", "--") else "<span style='background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; border: 1px solid #fde68a;'>🌱 Датчик почвы: нет сигнала (АЦП A0)</span>"
     else:
         probe_badge = "<span style='color: #94a3b8; font-size: 11px;'>🌱 Датчик почвы: нет (—)</span>" 
 
@@ -530,13 +534,13 @@ def render_wave2_active_pot_card(
                 {probe_badge}
             </div>
             <div style="font-size: 13px; color: #64748b;">
-                Целевая масса: <strong>100.0 г</strong> | T<sub>возд</sub>: <strong>{t_air:.1f} °C</strong>
+                Целевая масса: <strong>100.0 г</strong> | T<sub>возд</sub>: <strong>{t_air_disp}</strong>
             </div>
         </div>
 
         <form id="wave2Form" onsubmit="submitWave2Measurement(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; align-items: end;">
             <input type="hidden" name="pot_id" value="{active_pot_id}">
-            <input type="hidden" name="t_air" value="{t_air}">
+            <input type="hidden" name="t_air" value="{t_air_input}">
 
             <!-- Поле 1: Текущая масса -->
             <div>
@@ -619,8 +623,8 @@ def render_wave2_active_pot_card(
             return;
         }}
         const tLeaf = parseFloat(inputVal);
-        const tAir = {t_air};
-        if (!isNaN(tLeaf)) {{
+        const tAir = {t_air_js};
+        if (!isNaN(tLeaf) && tAir !== null) {{
             const dt = (tLeaf - tAir).toFixed(2);
             dtEl.innerText = (dt >= 0 ? '+' : '') + dt + ' °C';
             dtEl.style.color = (dt >= 0.6) ? '#dc2626' : (dt < 0 ? '#059669' : '#0284c7');

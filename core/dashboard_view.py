@@ -27,14 +27,16 @@ RU_MONTHS = [
     'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
 ]
 
-def calc_vpd(t_c: float, rh_pct: float) -> float:
+def calc_vpd(t_c: Optional[float], rh_pct: Optional[float]) -> Optional[float]:
     """Расчет дефицита упругости водяного пара (Vapor Pressure Deficit, кПа)."""
+    if t_c is None or rh_pct is None:
+        return None
     try:
-        es = 0.61078 * math.exp((17.27 * t_c) / (t_c + 237.3))
-        ea = es * (rh_pct / 100.0)
+        es = 0.61078 * math.exp((17.27 * float(t_c)) / (float(t_c) + 237.3))
+        ea = es * (float(rh_pct) / 100.0)
         return round(float(es - ea), 2)
     except Exception:
-        return 0.60
+        return None
 
 def format_ru_datetime(val) -> str:
     """Форматирует дату и время в понятный русский вид: '25 февраля 2026, 14:30:15'."""
@@ -871,7 +873,7 @@ async def build_dashboard_context(
     win_clim = get_windowsill_climate()
     tc_val = win_clim.get('t_c') if win_clim else None
     rh_val = win_clim.get('rh_pct') if win_clim else None
-    if win_clim and tc_val is not None and (win_clim.get('is_live') or tc_val > 0):
+    if win_clim and tc_val is not None and win_clim.get('is_live'):
         cur_t = round(float(tc_val), 1)
         cur_rh = round(float(rh_val), 1) if rh_val is not None else box_rh
     else:
