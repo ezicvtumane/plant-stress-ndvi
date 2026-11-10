@@ -272,3 +272,75 @@ def test_task3_end_to_end_pipeline_turgor_trigger_and_blocking(mock_capture_hw):
     assert len(today_recs) == 18
     # Превенция при этом всё ещё заблокирована
     assert evaluate_cohort_cluster_status(today_recs)["prevention"]["triggered"] is False
+
+
+def test_task3_missing_control_baseline_blocks_prevention_trigger(mock_capture_hw):
+    """
+    P0.3: Отсутствие контрольных температур K1-K6 не допускает перехода на
+    неподтвержденный абсолютный порог ΔT >= +0.6°C и блокирует полив Превенции.
+    """
+    from docs.wave2.config_wave2 import evaluate_cluster_triggers
+
+    # 1. Записываем P1-P6 с высоким сырым ΔT = +2.5°C без единого замера K1-K6
+    for i in range(1, 7):
+        res_p = client.post("/api/wave2/capture_and_save", data={
+            "pot_id": f"P{i}",
+            "weight_g": "90.0",
+            "t_leaf": "26.5",
+            "t_air": "24.0",
+            "turgor_score": "4",
+        })
+        assert res_p.status_code == 200
+        pj = res_p.json()
+        assert pj["watering_allowed"] is False
+        assert pj["cluster_status"]["prevention"]["triggered"] is False
+        assert pj["cluster_status"]["prevention"]["insufficient_data"] is True
+        assert pj["cluster_status"]["prevention"]["control_baseline_ready"] is False
+        assert pj["cluster_status"]["prevention"]["stressed_count"] == 0
+        assert "Нет контрольного базиса K1–K6" in pj["cluster_status"]["prevention"]["status_text"]
+
+    # То же для K1-K6 с пустой температурой листа (Delta_T_C == "--")
+    for i in range(1, 7):
+        res_k = client.post("/api/wave2/capture_and_save", data={
+            "pot_id": f"K{i}",
+            "weight_g": "95.0",
+            "t_air": "24.0",
+            "turgor_score": "4",
+        })
+        assert res_k.status_code == 200
+        assert res_k.json()["cluster_status"]["prevention"]["triggered"] is False
+        assert res_k.json()["cluster_status"]["prevention"]["control_baseline_ready"] is False
+
+    # Проверка helper-функции docs/wave2/config_wave2.py при пустом контроле
+    cfg_res = evaluate_cluster_triggers({f"P{i}": {"delta_t": 2.5, "turgor": 4} for i in range(1, 7)})
+    assert cfg_res["control_baseline_ready"] is False
+    assert cfg_res["mean_control_delta_t"] is None
+    assert cfg_res["prevention_triggered"] is False
+
+    # 2. Если у K1-K6 ΔT = +2.0°C (теплый день), то ΔΔT = +0.5 < +0.6 -> полив всё ещё заблокирован
+    for i in range(1, 7):
+        res_k = client.post("/api/wave2/update_record", data={
+            "pot_id": f"K{i}",
+            "t_leaf": "26.0",
+            "t_air": "24.0",
+        })
+        assert res_k.status_code == 200
+    up_p1_blocked = client.post("/api/wave2/update_record", data={"pot_id": "P1", "weight_g": "90.0"})
+    assert up_p1_blocked.status_code == 200
+    assert up_p1_blocked.json()["cluster_status"]["prevention"]["control_baseline_ready"] is True
+    assert up_p1_blocked.json()["cluster_status"]["prevention"]["triggered"] is False
+    assert up_p1_blocked.json()["watering_allowed"] is False
+
+    # 3. Если контроль прохладный (ΔT = -1.0°C), то ΔΔT = +3.5 >= +0.6 -> триггер срабатывает!
+    for i in range(1, 7):
+        res_k = client.post("/api/wave2/update_record", data={
+            "pot_id": f"K{i}",
+            "t_leaf": "23.0",
+            "t_air": "24.0",
+        })
+        assert res_k.status_code == 200
+    up_p1_open = client.post("/api/wave2/update_record", data={"pot_id": "P1", "weight_g": "90.0"})
+    assert up_p1_open.status_code == 200
+    assert up_p1_open.json()["cluster_status"]["prevention"]["triggered"] is True
+    assert up_p1_open.json()["watering_allowed"] is True
+    assert "10.0 мл" in up_p1_open.json()["dose"]

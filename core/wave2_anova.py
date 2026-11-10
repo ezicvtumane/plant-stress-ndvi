@@ -335,7 +335,7 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     p_dt_mean = dt_res.get("p_mean")
     p_dt_list = df[df["cohort"] == "Prevention"]["delta_t"].tolist() if "delta_t" in df else []
     p_ddts = [
-        None if (val is None or pd.isna(val)) else (float(val) - k_dt_mean if k_dt_mean is not None else float(val))
+        None if (val is None or pd.isna(val) or k_dt_mean is None) else (float(val) - k_dt_mean)
         for val in p_dt_list
     ]
     p_eval = evaluate_cohort_prevention_trigger(p_ddts)

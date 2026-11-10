@@ -440,6 +440,7 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
 
     # --- 1. Оценка когорты Превенция (П1-П6) ---
     p_ids = ["P1", "P2", "P3", "P4", "P5", "P6"]
+    p_raw_dts: List[float] = []
     p_ddts: List[Optional[float]] = []
     for pid in p_ids:
         if pid not in by_pot:
@@ -449,23 +450,45 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
         try:
             if d_t is not None and str(d_t).strip() not in ("", "--", "None", "nan"):
                 dt_val = float(str(d_t).replace(",", "."))
-                p_ddts.append((dt_val - mean_control_dt) if mean_control_dt is not None else dt_val)
+                p_raw_dts.append(dt_val)
+                # Без синхронного контрольного базиса K1-K6 переход на абсолютный порог ΔT запрещён
+                p_ddts.append((dt_val - mean_control_dt) if mean_control_dt is not None else None)
             else:
                 p_ddts.append(None)
         except (ValueError, TypeError):
             p_ddts.append(None)
 
-    prev_eval = evaluate_cohort_prevention_trigger(
-        p_ddts,
-        threshold=WAVE2_EXPERIMENT_META["threshold_delta_t"],
-        min_plants=WAVE2_EXPERIMENT_META["cluster_min_plants"],
-        total_plants=WAVE2_EXPERIMENT_META["cluster_total_plants"],
-    )
-    p_measured_cnt = prev_eval["total_measured"]
-    p_stressed_cnt = prev_eval["triggered_count"]
-    p_all_measured = p_measured_cnt == WAVE2_EXPERIMENT_META["cluster_total_plants"]
-    p_triggered = prev_eval["is_triggered"]
-    p_insufficient = prev_eval["is_insufficient"]
+    control_baseline_ready = mean_control_dt is not None
+    if control_baseline_ready:
+        prev_eval = evaluate_cohort_prevention_trigger(
+            p_ddts,
+            threshold=WAVE2_EXPERIMENT_META["threshold_delta_t"],
+            min_plants=WAVE2_EXPERIMENT_META["cluster_min_plants"],
+            total_plants=WAVE2_EXPERIMENT_META["cluster_total_plants"],
+        )
+        p_measured_cnt = prev_eval["total_measured"]
+        p_stressed_cnt = prev_eval["triggered_count"]
+        p_all_measured = p_measured_cnt == WAVE2_EXPERIMENT_META["cluster_total_plants"]
+        p_triggered = prev_eval["is_triggered"]
+        p_insufficient = prev_eval["is_insufficient"]
+        p_state = prev_eval["state"]
+        p_status_text = (
+            f"ТРИГГЕР СРАБОТАЛ ({p_stressed_cnt}/6) — ВЫДАТЬ ВОДУ 100% ДЕФИЦИТА!"
+            if p_triggered
+            else (
+                f"Засуха ({p_stressed_cnt}/6) — Полив заблокирован"
+                if not p_insufficient
+                else f"Недостаточно данных ({p_measured_cnt}/6 измерено, {p_stressed_cnt} со стрессом)"
+            )
+        )
+    else:
+        p_measured_cnt = len(p_raw_dts)
+        p_stressed_cnt = 0
+        p_all_measured = False
+        p_triggered = False
+        p_insufficient = True
+        p_state = "insufficient_data"
+        p_status_text = f"Нет контрольного базиса K1–K6 (ΔT Превенции: {p_measured_cnt}/6) — Полив заблокирован"
 
     # --- 2. Оценка когорты Реакция (Р1-Р6) по 4-балльной шкале (балл <= 2) ---
     r_ids = ["R1", "R2", "R3", "R4", "R5", "R6"]
@@ -491,17 +514,11 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
             "stressed_count": p_stressed_cnt,
             "all_measured": p_all_measured,
             "insufficient_data": p_insufficient,
-            "state": prev_eval["state"],
+            "control_baseline_ready": control_baseline_ready,
+            "mean_control_dt": round(mean_control_dt, 2) if mean_control_dt is not None else None,
+            "state": p_state,
             "triggered": p_triggered,
-            "status_text": (
-                f"ТРИГГЕР СРАБОТАЛ ({p_stressed_cnt}/6) — ВЫДАТЬ ВОДУ 100% ДЕФИЦИТА!"
-                if p_triggered
-                else (
-                    f"Засуха ({p_stressed_cnt}/6) — Полив заблокирован"
-                    if not p_insufficient
-                    else f"Недостаточно данных ({p_measured_cnt}/6 измерено, {p_stressed_cnt} со стрессом)"
-                )
-            ),
+            "status_text": p_status_text,
             "badge_color": "#059669" if p_triggered else ("#dc2626" if not p_insufficient else "#eab308"),
         },
         "reaction": {

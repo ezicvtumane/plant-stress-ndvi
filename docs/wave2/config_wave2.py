@@ -92,7 +92,7 @@ def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> 
         for pid in control_pids
         if pid in daily_measurements and daily_measurements[pid].get("delta_t") is not None
     ]
-    mean_ctrl_dt = sum(ctrl_dts) / len(ctrl_dts) if ctrl_dts else 0.0
+    mean_ctrl_dt = (sum(ctrl_dts) / len(ctrl_dts)) if ctrl_dts else None
 
     # 2. Анализ группы Превенция (П1-П6): триггер по нормированному ΔΔT >= +0.6 °C
     p_pids = ["P1", "P2", "P3", "P4", "P5", "P6"]
@@ -101,12 +101,14 @@ def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> 
         if pid in daily_measurements:
             m = daily_measurements[pid]
             ddt = m.get("delta_delta_t")
-            if ddt is None and m.get("delta_t") is not None:
+            if ddt is None and mean_ctrl_dt is not None and m.get("delta_t") is not None:
                 ddt = m["delta_t"] - mean_ctrl_dt
             if ddt is not None and ddt >= EXPERIMENT_META["threshold_delta_delta_t"]:
                 p_stressed_count += 1
 
-    prevention_triggered = p_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
+    prevention_triggered = (
+        mean_ctrl_dt is not None and p_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
+    )
 
     # 3. Анализ группы Реакция (Р1-Р6): триггер по потере тургора (балл <= 2 у >= 4 из 6)
     r_pids = ["R1", "R2", "R3", "R4", "R5", "R6"]
@@ -119,7 +121,8 @@ def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> 
     reaction_triggered = r_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
 
     return {
-        "mean_control_delta_t": round(mean_ctrl_dt, 2),
+        "mean_control_delta_t": round(mean_ctrl_dt, 2) if mean_ctrl_dt is not None else None,
+        "control_baseline_ready": mean_ctrl_dt is not None,
         "prevention_triggered": prevention_triggered,
         "prevention_stressed_count": p_stressed_count,
         "reaction_triggered": reaction_triggered,
