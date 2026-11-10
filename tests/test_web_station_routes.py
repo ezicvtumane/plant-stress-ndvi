@@ -160,3 +160,8 @@ def test_wave2_ui_redesign_and_scrolling():
     assert 'file_th_' in html
     assert 'uploadThermalImage' in html
     assert 'openImageViewer' in html
+    # 4. Compact unified cluster status embedded inside tray layout (no giant separate 3-card block)
+    assert 'Эталон:' in html
+    assert 'Увяло:' in html
+    assert 'Стресс:' in html
+    assert '<!-- Табло Превенции -->' not in html

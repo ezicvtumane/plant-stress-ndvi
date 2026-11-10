@@ -17,60 +17,25 @@ from core.agronomic_rules import parse_optional_turgor
 
 
 def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
-    """Генерация табло кластерных решений (Decision Engine)."""
+    """Компактная однострочная сводка статусов когорт (резервный хелпер совместимости)."""
     status = evaluate_cohort_cluster_status(records_today)
     p = status["prevention"]
     r = status["reaction"]
-    sat = status.get("satellite", {"status_text": "Донор лаковых реплик (долив воды до 100 г)", "badge_color": "#8b5cf6"})
+    sat = status.get("satellite", {"status_text": "Донор реплик (до 100.0 г)", "badge_color": "#8b5cf6"})
 
     return f"""
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 16px;">
-        <!-- Табло Превенции -->
-        <div style="background: #ffffff; border: 2px solid {p['badge_color']}; border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-weight: 700; font-size: 15px; color: #0f172a;">🟡 ПРЕВЕНЦИЯ [П1–П6]</span>
-                <span style="background: {p['badge_color']}; color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 6px;">
-                    Стресс: {p['stressed_count']}/6 (порог ≥4)
-                </span>
-            </div>
-            <div style="font-size: 13px; font-weight: 600; color: {p['badge_color']};">
-                {p['status_text']}
-            </div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Триггер: &Delta;&Delta;T &ge; +0.6 °C у &ge;4 растений. Замерено: {p['measured_count']}/6.
-            </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+        <div style="flex: 1 1 260px; background: #ffffff; border: 1px solid {p['badge_color']}; border-radius: 8px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 11px; color: {p['badge_color']}; font-weight: 700;">🟡 ПРЕВЕНЦИЯ: {p['status_text']}</span>
+            <span style="background: {p['badge_color']}; color: #fff; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">Стресс: {p['stressed_count']}/6</span>
         </div>
-
-        <!-- Табло Реакции -->
-        <div style="background: #ffffff; border: 2px solid {r['badge_color']}; border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-weight: 700; font-size: 15px; color: #0f172a;">🔵 РЕАКЦИЯ [Р1–Р6]</span>
-                <span style="background: {r['badge_color']}; color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 6px;">
-                    Увяло: {r['stressed_count']}/6 (порог ≥4)
-                </span>
-            </div>
-            <div style="font-size: 13px; font-weight: 600; color: {r['badge_color']};">
-                {r['status_text']}
-            </div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Триггер: тургор &le; 2 балла у &ge;4 растений. Замерено: {r['measured_count']}/6.
-            </div>
+        <div style="flex: 1 1 260px; background: #ffffff; border: 1px solid {r['badge_color']}; border-radius: 8px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 11px; color: {r['badge_color']}; font-weight: 700;">🔵 РЕАКЦИЯ: {r['status_text']}</span>
+            <span style="background: {r['badge_color']}; color: #fff; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">Увяло: {r['stressed_count']}/6</span>
         </div>
-
-        <!-- Табло Сателлита -->
-        <div style="background: #ffffff; border: 2px solid {sat['badge_color']}; border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-weight: 700; font-size: 15px; color: #0f172a;">🟣 САТЕЛЛИТ [С20]</span>
-                <span style="background: {sat['badge_color']}; color: #fff; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 6px;">
-                    Микроскопия
-                </span>
-            </div>
-            <div style="font-size: 13px; font-weight: 600; color: {sat['badge_color']};">
-                {sat['status_text']}
-            </div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-                Регламент: донор устьичных лаковых реплик. Ежедневный полив водой до 100.0 г (как Контроль).
-            </div>
+        <div style="flex: 1 1 220px; background: #ffffff; border: 1px solid {sat['badge_color']}; border-radius: 8px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 11px; color: {sat['badge_color']}; font-weight: 700;">🟣 С20: {sat['status_text']}</span>
+            <span style="background: {sat['badge_color']}; color: #fff; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">Микроскопия</span>
         </div>
     </div>
     """
@@ -78,12 +43,17 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
 
 def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id: str) -> str:
     """
-    Покогортный конвейер съемки:
+    Покогортный конвейер съемки со встроенными статусами триггеров в заголовках блоков:
     1. КОНТРОЛЬ (К1-К6)
     2. РЕАКЦИЯ (Р1-Р6)
     3. ПРЕВЕНЦИЯ (П1-П6)
-        """
+    4. САТЕЛЛИТ (С20) + ЛИЗИМЕТР (Х0)
+    """
     by_pot = {str(r.get("ID", "")).strip().upper(): r for r in records_today}
+    status = evaluate_cohort_cluster_status(records_today)
+    p_st = status["prevention"]
+    r_st = status["reaction"]
+    sat_st = status.get("satellite", {"status_text": "Донор лаковых реплик (долив до 100.0 г)", "badge_color": "#8b5cf6"})
 
     def render_pot_tile(pid: str) -> str:
         meta = POTS_CATALOG.get(pid, {"id": pid, "cohort": "Unknown", "block": 0, "color": "#64748b", "badge": pid, "target_weight": 100.0, "has_probe": False})
@@ -106,14 +76,14 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
         return f"""
         <button type="button" onclick="selectWave2Pot('{pid}')" 
             style="display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-                   background: {bg_card}; border: {border_w} solid {border_col}; border-radius: 8px;
-                   padding: 6px 2px; cursor: pointer; transition: all 0.15s; min-height: 58px; text-align: center; width: 100%; box-sizing: border-box; min-width: 0; overflow: hidden;">
-            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 4px;">
-                <span style="font-weight: 800; font-size: 14px; color: {meta['color']};">{pid}</span>
-                <span style="font-weight: 800; font-size: 14px; color: {check_col};">{check_icon}</span>
+                   background: {bg_card}; border: {border_w} solid {border_col}; border-radius: 7px;
+                   padding: 4px 2px; cursor: pointer; transition: all 0.15s; min-height: 48px; text-align: center; width: 100%; box-sizing: border-box; min-width: 0; overflow: hidden;">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 3px;">
+                <span style="font-weight: 800; font-size: 13px; color: {meta['color']};">{pid}</span>
+                <span style="font-weight: 800; font-size: 13px; color: {check_col};">{check_icon}</span>
             </div>
-            <div style="font-size: 11px; font-weight: 600; color: #334155;">{wt_text}</div>
-            <div style="font-size: 10px; color: #64748b;">{dt_text}</div>
+            <div style="font-size: 10.5px; font-weight: 600; color: #334155;">{wt_text}</div>
+            <div style="font-size: 9.5px; color: #64748b;">{dt_text}</div>
         </button>
         """
 
@@ -123,48 +93,68 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
     cohort_p = ["P1", "P2", "P3", "P4", "P5", "P6"]
     cohort_sat = ["C20"]
 
+    k_measured = sum(1 for k in cohort_k if k in by_pot)
+    mean_ctrl_dt = p_st.get("mean_control_dt")
+    k_subline = f"Ежедн. долив до 100.0 г · базис ΔT̄={mean_ctrl_dt}°" if mean_ctrl_dt is not None else "Ежедневный полив до 100.0 г (живой базис ΔT)"
+
     return f"""
-    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div style="font-weight: 700; font-size: 15px; color: #0f172a;">
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.03);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-weight: 700; font-size: 13.5px; color: #0f172a;">
                 📸 ОЧЕРЕДЬ СЪЕМКИ ПО КОГОРТАМ: КОНТРОЛЬ &rarr; РЕАКЦИЯ &rarr; ПРЕВЕНЦИЯ &rarr; САТЕЛЛИТ И ЛИЗИМЕТР
-                <span style="font-size: 12px; font-weight: 400; color: #64748b; margin-left: 8px;">
+                <span style="font-size: 11.5px; font-weight: 400; color: #64748b; margin-left: 6px;">
                     (Замерено: {len(by_pot)}/{len(POTS_CATALOG)})
                 </span>
             </div>
-            <div style="font-size: 12px; color: #64748b;">
+            <div style="font-size: 11px; color: #64748b;">
                 Кликните на горшок для пересъемки
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px;">
             <!-- 1. КОНТРОЛЬ -->
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px;">
-                <div style="font-size: 12px; font-weight: 800; color: #15803d; margin-bottom: 8px;">1. 🟢 КОНТРОЛЬ (К1–К6)</div>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 7px 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 2px;">
+                    <span style="font-size: 11.5px; font-weight: 800; color: #15803d;">1. 🟢 КОНТРОЛЬ (К1–К6)</span>
+                    <span style="background: #059669; color: #fff; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">Эталон: {k_measured}/6</span>
+                </div>
+                <div title="{k_subline}" style="font-size: 10px; font-weight: 600; color: #166534; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{k_subline}</div>
                 <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;">
                     {''.join(render_pot_tile(p) for p in cohort_k)}
                 </div>
             </div>
 
             <!-- 2. РЕАКЦИЯ -->
-            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px;">
-                <div style="font-size: 12px; font-weight: 800; color: #1d4ed8; margin-bottom: 8px;">2. 🔵 РЕАКЦИЯ (Р1–Р6)</div>
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 9px; padding: 7px 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 2px;">
+                    <span style="font-size: 11.5px; font-weight: 800; color: #1d4ed8;">2. 🔵 РЕАКЦИЯ (Р1–Р6)</span>
+                    <span style="background: {r_st['badge_color']}; color: #fff; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">Увяло: {r_st['stressed_count']}/6</span>
+                </div>
+                <div title="{r_st['status_text']} (порог: тургор ≤2 у ≥4/6)" style="font-size: 10px; font-weight: 600; color: {r_st['badge_color']}; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{r_st['status_text']}</div>
                 <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;">
                     {''.join(render_pot_tile(p) for p in cohort_r)}
                 </div>
             </div>
 
             <!-- 3. ПРЕВЕНЦИЯ -->
-            <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 10px; padding: 10px;">
-                <div style="font-size: 12px; font-weight: 800; color: #a16207; margin-bottom: 8px;">3. 🟡 ПРЕВЕНЦИЯ (П1–П6)</div>
+            <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 9px; padding: 7px 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 2px;">
+                    <span style="font-size: 11.5px; font-weight: 800; color: #a16207;">3. 🟡 ПРЕВЕНЦИЯ (П1–П6)</span>
+                    <span style="background: {p_st['badge_color']}; color: #fff; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">Стресс: {p_st['stressed_count']}/6</span>
+                </div>
+                <div title="{p_st['status_text']} (порог: ΔΔT ≥+0.6°C у ≥4/6)" style="font-size: 10px; font-weight: 600; color: {p_st['badge_color']}; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{p_st['status_text']}</div>
                 <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;">
                     {''.join(render_pot_tile(p) for p in cohort_p)}
                 </div>
             </div>
 
             <!-- 4. САТЕЛЛИТ И ЛИЗИМЕТР -->
-            <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; padding: 10px;">
-                <div style="font-size: 12px; font-weight: 800; color: #6d28d9; margin-bottom: 8px;">4. 🟣 САТЕЛЛИТ (С20) + ⚖️ ЛИЗИМЕТР (Х0)</div>
+            <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 9px; padding: 7px 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 2px;">
+                    <span style="font-size: 11.5px; font-weight: 800; color: #6d28d9;">4. 🟣 С20 + ⚖️ Х0</span>
+                    <span style="background: {sat_st['badge_color']}; color: #fff; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">Микроскопия</span>
+                </div>
+                <div title="{sat_st['status_text']}" style="font-size: 10px; font-weight: 600; color: {sat_st['badge_color']}; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{sat_st['status_text']}</div>
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
                     {''.join(render_pot_tile(p) for p in cohort_sat + cohort_x)}
                 </div>

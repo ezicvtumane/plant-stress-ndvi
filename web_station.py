@@ -1784,7 +1784,7 @@ async def index(
         channels_card_html = render_wave2_channels_card(t_now)
         table_html = render_wave2_measurements_table(all_records)
 
-        status_banner = render_wave2_cluster_banner(records_today) + tray_layout_html
+        status_banner = tray_layout_html
         grid_top_content = active_card_html + channels_card_html
 
         templates = Jinja2Templates(directory=os.path.join(BASE_DIR, 'templates'))
