@@ -93,9 +93,11 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
     cohort_p = ["P1", "P2", "P3", "P4", "P5", "P6"]
     cohort_sat = ["C20"]
 
-    k_measured = sum(1 for k in cohort_k if k in by_pot)
+    k_measured = p_st.get("control_measured_count", sum(1 for k in cohort_k if k in by_pot))
+    k_ready = p_st.get("control_baseline_ready", False)
+    k_badge_color = "#059669" if k_ready else "#d97706"
     mean_ctrl_dt = p_st.get("mean_control_dt")
-    k_subline = f"Ежедн. долив до 100.0 г · базис ΔT̄={mean_ctrl_dt}°" if mean_ctrl_dt is not None else "Ежедневный полив до 100.0 г (живой базис ΔT)"
+    k_subline = f"Ежедн. долив до 100.0 г · базис ΔT̄={mean_ctrl_dt}° (кворум {k_measured}/6)" if mean_ctrl_dt is not None else f"Ежедневный полив до 100.0 г (нужен кворум ≥4/6 для базиса ΔT)"
 
     return f"""
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.03);">
@@ -116,7 +118,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
             <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9px; padding: 7px 8px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 2px;">
                     <span style="font-size: 11.5px; font-weight: 800; color: #15803d;">1. 🟢 КОНТРОЛЬ (К1–К6)</span>
-                    <span style="background: #059669; color: #fff; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">Эталон: {k_measured}/6</span>
+                    <span style="background: {k_badge_color}; color: #fff; font-weight: 700; font-size: 10px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">Эталон: {k_measured}/6</span>
                 </div>
                 <div title="{k_subline}" style="font-size: 10px; font-weight: 600; color: #166534; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{k_subline}</div>
                 <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;">
@@ -668,8 +670,9 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
     else:
         records_by_date: Dict[str, List[Dict[str, Any]]] = {}
         for rec_item in records:
-            rec_ts = str(rec_item.get("Timestamp", "--")).strip()
-            records_by_date.setdefault(rec_ts, []).append(rec_item)
+            raw_ts = str(rec_item.get("Timestamp", "--")).strip()
+            rec_day = raw_ts[:10] if len(raw_ts) >= 10 and raw_ts[4:5] == "-" else raw_ts
+            records_by_date.setdefault(rec_day, []).append(rec_item)
         cluster_by_date = {
             ts_key: evaluate_cohort_cluster_status(day_recs)
             for ts_key, day_recs in records_by_date.items()
@@ -678,6 +681,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
         for r in reversed(records[-30:]):  # последние 30 записей
             rec_id = r.get("ID", "--")
             ts = str(r.get("Timestamp", "--")).strip()
+            ts_day = ts[:10] if len(ts) >= 10 and ts[4:5] == "-" else ts
             wt = r.get("Weight_g", "")
             t_leaf = r.get("T_Leaf_C", "")
             t_air = r.get("T_Air_C", "--")
@@ -691,7 +695,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                     raw_deficit = calculate_water_dose(float(str(wt).replace(",", ".")), 100.0)
                 except (ValueError, TypeError):
                     raw_deficit = None
-            row_cluster = cluster_by_date.get(ts) or evaluate_cohort_cluster_status([])
+            row_cluster = cluster_by_date.get(ts_day) or evaluate_cohort_cluster_status([])
             decision = resolve_cohort_watering_decision(rec_id, raw_deficit, row_cluster)
             if decision["watering_allowed"] and decision["effective_dose"] is None:
                 dose_display = f'<span style="color: #059669; font-weight: 800;">{dose}</span>'

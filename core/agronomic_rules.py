@@ -7,12 +7,17 @@
 """
 
 from typing import List, Tuple, Optional, Dict, Any
+import math
 
 # Константы агрономического стандарта для огурца сорта «Каскад»
 BASE_TARE_WEIGHT_G: float = 100.0       # Базовая тарированная масса горшка с субстратом и водой (г)
 BIOMASS_PLA_COEFF: float = 0.06        # Эмпирический коэффициент сырой биомассы листа огурца (г/см²)
 DELTA_DELTA_T_THRESHOLD_C: float = 0.6 # Порог стрессового отклика относительно контроля (°C)
 PREVENTION_MIN_TRIGGERED_PLANTS: int = 4 # Порог кворума для срабатывания превентивного полива (из 6)
+# Минимум 4 из 6 валидных синхронных замеров Контроля (K1–K6) для расчёта ΔΔT:
+# исключает принятие решения по 1 растению (1/6), согласуется с кворумом 4/6 у П/Р
+# и сохраняет работоспособность при выпадении 1–2 контрольных сосудов без подстановки пропусков.
+CONTROL_BASELINE_MIN_QUORUM: int = 4
 TURGOR_REACTION_TRIGGER_SCORE: int = 2   # Порог шкалы тургора для триггера Реакции (балл <= 2: лист лег на бортик горшка)
 REACTION_MIN_TRIGGERED_PLANTS: int = 4   # Кворум для срабатывания полива Реакции (из 6)
 TOTAL_COHORT_PLANTS: int = 6
@@ -97,17 +102,58 @@ def calc_delta_delta_t(
     return dt, ddt, triggered
 
 
+def parse_optional_float(value: Any) -> Optional[float]:
+    """Парсит вещественное значение; пустые маркеры (None, '', '--', 'NA', 'NaN', bool) возвращает как None."""
+    if value is None or isinstance(value, bool):
+        return None
+    s = str(value).strip()
+    if not s or s.lower() in ("--", "none", "nan", "na", "n/a", "null"):
+        return None
+    try:
+        num = float(s.replace(",", "."))
+    except (ValueError, TypeError):
+        return None
+    return num if math.isfinite(num) else None
+
+
+def evaluate_control_baseline_quorum(
+    control_delta_ts: List[Any],
+    min_quorum: int = CONTROL_BASELINE_MIN_QUORUM,
+    total_plants: int = TOTAL_COHORT_PLANTS,
+) -> Dict[str, Any]:
+    """
+    Проверяет достаточность контрольного базиса K1–K6 для расчёта ΔΔT в Превенции.
+    По регламенту аудита (P0.2) требуется синхронный кворум минимум >= 4 из 6
+    валидных (не NaN/None/'--') измерений Контроля; отсутствующие не подменяются.
+    """
+    valid_dts = [val for val in (parse_optional_float(v) for v in control_delta_ts) if val is not None]
+    measured_count = len(valid_dts)
+    ready = measured_count >= min_quorum
+    mean_control_dt = round(sum(valid_dts) / measured_count, 2) if ready else None
+    return {
+        "ready": ready,
+        "is_insufficient": not ready,
+        "measured_count": measured_count,
+        "required_quorum": min_quorum,
+        "total_plants": total_plants,
+        "mean_control_dt": mean_control_dt,
+    }
+
+
 def parse_optional_turgor(value: Any) -> Optional[int]:
     """Парсит оценку тургора 1..4; отсутствующие значения (None, '', '--') возвращает как None."""
     if value is None or isinstance(value, bool):
         return None
     s = str(value).strip()
-    if not s or s in ("--", "None", "nan", "NaN", "null"):
+    if not s or s.lower() in ("--", "none", "nan", "na", "n/a", "null"):
         return None
     try:
-        score = int(float(s.replace(",", ".")))
+        num = float(s.replace(",", "."))
     except (ValueError, TypeError):
         return None
+    if not math.isfinite(num):
+        return None
+    score = int(num)
     return score if 1 <= score <= 4 else None
 
 
@@ -135,17 +181,9 @@ def evaluate_cohort_prevention_trigger(
     Оценивает кворум срабатывания триггера для когорты Превенция (П1–П6):
     Триггер сработал, если минимум у 4 из 6 растений зафиксирован ΔΔT >= +0.6°C.
     """
-    valid_ddts: List[float] = []
-    for val in prevention_plants_ddt:
-        if val is None or isinstance(val, bool):
-            continue
-        s = str(val).strip()
-        if not s or s in ("--", "None", "nan", "NaN", "null"):
-            continue
-        try:
-            valid_ddts.append(float(s.replace(",", ".")))
-        except (ValueError, TypeError):
-            continue
+    valid_ddts: List[float] = [
+        val for val in (parse_optional_float(v) for v in prevention_plants_ddt) if val is not None
+    ]
 
     triggered_count = sum(1 for val in valid_ddts if val >= threshold)
     total_measured = len(valid_ddts)

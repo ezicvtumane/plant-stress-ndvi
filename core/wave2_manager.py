@@ -7,6 +7,7 @@
 import os
 import json
 import csv
+import re
 import time
 import math
 from datetime import datetime
@@ -14,8 +15,11 @@ from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import cv2
 from core.agronomic_rules import (
+    CONTROL_BASELINE_MIN_QUORUM,
     evaluate_cohort_prevention_trigger,
     evaluate_cohort_reaction_trigger,
+    evaluate_control_baseline_quorum,
+    parse_optional_float,
     parse_optional_turgor,
 )
 
@@ -36,6 +40,7 @@ WAVE2_EXPERIMENT_META = {
     "threshold_delta_t": 0.6,
     "cluster_min_plants": 4,
     "cluster_total_plants": 6,
+    "control_baseline_min_quorum": CONTROL_BASELINE_MIN_QUORUM,
     "turgor_reaction_trigger_score": 2,
     "emissivity_lwir": 0.98,
     "k_bal_ptfe": 1.150,
@@ -44,6 +49,9 @@ WAVE2_EXPERIMENT_META = {
     "ndvi_threshold": 0.25,
     "min_leaf_component_px": 100,
 }
+
+_CYR_TO_LAT_POT_ID = str.maketrans({"К": "K", "П": "P", "Р": "R", "Х": "X", "С": "C"})
+_DATE_PREFIX_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\b")
 
 TURGOR_SCALE = {
     4: "4 — Полный тургор (вертикальный стебель, норма)",
@@ -408,6 +416,27 @@ def compute_single_pot_phenotyping(
     return annotated, metrics
 
 
+def normalize_and_validate_pot_id(pot_id: Any) -> Optional[str]:
+    """
+    Нормализует и проверяет идентификатор горшка по строгому каталогу `POTS_CATALOG`
+    (`K1–K6`, `P1–P6`, `R1–R6`, явные исключения `X0` и `C20`).
+    Поддерживает транслитерацию кириллических префиксов (`К/П/Р/Х/С`).
+    Пустые, некорректные и неизвестные ID возвращают `None`.
+    """
+    if pot_id is None or isinstance(pot_id, bool):
+        return None
+    norm = str(pot_id).strip().upper().translate(_CYR_TO_LAT_POT_ID)
+    if not norm or norm not in POTS_CATALOG:
+        return None
+    return norm
+
+
+def _extract_record_date(rec: Dict[str, Any]) -> Optional[str]:
+    ts = str(rec.get("Timestamp", "")).strip()
+    m = _DATE_PREFIX_RE.match(ts)
+    return m.group(1) if m else None
+
+
 # ==============================================================================
 # 3. КЛАСТЕРНЫЙ ДВИЖОК ПРИНЯТИЯ РЕШЕНИЙ (DECISION ENGINE)
 # ==============================================================================
@@ -416,50 +445,74 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
     """
     Кластерный расчет для групп Превенция [П1-П6] и Реакция [Р1-Р6].
     Делегирует классификацию единым правилам core/agronomic_rules.py:
+    - Базис Контроля K1–K6: синхронный кворум минимум >= 4 из 6 валидных ΔT одной даты.
     - Превенция: ΔΔT >= +0.6 °C минимум у 4 из 6 растений.
     - Реакция: Turgor_Score <= 2 минимум у 4 из 6 растений.
-    Пропуски (None / '' / '--') не подменяются значениями по умолчанию и не считаются замеренными.
+    Пропуски (None / '' / '--' / 'NaN') не подменяются значениями по умолчанию и не считаются замеренными.
     """
     by_pot: Dict[str, Dict[str, Any]] = {}
     for r in records_today:
-        pid = str(r.get("ID", "")).strip().upper()
-        if pid:
+        pid = normalize_and_validate_pot_id(r.get("ID"))
+        if pid is not None:
             by_pot[pid] = r
 
-    # Базовый живой эталон Контроля (К1-К6 снимаются первыми)
+    # Базовый живой эталон Контроля (К1-К6) с проверкой синхронности дат и кворума (>= 4/6)
     k_ids = ["K1", "K2", "K3", "K4", "K5", "K6"]
-    k_delta_ts = []
+    p_ids = ["P1", "P2", "P3", "P4", "P5", "P6"]
+    k_raw_vals: List[Any] = []
+    k_dates: set[str] = set()
     for kid in k_ids:
-        if kid in by_pot:
-            val = by_pot[kid].get("Delta_T_C")
-            try:
-                if val is not None and str(val).strip() not in ("", "--", "None", "nan"):
-                    k_delta_ts.append(float(str(val).replace(",", ".")))
-            except (ValueError, TypeError):
-                pass
-    mean_control_dt = (sum(k_delta_ts) / len(k_delta_ts)) if k_delta_ts else None
+        rec_k = by_pot.get(kid)
+        if rec_k is None:
+            k_raw_vals.append(None)
+            continue
+        raw_dt = rec_k.get("Delta_T_C")
+        k_raw_vals.append(raw_dt)
+        if parse_optional_float(raw_dt) is not None:
+            d_k = _extract_record_date(rec_k)
+            if d_k:
+                k_dates.add(d_k)
+
+    p_dates: set[str] = set()
+    for pid in p_ids:
+        rec_p = by_pot.get(pid)
+        if rec_p is not None and parse_optional_float(rec_p.get("Delta_T_C")) is not None:
+            d_p = _extract_record_date(rec_p)
+            if d_p:
+                p_dates.add(d_p)
+
+    # Если у замеров K или P заданы даты, все задействованные замеры ΔT должны относиться к одному дню
+    dates_synchronized = (
+        len(k_dates) <= 1
+        and len(p_dates) <= 1
+        and (not k_dates or not p_dates or k_dates == p_dates)
+    )
+
+    k_min_quorum = WAVE2_EXPERIMENT_META["control_baseline_min_quorum"]
+    k_total = WAVE2_EXPERIMENT_META["cluster_total_plants"]
+    baseline_eval = evaluate_control_baseline_quorum(
+        k_raw_vals,
+        min_quorum=k_min_quorum,
+        total_plants=k_total,
+    )
+    control_baseline_ready = bool(baseline_eval["ready"] and dates_synchronized)
+    mean_control_dt = baseline_eval["mean_control_dt"] if control_baseline_ready else None
 
     # --- 1. Оценка когорты Превенция (П1-П6) ---
-    p_ids = ["P1", "P2", "P3", "P4", "P5", "P6"]
     p_raw_dts: List[float] = []
     p_ddts: List[Optional[float]] = []
     for pid in p_ids:
         if pid not in by_pot:
             p_ddts.append(None)
             continue
-        d_t = by_pot[pid].get("Delta_T_C")
-        try:
-            if d_t is not None and str(d_t).strip() not in ("", "--", "None", "nan"):
-                dt_val = float(str(d_t).replace(",", "."))
-                p_raw_dts.append(dt_val)
-                # Без синхронного контрольного базиса K1-K6 переход на абсолютный порог ΔT запрещён
-                p_ddts.append((dt_val - mean_control_dt) if mean_control_dt is not None else None)
-            else:
-                p_ddts.append(None)
-        except (ValueError, TypeError):
+        dt_val = parse_optional_float(by_pot[pid].get("Delta_T_C"))
+        if dt_val is not None:
+            p_raw_dts.append(dt_val)
+            # Без синхронного кворумного контрольного базиса K1-K6 ΔΔT не вычисляется
+            p_ddts.append((dt_val - mean_control_dt) if control_baseline_ready and mean_control_dt is not None else None)
+        else:
             p_ddts.append(None)
 
-    control_baseline_ready = mean_control_dt is not None
     if control_baseline_ready:
         prev_eval = evaluate_cohort_prevention_trigger(
             p_ddts,
@@ -489,7 +542,19 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
         p_triggered = False
         p_insufficient = True
         p_state = "insufficient_data"
-        p_status_text = f"Нет контрольного базиса K1–K6 (ΔT Превенции: {p_measured_cnt}/6) — Полив заблокирован"
+        k_cnt = baseline_eval["measured_count"]
+        if not dates_synchronized:
+            p_status_text = (
+                f"Рассинхронизированный контрольный базис K1–K6 (разные даты К/П; ΔT Превенции: {p_measured_cnt}/6) — Полив заблокирован"
+            )
+        elif k_cnt == 0:
+            p_status_text = (
+                f"Нет контрольного базиса K1–K6 (0/{k_total}, нужно ≥ {k_min_quorum}; ΔT Превенции: {p_measured_cnt}/6) — Полив заблокирован"
+            )
+        else:
+            p_status_text = (
+                f"Неполный контрольный базис K1–K6 ({k_cnt}/{k_total}, нужно ≥ {k_min_quorum}; ΔT Превенции: {p_measured_cnt}/6) — Полив заблокирован"
+            )
 
     # --- 2. Оценка когорты Реакция (Р1-Р6) по 4-балльной шкале (балл <= 2) ---
     r_ids = ["R1", "R2", "R3", "R4", "R5", "R6"]
@@ -516,7 +581,10 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
             "all_measured": p_all_measured,
             "insufficient_data": p_insufficient,
             "control_baseline_ready": control_baseline_ready,
-            "mean_control_dt": round(mean_control_dt, 2) if mean_control_dt is not None else None,
+            "control_measured_count": baseline_eval["measured_count"],
+            "control_required_quorum": k_min_quorum,
+            "dates_synchronized": dates_synchronized,
+            "mean_control_dt": mean_control_dt,
             "state": p_state,
             "triggered": p_triggered,
             "status_text": p_status_text,
@@ -554,11 +622,20 @@ def resolve_cohort_watering_decision(
 ) -> Dict[str, Any]:
     """
     Определяет итоговое решение о поливе конкретного горшка с учетом блокировки когорт Превенции/Реакции.
-    Для Контроля, X0 и C20 полив разрешен всегда при наличии дефицита массы;
-    для Превенции и Реакции полив заблокирован до срабатывания кластерного триггера.
+    Неизвестные и пустые ID строго отклоняются (`watering_allowed=False`) без fallback в Control.
+    Исключения `X0` (холостой лизиметр) и `C20` (сателлит) обрабатываются явно.
     """
-    pid = str(pot_id).strip().upper()
-    cohort = POTS_CATALOG.get(pid, {}).get("cohort", "Control")
+    pid = normalize_and_validate_pot_id(pot_id)
+    if pid is None or pid not in POTS_CATALOG:
+        return {
+            "watering_allowed": False,
+            "effective_dose": 0.0 if raw_deficit_ml is not None else None,
+            "raw_deficit": raw_deficit_ml,
+            "reason": "unknown_pot_id",
+            "status_label": "ПОЛИВ ЗАПРЕЩЁН (неизвестный ID)",
+        }
+
+    cohort = POTS_CATALOG[pid]["cohort"]
 
     if cohort in ("Prevention", "Reaction"):
         key = "prevention" if cohort == "Prevention" else "reaction"
@@ -587,12 +664,39 @@ def resolve_cohort_watering_decision(
             "status_label": "ПОЛИВ ЗАБЛОКИРОВАН",
         }
 
+    if cohort == "Control":
+        return {
+            "watering_allowed": True,
+            "effective_dose": raw_deficit_ml,
+            "raw_deficit": raw_deficit_ml,
+            "reason": "optimum",
+            "status_label": "Регламентный долив",
+        }
+
+    if pid == "X0" and cohort == "Lysimeter_Blank":
+        return {
+            "watering_allowed": True,
+            "effective_dose": raw_deficit_ml,
+            "raw_deficit": raw_deficit_ml,
+            "reason": "lysimeter_x0",
+            "status_label": "Долив лизиметра X0 (FAO-56)",
+        }
+
+    if pid == "C20" and cohort == "Satellite":
+        return {
+            "watering_allowed": True,
+            "effective_dose": raw_deficit_ml,
+            "raw_deficit": raw_deficit_ml,
+            "reason": "satellite_c20",
+            "status_label": "Долив сателлита C20",
+        }
+
     return {
-        "watering_allowed": True,
-        "effective_dose": raw_deficit_ml,
+        "watering_allowed": False,
+        "effective_dose": 0.0 if raw_deficit_ml is not None else None,
         "raw_deficit": raw_deficit_ml,
-        "reason": "optimum",
-        "status_label": "Регламентный долив",
+        "reason": "unsupported_cohort",
+        "status_label": "ПОЛИВ ЗАПРЕЩЁН (неподдерживаемая когорта)",
     }
 
 
@@ -606,14 +710,20 @@ def evaluate_pot_watering_with_projection(
     Проецирует текущее измерение/правку горшка в дневной срез и возвращает
     (решение_о_поливе, статус_кластера) для всей группы с учетом новых данных.
     """
-    pid = str(pot_id).strip().upper()
+    pid = normalize_and_validate_pot_id(pot_id)
+    if pid is None:
+        cluster_status = evaluate_cohort_cluster_status(today_records)
+        decision = resolve_cohort_watering_decision(pot_id, raw_deficit_ml, cluster_status)
+        return decision, cluster_status
+
     existing = next(
-        (dict(r) for r in today_records if str(r.get("ID", "")).strip().upper() == pid),
+        (dict(r) for r in today_records if normalize_and_validate_pot_id(r.get("ID")) == pid),
         {"ID": pid},
     )
     existing.update(updated_fields)
+    existing["ID"] = pid
     projected = [
-        r for r in today_records if str(r.get("ID", "")).strip().upper() != pid
+        r for r in today_records if normalize_and_validate_pot_id(r.get("ID")) != pid
     ] + [existing]
     cluster_status = evaluate_cohort_cluster_status(projected)
     decision = resolve_cohort_watering_decision(pid, raw_deficit_ml, cluster_status)

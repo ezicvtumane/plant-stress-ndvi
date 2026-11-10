@@ -11,7 +11,14 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from core.agronomic_rules import parse_optional_turgor
+from core.agronomic_rules import (
+    CONTROL_BASELINE_MIN_QUORUM,
+    evaluate_cohort_prevention_trigger,
+    evaluate_cohort_reaction_trigger,
+    evaluate_control_baseline_quorum,
+    parse_optional_float,
+    parse_optional_turgor,
+)
 
 EXPERIMENT_META = {
     "title": "Прецизионная оптимизация водного баланса и ранняя индикация стресса",
@@ -26,6 +33,7 @@ EXPERIMENT_META = {
     "threshold_delta_delta_t": 0.6,  # Правило №2: нормированный триггер ΔΔT >= +0.6 °C относительно контроля
     "cluster_min_plants": 4,  # Кворум: минимум 4 из 6 растений когорты
     "cluster_total_plants": 6,
+    "control_baseline_min_quorum": CONTROL_BASELINE_MIN_QUORUM,  # Кворум контрольного базиса K1–K6 (4/6)
     "turgor_reaction_trigger_score": 2,  # Балл <= 2: лист лег на бортик горшка
     "k_bal_ptfe": 1.150,
 }
@@ -90,66 +98,75 @@ def calculate_water_dose(current_weight: float, pla_cm2: float = 0.0, base_weigh
 
 
 def _parse_opt_float(val: Any) -> Optional[float]:
-    if val is None or isinstance(val, bool):
-        return None
-    s = str(val).strip()
-    if not s or s in ("--", "None", "nan", "NaN", "null"):
-        return None
-    try:
-        return float(s.replace(",", "."))
-    except (ValueError, TypeError):
-        return None
+    return parse_optional_float(val)
 
 
 def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """
     Оценка кластерных кворум-триггеров полива для когорт Превенция (П) и Реакция (Р).
+    Тонкая обёртка над каноническими правилами core/agronomic_rules.py.
     """
-    # 1. Расчет синхронного термального базиса живого Контроля (К1-К6)
     control_pids = ["K1", "K2", "K3", "K4", "K5", "K6"]
-    ctrl_dts = []
-    for pid in control_pids:
-        if pid in daily_measurements:
-            parsed_dt = _parse_opt_float(daily_measurements[pid].get("delta_t"))
-            if parsed_dt is not None:
-                ctrl_dts.append(parsed_dt)
-    mean_ctrl_dt = (sum(ctrl_dts) / len(ctrl_dts)) if ctrl_dts else None
+    ctrl_raw = [
+        daily_measurements[pid].get("delta_t") if pid in daily_measurements else None
+        for pid in control_pids
+    ]
+    baseline_eval = evaluate_control_baseline_quorum(
+        ctrl_raw,
+        min_quorum=EXPERIMENT_META["control_baseline_min_quorum"],
+        total_plants=EXPERIMENT_META["cluster_total_plants"],
+    )
+    baseline_ready = baseline_eval["ready"]
+    mean_ctrl_dt = baseline_eval["mean_control_dt"]
 
-    # 2. Анализ группы Превенция (П1-П6): триггер по нормированному ΔΔT >= +0.6 °C
     p_pids = ["P1", "P2", "P3", "P4", "P5", "P6"]
-    p_stressed_count = 0
+    p_ddts: List[Optional[float]] = []
     for pid in p_pids:
-        if pid in daily_measurements:
-            m = daily_measurements[pid]
-            ddt = _parse_opt_float(m.get("delta_delta_t"))
-            if ddt is None and mean_ctrl_dt is not None:
-                dt_val = _parse_opt_float(m.get("delta_t"))
-                if dt_val is not None:
-                    ddt = dt_val - mean_ctrl_dt
-            if ddt is not None and ddt >= EXPERIMENT_META["threshold_delta_delta_t"]:
-                p_stressed_count += 1
+        if pid not in daily_measurements or not baseline_ready:
+            p_ddts.append(None)
+            continue
+        m = daily_measurements[pid]
+        ddt = parse_optional_float(m.get("delta_delta_t"))
+        if ddt is None and mean_ctrl_dt is not None:
+            dt_val = parse_optional_float(m.get("delta_t"))
+            if dt_val is not None:
+                ddt = dt_val - mean_ctrl_dt
+        p_ddts.append(ddt)
 
-    prevention_triggered = (
-        mean_ctrl_dt is not None and p_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
+    if baseline_ready:
+        prev_eval = evaluate_cohort_prevention_trigger(
+            p_ddts,
+            threshold=EXPERIMENT_META["threshold_delta_delta_t"],
+            min_plants=EXPERIMENT_META["cluster_min_plants"],
+            total_plants=EXPERIMENT_META["cluster_total_plants"],
+        )
+        prevention_triggered = prev_eval["is_triggered"]
+        p_stressed_count = prev_eval["triggered_count"]
+    else:
+        prevention_triggered = False
+        p_stressed_count = 0
+
+    r_pids = ["R1", "R2", "R3", "R4", "R5", "R6"]
+    r_scores = [
+        daily_measurements[pid].get("turgor") if pid in daily_measurements else None
+        for pid in r_pids
+    ]
+    react_eval = evaluate_cohort_reaction_trigger(
+        r_scores,
+        threshold_score=EXPERIMENT_META["turgor_reaction_trigger_score"],
+        min_plants=EXPERIMENT_META["cluster_min_plants"],
+        total_plants=EXPERIMENT_META["cluster_total_plants"],
     )
 
-    # 3. Анализ группы Реакция (Р1-Р6): триггер по потере тургора (балл <= 2 у >= 4 из 6)
-    r_pids = ["R1", "R2", "R3", "R4", "R5", "R6"]
-    r_stressed_count = 0
-    for pid in r_pids:
-        if pid in daily_measurements:
-            t_score = parse_optional_turgor(daily_measurements[pid].get("turgor"))
-            if t_score is not None and t_score <= EXPERIMENT_META["turgor_reaction_trigger_score"]:
-                r_stressed_count += 1
-    reaction_triggered = r_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
-
     return {
-        "mean_control_delta_t": round(mean_ctrl_dt, 2) if mean_ctrl_dt is not None else None,
-        "control_baseline_ready": mean_ctrl_dt is not None,
+        "mean_control_delta_t": mean_ctrl_dt,
+        "control_baseline_ready": baseline_ready,
+        "control_measured_count": baseline_eval["measured_count"],
+        "control_required_quorum": baseline_eval["required_quorum"],
         "prevention_triggered": prevention_triggered,
         "prevention_stressed_count": p_stressed_count,
-        "reaction_triggered": reaction_triggered,
-        "reaction_stressed_count": r_stressed_count,
+        "reaction_triggered": react_eval["is_triggered"],
+        "reaction_stressed_count": react_eval["triggered_count"],
         "satellite": {
             "status_text": "Донор лаковых реплик (долив воды до 100.0 г)",
             "badge_color": "#8b5cf6"

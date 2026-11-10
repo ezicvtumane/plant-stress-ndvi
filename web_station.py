@@ -62,8 +62,30 @@ from core.wave2_manager import (
     POTS_CATALOG, BATCH_QUEUE_WAVE2, CSV_HEADER_WAVE2,
     Wave2Storage, compute_single_pot_phenotyping,
     calculate_water_dose, calculate_delta_t, evaluate_cohort_cluster_status,
-    evaluate_pot_watering_with_projection, format_watering_decision_output
+    evaluate_pot_watering_with_projection, format_watering_decision_output,
+    normalize_and_validate_pot_id
 )
+
+
+def _validate_wave2_pot_or_400(pot_id: str):
+    """Валидирует ID горшка по каталогу Wave 2 и возвращает HTTP 400 при неизвестном/пустом ID."""
+    valid_pot_id = normalize_and_validate_pot_id(pot_id)
+    if valid_pot_id is None:
+        raw_label = str(pot_id).strip() if pot_id is not None else ""
+        err_msg = (
+            f"Неизвестный или пустой ID сосуда: '{raw_label}'. "
+            "Полив и сохранение запрещены (допустимы K1–K6, P1–P6, R1–R6, X0, C20)."
+        )
+        return None, JSONResponse(
+            {
+                'status': 'error',
+                'error': err_msg,
+                'message': err_msg,
+                'watering_allowed': False,
+            },
+            status_code=400,
+        )
+    return valid_pot_id, None
 from core.wave2_ui import (
     render_wave2_cluster_banner, render_wave2_tray_layout,
     render_wave2_active_pot_card, render_wave2_measurements_table,
@@ -3251,7 +3273,7 @@ def do_hardware_capture_wave2(pot_id: str):
 @app.post('/api/wave2/capture_and_save')
 async def handle_wave2_capture_and_save(
     request: Request,
-    pot_id: str = Form(...),
+    pot_id: str = Form(""),
     weight_g: str = Form(""),
     t_leaf: str = Form(""),
     t_air: str = Form(""),
@@ -3260,7 +3282,9 @@ async def handle_wave2_capture_and_save(
     thermal_filename: str = Form("")
 ):
     try:
-        pot_id = pot_id.strip().upper()
+        pot_id, err_resp = _validate_wave2_pot_or_400(pot_id)
+        if err_resp is not None:
+            return err_resp
         # 1. Аппаратная съемка
         opt_file, metrics = await asyncio.to_thread(do_hardware_capture_wave2, pot_id)
 
@@ -3444,7 +3468,7 @@ def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: st
 @app.post('/api/wave2/update_record')
 async def handle_wave2_update_record(
     request: Request,
-    pot_id: str = Form(...),
+    pot_id: str = Form(""),
     weight_g: str = Form(""),
     t_leaf: str = Form(""),
     turgor_score: str = Form(""),
@@ -3454,7 +3478,9 @@ async def handle_wave2_update_record(
     thermal_file: UploadFile = File(None)
 ):
     try:
-        pot_id = pot_id.strip().upper()
+        pot_id, err_resp = _validate_wave2_pot_or_400(pot_id)
+        if err_resp is not None:
+            return err_resp
         wave2_storage = Wave2Storage(DATA_DIR)
         today_recs = wave2_storage.load_today_records()
         existing = next((r for r in today_recs if r.get('ID', '').strip().upper() == pot_id), None)
@@ -3618,10 +3644,12 @@ async def handle_wave2_update_record(
 @app.post('/api/wave2/delete_record')
 async def handle_wave2_delete_record(
     request: Request,
-    pot_id: str = Form(...)
+    pot_id: str = Form("")
 ):
     try:
-        pot_id = pot_id.strip().upper()
+        pot_id, err_resp = _validate_wave2_pot_or_400(pot_id)
+        if err_resp is not None:
+            return err_resp
         wave2_storage = Wave2Storage(DATA_DIR)
         ok, msg = wave2_storage.delete_record(pot_id)
         return JSONResponse({'status': 'ok' if ok else 'error', 'message': msg})
@@ -3947,7 +3975,7 @@ async def handle_wave2_uti_images_list():
 
 @app.post('/api/wave2/uti_import_file')
 async def handle_wave2_uti_import_file(
-    pot_id: str = Form(...),
+    pot_id: str = Form(""),
     filename: str = Form(...)
 ):
     """
@@ -3958,7 +3986,9 @@ async def handle_wave2_uti_import_file(
     4. Обновляет T_Leaf_C, Delta_T и дозу полива для указанного горшка.
     """
     try:
-        pot_id = pot_id.strip().upper()
+        pot_id, err_resp = _validate_wave2_pot_or_400(pot_id)
+        if err_resp is not None:
+            return err_resp
         safe_name = os.path.basename(filename.strip())
         auto_mount_uti_rw()
         
@@ -4041,11 +4071,13 @@ async def handle_wave2_uti_import_file(
 
 @app.post('/api/wave2/grab_uti_thermal')
 async def handle_wave2_grab_uti_thermal(
-    pot_id: str = Form(...)
+    pot_id: str = Form("")
 ):
     """Эндпоинт автоматического забора термограммы с подключенного прибора (Вариант 2)."""
     try:
-        pot_id = pot_id.strip().upper()
+        pot_id, err_resp = _validate_wave2_pot_or_400(pot_id)
+        if err_resp is not None:
+            return err_resp
         wave2_storage = Wave2Storage(DATA_DIR)
         ok, display_name, ocr_temp, msg = grab_latest_uti_thermal_image(pot_id, wave2_storage.images_dir)
         if not ok:
@@ -4072,12 +4104,14 @@ async def handle_wave2_grab_uti_thermal(
 
 @app.post('/api/wave2/upload_thermal')
 async def handle_wave2_upload_thermal(
-    pot_id: str = Form(...),
+    pot_id: str = Form(""),
     thermal_file: UploadFile = File(...)
 ):
     """Ручная привязка снимка тепловизора UTi120S к конкретному горшку"""
     try:
-        pot_id = pot_id.strip().upper()
+        pot_id, err_resp = _validate_wave2_pot_or_400(pot_id)
+        if err_resp is not None:
+            return err_resp
         wave2_storage = Wave2Storage(DATA_DIR)
         
         ext = os.path.splitext(thermal_file.filename)[1].lower()
