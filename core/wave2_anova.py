@@ -8,14 +8,18 @@
 
 import os
 import math
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from core.agronomic_rules import parse_optional_turgor
+from core.agronomic_rules import (
+    parse_optional_turgor,
+    evaluate_cohort_reaction_trigger,
+    evaluate_cohort_prevention_trigger,
+)
 
 TRAIT_LABELS = {
     "weight_g": "Масса сосуда (г)",
@@ -37,29 +41,73 @@ COHORT_COLORS = {
 }
 
 
+def _inspect_grcbd_balance(df_clean: pd.DataFrame) -> Tuple[bool, Optional[str]]:
+    """Проверяет точное соответствие матрицы схеме GRCBD 3 когорты × 3 блока × 2 повторности (N=18)."""
+    expected_cohorts = ("Control", "Prevention", "Reaction")
+    expected_blocks = ("Блок 1", "Блок 2", "Блок 3")
+
+    if len(df_clean) != 18:
+        return False, f"Неполный комплекс: {len(df_clean)}/18 валидных наблюдений (выполнен 1-way ANOVA без учета блоков)"
+
+    extra_cohorts = set(df_clean["cohort"].unique()) - set(expected_cohorts)
+    if extra_cohorts:
+        return False, f"Обнаружены внеплановые когорты {sorted(extra_cohorts)} (выполнен 1-way ANOVA)"
+
+    counts = df_clean.groupby(["cohort", "block"]).size()
+    unbalanced_cells = []
+    for cohort in expected_cohorts:
+        for block in expected_blocks:
+            cnt = int(counts.get((cohort, block), 0))
+            if cnt != 2:
+                unbalanced_cells.append(f"{cohort}/{block}={cnt}")
+
+    if unbalanced_cells:
+        return False, f"Нарушен баланс ячеек 3×3×2 ({', '.join(unbalanced_cells)}; выполнен 1-way ANOVA без учета блоков)"
+    return True, None
+
+
 def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, Any]:
     """
     Выполняет двухфакторный дисперсионный анализ по Доспехову Б.А. (1985)
-    для сбалансированного комплекса GRCBD: a=3 когорты, b=3 блока, n=2 повторности.
-    Всего N = 18.
+    для сбалансированного комплекса GRCBD: a=3 когорты, b=3 блока, n=2 повторности (N=18).
+    При неполной/несбалансированной матрице явно переключается на однофакторный 1-way ANOVA
+    либо описательную статистику с сохранением предупреждения в model_mode/model_label.
     """
     df_clean = df.dropna(subset=[trait, "cohort", "block"]).copy()
-    if len(df_clean) < 18:
-        # Неполный комплекс - fallback на однофакторный ANOVA по когортам
+    if "pot_id" in df_clean.columns:
+        df_clean = df_clean.drop_duplicates(subset=["pot_id"], keep="last").copy()
+
+    is_balanced, balance_reason = _inspect_grcbd_balance(df_clean)
+    if not is_balanced:
         cohort_groups = [g[trait].values for _, g in df_clean.groupby("cohort")]
         if len(cohort_groups) >= 2 and all(len(g) >= 2 for g in cohort_groups):
             f_val, p_val = stats.f_oneway(*cohort_groups)
             return {
                 "trait": trait,
                 "is_balanced_grcbd": False,
+                "model_mode": "one_way_fallback",
+                "model_label": "1-way ANOVA (неполн., без блоков)",
+                "balance_note": balance_reason,
+                "N": int(len(df_clean)),
                 "f_cohort": round(float(f_val), 3) if not math.isnan(f_val) else 0.0,
                 "p_cohort": round(float(p_val), 4) if not math.isnan(p_val) else 1.0,
                 "f_block": None,
                 "p_block": None,
                 "ms_error": None,
-                "df_error": len(df_clean) - len(cohort_groups)
+                "df_error": int(len(df_clean) - len(cohort_groups)),
             }
-        return {"trait": trait, "is_balanced_grcbd": False, "f_cohort": 0.0, "p_cohort": 1.0, "f_block": None, "p_block": None}
+        return {
+            "trait": trait,
+            "is_balanced_grcbd": False,
+            "model_mode": "descriptive_only",
+            "model_label": "Описательно (недостаточно данных для ANOVA)",
+            "balance_note": balance_reason,
+            "N": int(len(df_clean)),
+            "f_cohort": 0.0,
+            "p_cohort": 1.0,
+            "f_block": None,
+            "p_block": None,
+        }
 
     a = 3  # Когорты (К, П, Р)
     b = 3  # Блоки (1, 2, 3)
@@ -120,6 +168,9 @@ def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, An
     return {
         "trait": trait,
         "is_balanced_grcbd": True,
+        "model_mode": "two_way_grcbd",
+        "model_label": "Two-Way ANOVA (GRCBD 3×3×2)",
+        "balance_note": None,
         "N": N,
         "df_cohort": df_A,
         "df_block": df_B,
@@ -148,13 +199,20 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     4. Строит боксплоты в static_dir/charts/anova_latest.png.
     5. Формирует markdown отчет в docs_dir/ANOVA_LATEST_REPORT.md.
     """
-    rows = []
+    latest_by_pot: Dict[str, Dict[str, Any]] = {}
+    duplicate_pots_collapsed = 0
     for r in records:
         pid = str(r.get("ID", "")).strip().upper()
         if not pid or pid not in ["K1", "K2", "K3", "K4", "K5", "K6",
                                   "P1", "P2", "P3", "P4", "P5", "P6",
                                   "R1", "R2", "R3", "R4", "R5", "R6"]:
             continue
+        if pid in latest_by_pot:
+            duplicate_pots_collapsed += 1
+        latest_by_pot[pid] = r
+
+    rows = []
+    for pid, r in latest_by_pot.items():
         
         # Определяем когорту и блок
         cohort = "Control" if pid.startswith("K") else ("Prevention" if pid.startswith("P") else "Reaction")
@@ -255,16 +313,32 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
             "p_cohort": res.get("p_cohort", 1.0),
             "f_block": res.get("f_block"),
             "p_block": res.get("p_block"),
-            "lsd_05": res.get("lsd_05")
+            "lsd_05": res.get("lsd_05"),
+            "is_balanced_grcbd": res.get("is_balanced_grcbd", False),
+            "model_mode": res.get("model_mode", "descriptive_only"),
+            "model_label": res.get("model_label", ""),
+            "balance_note": res.get("balance_note"),
         })
 
-    # Автоматическая диагностика контекста / фазы (только по фактически измеренному тургору)
+    # Автоматическая диагностика контекста / фазы (синхронизирована с кворумами и знаком ΔT)
     valid_turgor_series = df["turgor"].dropna() if "turgor" in df else pd.Series(dtype=float)
     r_valid_turgor = df[df["cohort"] == "Reaction"]["turgor"].dropna() if "turgor" in df else pd.Series(dtype=float)
     mean_turgor = round(float(valid_turgor_series.mean()), 2) if len(valid_turgor_series) > 0 else None
     r_turgor = round(float(r_valid_turgor.mean()), 2) if len(r_valid_turgor) > 0 else None
+    r_eval = evaluate_cohort_reaction_trigger(
+        df[df["cohort"] == "Reaction"]["turgor"].tolist() if "turgor" in df else []
+    )
+
     dt_res = traits_results.get("delta_t", {})
     p_val_dt = dt_res.get("p_cohort", 1.0)
+    k_dt_mean = dt_res.get("k_mean")
+    p_dt_mean = dt_res.get("p_mean")
+    p_dt_list = df[df["cohort"] == "Prevention"]["delta_t"].tolist() if "delta_t" in df else []
+    p_ddts = [
+        None if (val is None or pd.isna(val)) else (float(val) - k_dt_mean if k_dt_mean is not None else float(val))
+        for val in p_dt_list
+    ]
+    p_eval = evaluate_cohort_prevention_trigger(p_ddts)
     has_dw = "dw_g" in traits
 
     if has_dw:
@@ -279,18 +353,33 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         badge_color = "#059669"
         verdict = f"Первичная конечная точка (сухая биомасса DW): Превенция {p_dw_mean} г vs Реакция {r_dw_mean} г (разница {diff_pct:+}%, p = {dw_p})."
     
-    elif r_turgor is not None and len(r_valid_turgor) >= 4 and r_turgor <= 2.5:
+    elif r_eval["is_triggered"]:
         phase = "reaction_trigger"
         status_badge = "🔵 СТРЕСС-ФАЗА: КРИТИЧЕСКИЙ СТРЕСС УВЯДАНИЯ (РЕАКЦИЯ)"
         badge_color = "#2563eb"
         k_turgor_disp = traits_results['turgor']['k_mean'] if traits_results['turgor']['k_mean'] is not None else "--"
-        verdict = f"Традиционный порог увядания зафиксирован: потеря тургора когорты Реакция статистически подтверждена (балл {r_turgor} против контроля {k_turgor_disp}). Реакционный полив активирован!"
+        verdict = (
+            f"Триггер увядания сработал по кворуму ({r_eval['triggered_count']}/6 растений с тургором ≤ 2; "
+            f"средний балл Реакции {r_turgor} против контроля {k_turgor_disp}). Реакционный полив активирован!"
+        )
 
-    elif dt_res.get("f_cohort", 0.0) > 3.0 and p_val_dt <= 0.05 and r_turgor is not None and r_turgor > 2.5:
+    elif (
+        dt_res.get("f_cohort", 0.0) > 3.0
+        and p_val_dt <= 0.05
+        and k_dt_mean is not None
+        and p_dt_mean is not None
+        and p_dt_mean > k_dt_mean
+        and p_eval["is_triggered"]
+    ):
         phase = "prevention_alert"
         status_badge = "🚨 СТРЕСС-ФАЗА: ДЕТЕКЦИЯ СКРЫТОЙ ЗАСУХИ (ПРЕВЕНЦИЯ)"
         badge_color = "#eab308"
-        verdict = f"Термографический триггер подтвержден ANOVA: достоверный перегрев кроны (ΔT F={dt_res['f_cohort']}, p={p_val_dt}) при сохранении визуального тургора (средний балл Реакции {r_turgor:.1f}). Превентивный полив активирован!"
+        r_disp = f"{r_turgor:.1f}" if r_turgor is not None else "--"
+        verdict = (
+            f"Термографический триггер подтвержден статистически и по кворуму ({p_eval['triggered_count']}/6 с ΔΔT ≥ +0.6°C): "
+            f"перегрев Превенции ({p_dt_mean}°C против Контроля {k_dt_mean}°C; ΔT F={dt_res['f_cohort']}, p={p_val_dt}) "
+            f"при сохранённом тургоре Реакции (балл {r_disp}). Превентивный полив активирован!"
+        )
 
     elif mean_turgor is not None and len(valid_turgor_series) >= 12 and mean_turgor >= 3.7 and p_val_dt > 0.05:
         phase = "baseline"
@@ -308,7 +397,7 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         phase = "monitoring"
         status_badge = "📊 ТЕКУЩИЙ МОНИТОРИНГ GRCBD"
         badge_color = "#4f46e5"
-        verdict = f"Замер {total_measured}/18 сосудов выполнен (оценок тургора: {len(valid_turgor_series)}/18). Промежуточные дисперсии стабильны."
+        verdict = f"Замер {total_measured}/18 сосудов выполнен (оценок тургора: {len(valid_turgor_series)}/18). Критерий триггера не достигнут; продолжается мониторинг."
 
     # Генерация графика боксплотов
     os.makedirs(os.path.join(static_dir, "charts"), exist_ok=True)
@@ -344,39 +433,61 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         ax.grid(axis="y", linestyle="--", alpha=0.4)
         ax.tick_params(labelsize=10)
         
-        # Аннотация ANOVA p-value
-        pv = traits_results[t]["p_cohort"]
-        ax.set_xlabel(f"ANOVA p = {pv:.4f}", fontsize=10, fontweight="bold", color="#0f172a" if pv > 0.05 else "#dc2626")
+        # Аннотация ANOVA p-value с явной маркировкой модели (2-way GRCBD vs 1-way)
+        tr_res = traits_results[t]
+        pv = tr_res["p_cohort"]
+        if tr_res.get("is_balanced_grcbd"):
+            xlabel = f"2-way ANOVA p = {pv:.4f}"
+        elif tr_res.get("model_mode") == "one_way_fallback":
+            xlabel = f"1-way p = {pv:.4f} (без блоков)"
+        else:
+            xlabel = "Описательно (без ANOVA)"
+        ax.set_xlabel(xlabel, fontsize=10, fontweight="bold", color="#0f172a" if pv > 0.05 else "#dc2626")
 
     import re
     clean_status = re.sub(r'[^\w\s\(\)\-\:\.\,\«\»\—]', '', status_badge).strip()
-    plt.suptitle(f"Дисперсионный комплекс GRCBD (N={total_measured}) — {clean_status}", fontsize=11, fontweight="bold", y=1.02)
+    all_balanced = all(traits_results[t].get("is_balanced_grcbd") for t in traits)
+    model_banner = (
+        "Two-Way ANOVA (сбалансированный GRCBD 3×3×2, N=18)"
+        if all_balanced
+        else "Смешанный / неполный срез: признаки с <18 замерами рассчитаны как 1-way ANOVA без фактора Блок или описательно"
+    )
+    plt.suptitle(f"Мониторинг GRCBD (N={total_measured}) — {clean_status}", fontsize=11, fontweight="bold", y=1.02)
     plt.tight_layout()
+    plt.subplots_adjust(bottom=0.14)
+    fig.text(0.5, 0.01, f"Статистическая модель: {model_banner}", ha="center", fontsize=8.5, color="#475569")
     plt.savefig(chart_full_path, bbox_inches="tight")
     plt.close(fig)
 
-    # Генерация Markdown отчета
+    # Генерация Markdown отчета с явным разделением описательной, эксплораторной (1-way) и 2-way GRCBD статистики
     os.makedirs(docs_dir, exist_ok=True)
     report_path = os.path.join(docs_dir, "ANOVA_LATEST_REPORT.md")
     md_lines = [
-        f"# 📊 СТАТИСТИЧЕСКИЙ ОТЧЕТ GRCBD (TWO-WAY ANOVA ПО ДОСПЕХОВУ)",
+        f"# 📊 СТАТИСТИЧЕСКИЙ ОТЧЕТ МОНИТОРИНГА ВОЛНЫ 2",
         f"**Статус сессии:** {status_badge}  ",
-        f"**Объем выборки:** N = {total_measured} сосудов (3 когорты × 3 блока)  ",
+        f"**Объем выборки:** N = {total_measured} уникальных сосудов GRCBD (план: 3 когорты × 3 блока × 2 повторности)  ",
+        f"**Режим статистической модели:** {model_banner}  ",
         f"**Вердикт алгоритма:** {verdict}  ",
         f"",
+    ]
+    if duplicate_pots_collapsed > 0:
+        md_lines.append(f"> [!NOTE]\n> Во входной выборке обнаружено и свёрнуто {duplicate_pots_collapsed} дублирующих записей `pot_id` (использована последняя запись по каждому сосуду).\n")
+    if not all_balanced:
+        md_lines.append("> [!WARNING]\n> **Часть признаков не соответствует полной матрице 3×3×2!** Для таких строк двухфакторный GRCBD ANOVA **не применялся** — вместо него приведён разведочный 1-way ANOVA без учёта фактора блока либо только описательная статистика (`M ± SE`).\n")
+    md_lines.extend([
         f"---",
         f"",
-        f"### Таблица дисперсионного анализа (Two-Way ANOVA)",
+        f"### Описательная статистика и сводка дисперсионного анализа",
         f"",
-        "| Физиологический параметр | Контроль (M ± SE) | Превенция (M ± SE) | Реакция (M ± SE) | Фактор Когорта (F) | p (когорта) | Фактор Блок (F) | p (блок) | НСР₀₅ |",
-        f"| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
-    ]
+        "| Физиологический параметр | Режим модели | Контроль (M ± SE) | Превенция (M ± SE) | Реакция (M ± SE) | Когорта (F) | p (когорта) | Блок (F) | p (блок) | НСР₀₅ |",
+        "| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
+    ])
     for row in summary_table:
         f_b_str = str(row['f_block']) if row['f_block'] is not None else "--"
         p_b_str = str(row['p_block']) if row['p_block'] is not None else "--"
         lsd_str = str(row['lsd_05']) if row['lsd_05'] is not None else "--"
         md_lines.append(
-            f"| **{row['label']}** | {row['k_str']} | {row['p_str']} | {row['r_str']} | {row['f_cohort']} | **{row['p_cohort']}** | {f_b_str} | {p_b_str} | {lsd_str} |"
+            f"| **{row['label']}** | {row['model_label']} | {row['k_str']} | {row['p_str']} | {row['r_str']} | {row['f_cohort']} | **{row['p_cohort']}** | {f_b_str} | {p_b_str} | {lsd_str} |"
         )
 
     md_lines.extend([
@@ -393,6 +504,9 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     return {
         "ok": True,
         "total_measured": total_measured,
+        "duplicate_pots_collapsed": duplicate_pots_collapsed,
+        "all_balanced_grcbd": all_balanced,
+        "model_mode_summary": model_banner,
         "phase": phase,
         "status_badge": status_badge,
         "badge_color": badge_color,

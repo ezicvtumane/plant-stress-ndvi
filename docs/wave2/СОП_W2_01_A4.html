@@ -165,13 +165,13 @@
     <div class="sub">Огурец «Каскад», 20 сосудов 7×7×8 см (тара 5.0 г, база 100.0 г): 18 опытных (GRCBD 3×6) + Сателлит C20 (n=1) + Лизиметр X0 (n=1)</div>
   </div>
   <div class="meta-badge">
-    <strong>ВЕРСИЯ 2.4</strong> | 09.11.2026<br>
-    Окно: <strong>18:00–18:30</strong> (за 1 ч до ламп)
+    <strong>ВЕРСИЯ 2.5</strong> | 10.11.2026<br>
+    Целевое окно: <strong>~18:00–18:30</strong> (за 1 ч до ламп)
   </div>
 </div>
 
 <div class="section">
-  <div class="section-title"><span>1. ПОДГОТОВКА К СЕАНСУ (17:50–18:00)</span> <span>за 10 мин до старта</span></div>
+  <div class="section-title"><span>1. ПОДГОТОВКА К СЕАНСУ</span> <span>перед стартом замера</span></div>
   <ol>
     <li><strong>Тепловизор UNI-T UTi120S:</strong> Включить за 3–5 мин до старта (прогрев микроболометра до щелчка затвора NUC). Проверить: излучение <strong>ε = 0.98</strong>, режим <strong>Center Spot</strong> (только центр. точка, маркеры Hi/Lo выкл).</li>
     <li><strong>Веб-станция:</strong> Включить Orange Pi. Открыть панель: в домашней сети — <code>http://192.168.0.30:8000</code> (или <code>http://orangepi4pro.local:8000</code>); автономно — Wi-Fi <strong>«PlantStation»</strong> (пароль <code>[локальный пароль]</code>) ➔ <code>http://192.168.4.1:8000</code>. Проверить данные SHT30 и норму.</li>
@@ -180,7 +180,7 @@
 </div>
 
 <div class="section">
-  <div class="section-title"><span>2. ОЧЕРЕДНОСТЬ КОНВЕЙЕРА И ЛИЗИМЕТР X0 (18:00)</span> <span>учет чистого испарения почвы E</span></div>
+  <div class="section-title"><span>2. ОЧЕРЕДНОСТЬ КОНВЕЙЕРА И ЛИЗИМЕТР X0</span> <span>учет чистого испарения почвы E</span></div>
   <div class="pipeline-bar">
     X0 (Лизиметр) <span class="pipeline-arrow">➔</span> КОНТРОЛЬ (К1–К6) <span class="pipeline-arrow">➔</span> РЕАКЦИЯ (Р1–Р6) <span class="pipeline-arrow">➔</span> ПРЕВЕНЦИЯ (П1–П6) <span class="pipeline-arrow">➔</span> САТЕЛЛИТ (С20)
   </div>
@@ -191,7 +191,7 @@
 </div>
 
 <div class="section">
-  <div class="section-title"><span>3. АЛГОРИТМ ЗАМЕРА ОДНОГО СОСУДА С РАСТЕНИЕМ (ЦИКЛ 1–20)</span> <span>порядок не менять!</span></div>
+  <div class="section-title"><span>3. АЛГОРИТМ ЗАМЕРА ОДНОГО СОСУДА (18 опытных + С20)</span> <span>порядок не менять!</span></div>
   <ol>
     <li><strong>ГРАВИМЕТРИЯ:</strong> Поставить горшок на весы, выбрать карточку растения в веб-интерфейсе, зафиксировать массу M<sub>факт</sub> (г).</li>
     <li><strong>БОКС (NoIR IMX179):</strong> Поместить в ложемент бокса, прикрыть дверцу на магнитах. Нажать «Замер»: двухволновой строб 660/850 нм через релейный блок, маска кроны, расчет площади PLA (см²) и индекса NDVI<sub>instr</sub>.</li>
@@ -209,7 +209,7 @@
 <div class="section">
   <div class="section-title"><span>4. МАТРИЦА ПРИНЯТИЯ РЕШЕНИЙ ПО ДИФФЕРЕНЦИРОВАННОМУ ПОЛИВУ</span> <span>кворум 4 из 6</span></div>
   <div class="formula-box">
-    Адаптивная масса (расчёт по биомассе): M<sub>цель</sub>(t) = 100.0 + (PLA × 0.06 г/см²) | Доза полива: V = max(0, M<sub>цель</sub> - M<sub>факт</sub>) мл
+    Целевая масса (решение аудита Option A): M<sub>цель</sub> = 100.0 г (авто-PLA отключен на активном этапе) | Доза полива: V = max(0, 100.0 - M<sub>факт</sub>) мл
   </div>
   <table>
     <thead>
@@ -250,7 +250,7 @@
 </div>
 
 <div class="section">
-  <div class="section-title"><span>5. РОТАЦИЯ НА СТЕЛЛАЖЕ И ВЫКЛЮЧЕНИЕ ПРИБОРОВ (18:25–18:30)</span> <span>устранение краевого эффекта</span></div>
+  <div class="section-title"><span>5. РОТАЦИЯ НА СТЕЛЛАЖЕ И ВЫКЛЮЧЕНИЕ ПРИБОРОВ</span> <span>устранение краевого эффекта</span></div>
   <ol>
     <li><strong>Пространственная ротация поддонов:</strong>
       • <em>Разворот на 180°:</em> Каждый из 3 поддонов развернуть вокруг вертикальной оси на 180° относительно окна.

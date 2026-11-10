@@ -15,7 +15,7 @@
   - Фактор В (Блоки / Поддоны): 3 уровня (Блок 1, Блок 2, Блок 3)
   - Повторность в блоке: n = 2 растения на ячейку
   - Сбалансированный комплекс ANOVA: 3 x 3 x 2 = 18 растений
-  - Автономный поисковый скрининг «Сателлит»: n = 2 (описательный анализ)
+  - Сопровождающее растение «Сателлит C20»: n = 1 (донор лаковых реплик, вне матрицы ANOVA)
 ===============================================================================
 """
 
@@ -38,8 +38,8 @@ if sys.platform == 'win32':
 
 def generate_reference_dataset() -> pd.DataFrame:
     """
-    Генерация эталонного шаблона данных 20 растений для финального среза
-    (на основе физиологических констант огурца сорта «Каскад» при стрессе).
+    Генерация синтетического шаблона данных 19 живых растений (18 GRCBD + C20 Сателлит)
+    исключительно для тестирования алгоритма финального среза (не является реальным урожаем).
     """
     data = [
         # Блок 1 (Поддон 1)
@@ -66,9 +66,8 @@ def generate_reference_dataset() -> pd.DataFrame:
         {"pot_id": "Р5", "cohort": "Реакция", "block": "Блок 3", "FW_g": 12.95, "DW_g": 0.99, "water_ml": 88.0,  "ndvi": 0.51},
         {"pot_id": "Р6", "cohort": "Реакция", "block": "Блок 3", "FW_g": 12.30, "DW_g": 0.93, "water_ml": 81.0,  "ndvi": 0.48},
 
-        # Сателлит C20 (n = 1, вне матрицы ANOVA)
-        {"pot_id": "C20", "cohort": "Сателлит", "block": "Лоток Пилот", "FW_g": 18.15, "DW_g": 1.32, "water_ml": 120.0, "ndvi": 0.68},
-        {"pot_id": "C21", "cohort": "Сателлит", "block": "Лоток Пилот", "FW_g": 18.40, "DW_g": 1.35, "water_ml": 122.0, "ndvi": 0.69},
+        # Сателлит C20 (n = 1, вне матрицы ANOVA; 20-й горшок X0 — холостой лизиметр)
+        {"pot_id": "C20", "cohort": "Сателлит", "block": "Вне блоков", "FW_g": 18.15, "DW_g": 1.32, "water_ml": 120.0, "ndvi": 0.68},
     ]
     df = pd.DataFrame(data)
     # Расчет физиологических индексов
@@ -79,16 +78,38 @@ def generate_reference_dataset() -> pd.DataFrame:
 def dospekhov_two_way_anova(df_balanced: pd.DataFrame, trait: str) -> dict:
     """
     Вычисление двухфакторного дисперсионного анализа по Б.А. Доспехову
-    для схемы GRCBD: Фактор А (полив, a=3), Фактор В (блоки, b=3), n=2.
+    для строго сбалансированной схемы GRCBD: Фактор А (полив, a=3), Фактор В (блоки, b=3), n=2 (N=18).
+    При любом дисбалансе или пропусках возбуждает ValueError вместо тихого искажения сумм квадратов.
     """
-    y = df_balanced[trait].values
-    N = len(y) # 18
-    
+    if trait not in df_balanced.columns:
+        raise ValueError(f"Признак '{trait}' отсутствует во входной таблице")
+    if df_balanced[trait].isna().any():
+        raise ValueError(f"В признаке '{trait}' обнаружены пропуски (NaN): сбалансированный GRCBD 3×3×2 невозможен")
+    if "pot_id" in df_balanced.columns and df_balanced["pot_id"].duplicated().any():
+        dups = df_balanced[df_balanced["pot_id"].duplicated()]["pot_id"].tolist()
+        raise ValueError(f"Обнаружены дубликаты pot_id в матрице ANOVA: {dups}")
+
     cohorts = ["Контроль", "Превенция", "Реакция"]
     blocks = ["Блок 1", "Блок 2", "Блок 3"]
-    a = len(cohorts) # 3
-    b = len(blocks)  # 3
-    n = N // (a * b) # 2
+    a = len(cohorts)  # 3
+    b = len(blocks)   # 3
+
+    df_sub = df_balanced[df_balanced["cohort"].isin(cohorts) & df_balanced["block"].isin(blocks)]
+    if len(df_sub) != len(df_balanced) or len(df_sub) != 18:
+        raise ValueError(f"Для 2-way GRCBD ANOVA требуется ровно 18 наблюдений (3×3×2), получено {len(df_balanced)}")
+
+    cell_issues = []
+    for c in cohorts:
+        for blk in blocks:
+            cnt = int(((df_sub["cohort"] == c) & (df_sub["block"] == blk)).sum())
+            if cnt != 2:
+                cell_issues.append(f"{c}/{blk}={cnt}")
+    if cell_issues:
+        raise ValueError(f"Нарушен баланс ячеек 3×3×2: {', '.join(cell_issues)}")
+
+    y = df_sub[trait].values
+    N = len(y)  # 18
+    n = 2       # строго 2 повторности на ячейку
     
     # 1. Корректирующий фактор C
     total_sum = np.sum(y)
@@ -99,12 +120,12 @@ def dospekhov_two_way_anova(df_balanced: pd.DataFrame, trait: str) -> dict:
     df_total = N - 1 # 17
     
     # 3. Сумма квадратов фактора А (Стратегия полива)
-    sum_A = [df_balanced[df_balanced["cohort"] == c][trait].sum() for c in cohorts]
+    sum_A = [df_sub[df_sub["cohort"] == c][trait].sum() for c in cohorts]
     SS_A = np.sum(np.array(sum_A) ** 2) / (b * n) - C
     df_A = a - 1 # 2
     
     # 4. Сумма квадратов фактора В (Блоки / Поддоны)
-    sum_B = [df_balanced[df_balanced["block"] == blk][trait].sum() for blk in blocks]
+    sum_B = [df_sub[df_sub["block"] == blk][trait].sum() for blk in blocks]
     SS_B = np.sum(np.array(sum_B) ** 2) / (a * n) - C
     df_B = b - 1 # 2
     
@@ -112,7 +133,7 @@ def dospekhov_two_way_anova(df_balanced: pd.DataFrame, trait: str) -> dict:
     sum_AB = []
     for c in cohorts:
         for blk in blocks:
-            cell_vals = df_balanced[(df_balanced["cohort"] == c) & (df_balanced["block"] == blk)][trait].values
+            cell_vals = df_sub[(df_sub["cohort"] == c) & (df_sub["block"] == blk)][trait].values
             sum_AB.append(np.sum(cell_vals))
     SS_cells = np.sum(np.array(sum_AB) ** 2) / n - C
     
@@ -121,7 +142,7 @@ def dospekhov_two_way_anova(df_balanced: pd.DataFrame, trait: str) -> dict:
     df_AB = (a - 1) * (b - 1) # 4
     
     # 7. Сумма квадратов случайной ошибки (Error / внутри ячеек)
-    SS_E = SS_total - SS_cells
+    SS_E = max(1e-12, float(SS_total - SS_cells))
     df_E = a * b * (n - 1) # 9
     
     # 8. Средние квадраты (MS)
@@ -145,10 +166,12 @@ def dospekhov_two_way_anova(df_balanced: pd.DataFrame, trait: str) -> dict:
     p_B = 1.0 - stats.f.cdf(F_B, df_B, df_E)
     p_AB = 1.0 - stats.f.cdf(F_AB, df_AB, df_E)
     
-    # 12. Ошибка средней (s_x) и наименьшая существенная разность (НСР_05 / Tukey HSD)
+    # 12. Ошибка средней (s_x), критерий Тьюки (HSD_05) и НСР_05 по Доспехову (Fisher LSD)
     s_x = np.sqrt(MS_E / (b * n))
     q_crit = stats.studentized_range.ppf(0.95, a, df_E)
-    HCP_05 = q_crit * s_x
+    tukey_hsd_05 = q_crit * s_x
+    t_crit = stats.t.ppf(0.975, df_E)
+    lsd_05 = t_crit * np.sqrt(2.0) * s_x
     
     return {
         "trait": trait,
@@ -160,7 +183,10 @@ def dospekhov_two_way_anova(df_balanced: pd.DataFrame, trait: str) -> dict:
         "F_fact": {"A": F_A, "B": F_B, "AB": F_AB},
         "F_tab": {"A": F_tab_A, "B": F_tab_B, "AB": F_tab_AB},
         "p_val": {"A": p_A, "B": p_B, "AB": p_AB},
-        "MS_E": MS_E, "s_x": s_x, "q_crit": q_crit, "HCP_05": HCP_05
+        "MS_E": MS_E, "s_x": s_x, "q_crit": q_crit,
+        "Tukey_HSD_05": tukey_hsd_05,
+        "LSD_05": lsd_05,
+        "HCP_05": tukey_hsd_05,
     }
 
 def calculate_tukey_hsd_posthoc(df_balanced: pd.DataFrame, trait: str, anova_res: dict) -> pd.DataFrame:
@@ -256,7 +282,7 @@ def generate_dospekhov_plots(df: pd.DataFrame, out_path: str, is_synthetic: bool
     }
     
     df_main = df[df["cohort"] != "Сателлит"]
-    df_epin = df[df["cohort"] == "Сателлит"]
+    df_sat = df[df["cohort"] == "Сателлит"]
     
     cohort_order = ["Контроль", "Превенция", "Реакция"]
     
@@ -287,11 +313,11 @@ def generate_dospekhov_plots(df: pd.DataFrame, out_path: str, is_synthetic: bool
             ax.text(x_pos[i], y_text, f"{means[i]:.2f} {let}", ha='center', va='bottom',
                     fontsize=11, fontweight='bold')
             
-        # Линия ориентира для группы «Сателлит» (n=2)
-        if len(df_epin) > 0:
-            epin_mean = df_epin[trait].mean()
-            ax.axhline(epin_mean, color=colors["Сателлит"], linestyle='--', linewidth=1.8,
-                       label=f"Сателлит (ср. {epin_mean:.2f})", zorder=4)
+        # Линия ориентира для сателлита C20 (n=1)
+        if len(df_sat) > 0:
+            sat_mean = df_sat[trait].mean()
+            ax.axhline(sat_mean, color=colors["Сателлит"], linestyle='--', linewidth=1.8,
+                       label=f"Сателлит C20 ({sat_mean:.2f})", zorder=4)
         
         # Оформление осей
         ax.set_xticks(x_pos)
@@ -300,20 +326,21 @@ def generate_dospekhov_plots(df: pd.DataFrame, out_path: str, is_synthetic: bool
         ax.set_ylabel(unit, fontsize=11)
         ax.grid(axis='y', linestyle=':', alpha=0.6, zorder=0)
         
-        # Подпись F-критерия и HCP_05
+        # Подпись F-критерия и раздельных порогов Tukey HSD / НСР_05
         f_val = anova_res["F_fact"]["A"]
         p_val = anova_res["p_val"]["A"]
         p_str = "p < 0.001" if p_val < 0.001 else f"p = {p_val:.3f}"
-        hcp = anova_res["HCP_05"]
-        info_str = f"ANOVA F_полив = {f_val:.2f} ({p_str})\nНСР₀₅ (HCP) = {hcp:.2f}"
+        hsd_v = anova_res["Tukey_HSD_05"]
+        lsd_v = anova_res["LSD_05"]
+        info_str = f"ANOVA F_полив = {f_val:.2f} ({p_str})\nTukey HSD₀₅ = {hsd_v:.2f} | НСР₀₅ = {lsd_v:.2f}"
         ax.text(0.03, 0.95, info_str, transform=ax.transAxes, verticalalignment='top',
                 bbox=dict(boxstyle='round,pad=0.4', facecolor='white', alpha=0.9, edgecolor='gray'),
                 fontsize=9.5)
         
         # Расширение верхнего предела для подписей
-        y_max = max(max(means) * 1.25, df_epin[trait].mean() * 1.15 if len(df_epin) > 0 else 0)
+        y_max = max(max(means) * 1.25, df_sat[trait].mean() * 1.15 if len(df_sat) > 0 else 0)
         ax.set_ylim(0, y_max)
-        if idx == 0 and len(df_epin) > 0:
+        if idx == 0 and len(df_sat) > 0:
             ax.legend(loc='lower right', frameon=True, fontsize=10)
 
     title_main = "Дисперсионный анализ эффекта предиктивной защиты растений огурца (GRCBD по Доспехову)\n" \
@@ -334,7 +361,7 @@ def format_anova_report(df: pd.DataFrame, is_synthetic: bool = False) -> str:
     Формирование полного академического протокола дисперсионного анализа по Доспехову.
     """
     df_main = df[df["cohort"] != "Сателлит"]
-    df_epin = df[df["cohort"] == "Сателлит"]
+    df_sat = df[df["cohort"] == "Сателлит"]
     
     traits = ["FW_g", "DW_g", "WC_pct", "WUE_mg_ml"]
     trait_names = {
@@ -381,16 +408,16 @@ def format_anova_report(df: pd.DataFrame, is_synthetic: bool = False) -> str:
         # Всего
         rep.append(f"{'Всего':<28} | {res['SS']['Total']:>9.4f} | {res['df']['Total']:>4} | {'-':>9} | {'-':>8} | {'-':>8} | {'-':>8}")
         rep.append("-" * 82)
-        rep.append(f"Метрология: Ошибка средней s_x = {res['s_x']:.4f} | НСР₀₅ (Tukey HSD) = {res['HCP_05']:.4f}")
+        rep.append(f"Метрология: Ошибка средней s_x = {res['s_x']:.4f} | Tukey HSD₀₅ = {res['Tukey_HSD_05']:.4f} | НСР₀₅ (LSD Доспехова) = {res['LSD_05']:.4f}")
         rep.append("")
         
         rep.append("Средние значения когорт и буквенная группировка (p < 0.05):")
         for _, r in hsd_sum.iterrows():
             rep.append(f"  * {r['Cohort']:<12}: {r['Mean']:>7.2f} ± {r['Std']:>5.2f} (индекс: {r['Tukey_Letter']})")
-        if len(df_epin) > 0:
-            ep_m = df_epin[trait].mean()
-            ep_s = df_epin[trait].std(ddof=1) if len(df_epin) > 1 else 0.0
-            rep.append(f"  * [Сателлит]: {ep_m:>7.2f} ± {ep_s:>5.2f} (ориентир proof-of-concept, n=2)")
+        if len(df_sat) > 0:
+            sat_m = df_sat[trait].mean()
+            sat_disp = f"{sat_m:>7.2f} ± {df_sat[trait].std(ddof=1):>5.2f}" if len(df_sat) > 1 else f"{sat_m:>7.2f}"
+            rep.append(f"  * [Сателлит C20]: {sat_disp} (вне матрицы ANOVA, n={len(df_sat)})")
         rep.append("")
         
         rep.append("Парные сравнения Тьюки:")
@@ -433,12 +460,12 @@ def main():
         print(f"Загрузка пользовательских данных: {args.input}")
         df = pd.read_csv(args.input, comment="#")
     else:
-        print("Используется калиброванный эталонный датасет огурца «Каскад» (20 растений)...")
+        print("Используется синтетический эталонный шаблон огурца «Каскад» (18 GRCBD + C20)...")
         df = generate_reference_dataset()
         # Сохранение эталонного шаблона
         template_csv = os.path.join(args.outdir, "FINAL_HARVEST_TEMPLATE_20PLANTS.csv")
         os.makedirs(args.outdir, exist_ok=True)
-        with open(template_csv, "w", encoding="utf-8") as f_out:
+        with open(template_csv, "w", newline="", encoding="utf-8") as f_out:
             f_out.write("# MOCK_PIPELINE_VALIDATION_ONLY: Синтетический шаблон для тестирования модуля ANOVA (натурный срез огурца не проводился)\n")
             df.to_csv(f_out, index=False, encoding="utf-8")
         print(f"[OK] Шаблон для занесения данных среза сохранен: {template_csv}")
