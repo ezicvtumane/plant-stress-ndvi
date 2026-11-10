@@ -145,14 +145,25 @@ def test_task2_anova_partial_turgor_excludes_missing_from_mean(tmp_path):
     assert res["phase"] != "reaction_trigger"
 
 
-def test_task2_ui_card_defaults_4_while_table_preserves_missing():
+def test_task2_ui_card_4_buttons_default_missing_and_table_preserves_missing():
     """
-    По решению пользователя селект активной карточки предвыбирает '4',
-    но таблица журнала сохраняет '--' для пустых строк (не подменяя их на 4).
+    Карточка активного замера использует 4 быстрые кнопки тургора ('4','3','2','1')
+    со значением '--' по умолчанию (без ложной подстановки 4), а при наличии записи
+    подсвечивает выбранный балл; таблица журнала также сохраняет '--'.
     """
     records = [{"ID": "R1", "Timestamp": "2026-11-10", "Weight_g": "95.0", "Turgor_Score": "--"}]
     card_html = render_wave2_active_pot_card("R1", records, {"t_c": 24.0, "rh_pct": 50.0, "cur_v": None})
-    assert '<option value="4" selected>' in card_html
+    assert '<input type="hidden" name="turgor_score" id="wave2_turgor" value="--">' in card_html
+    assert '<select name="turgor_score"' not in card_html
+    for score in ("4", "3", "2", "1"):
+        assert f'data-turgor-btn="{score}"' in card_html
+    assert card_html.count('aria-pressed="true"') == 0
+    assert card_html.count('aria-pressed="false"') == 4
+
+    records_scored = [{"ID": "R1", "Timestamp": "2026-11-10", "Weight_g": "95.0", "Turgor_Score": "4"}]
+    card_scored_html = render_wave2_active_pot_card("R1", records_scored, {"t_c": 24.0, "rh_pct": 50.0, "cur_v": None})
+    assert '<input type="hidden" name="turgor_score" id="wave2_turgor" value="4">' in card_scored_html
+    assert card_scored_html.count('aria-pressed="true"') == 1
 
     table_html = render_wave2_measurements_table(records)
     assert '<option value="--" selected>' in table_html

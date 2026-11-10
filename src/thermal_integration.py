@@ -40,10 +40,10 @@ class ThermalAnalyzer:
         """
         Calculates normalized empirical Crop Water Stress Index (CWSI_instr in [0.0, 1.0]).
         If reference targets are not measured directly:
-          - If VPD is available: historical Stand #0 NWSB constants:
+          - If VPD is available: 3-point OLS Stand #0 NWSB fit from CALIBRATION.md:
             Delta_T_wet = IDSO_NWSB_INTERCEPT - IDSO_NWSB_SLOPE * VPD
-            (Audit note: a=0.24, b=1.20, claimed R^2=0.985 are unverified against the
-            3 published rounded points, whose OLS yields a=0.3703, b=1.2494, R^2=0.9562.)
+            (a=0.3703, b=1.2494, R^2=0.9562; replaces unverified legacy constants
+            a=0.24, b=1.20, claimed R^2=0.985 / actual R^2=0.9351.)
           - Otherwise: T_wet = T_air - 3.2 °C (standard fallback baseline)
           - T_dry = T_air + IDSO_DELTA_T_DRY (+1.50 °C from 1-point Oleum Vaselini test)
         Exploratory indicator only; not suitable for standalone confirmatory inference.

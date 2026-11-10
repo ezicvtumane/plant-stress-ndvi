@@ -72,12 +72,12 @@ CWSI_ALERT_THRESHOLD = 0.5   # Empirical Crop Water Stress Index alert
 
 # Empirical Idso NWSB (Non-Water-Stressed Baseline) parameters for Pisum sativum (Stand #0)
 # Delta_T_wet = IDSO_NWSB_INTERCEPT - IDSO_NWSB_SLOPE * VPD
-# AUDIT NOTE (Task 9): Reported fit (a=0.24, b=1.20, R^2=0.985) is UNVERIFIED against the 3 published
-# rounded points (0.53,-0.4), (0.91,-0.6), (1.61,-1.7): exact OLS on those 3 points yields
-# a=0.3703, b=1.2494, R^2=0.9562 (while 0.24 - 1.20*VPD gives R^2=0.9351).
-# Exploratory indicator only; Delta_T_dry=+1.50 C is a 1-point Vaseline approximation.
-IDSO_NWSB_INTERCEPT = 0.24
-IDSO_NWSB_SLOPE = 1.20
+# Exact OLS fit across the 3 verified Stand #0 points from CALIBRATION.md & docs/calibration/
+# ((0.53, -0.4), (0.91, -0.6), (1.61, -1.7)) yields a=0.3703, b=1.2494, R^2=0.9562 (p=0.134).
+# Replaces unverified legacy constants (a=0.24, b=1.20, claimed R^2=0.985; actual R^2=0.9351).
+# Exploratory express-indicator only; Delta_T_dry=+1.50 C is a 1-point Vaseline approximation.
+IDSO_NWSB_INTERCEPT = 0.3703
+IDSO_NWSB_SLOPE = 1.2494
 IDSO_DELTA_T_DRY = 1.50  # 1-point approximation via Oleum Vaselini stomatal block on Stand #0
 
 # Thermal & NDVI False-Color Palettes

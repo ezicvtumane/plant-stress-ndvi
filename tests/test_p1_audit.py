@@ -174,7 +174,10 @@ def test_task8_no_stale_1025_kbal_fallback_in_ui():
 
 
 def test_task9_cwsi_nwsb_ols_recalculation():
-    """Прямая проверка МНК (OLS) по 3 опубликованным точкам CALIBRATION.md."""
+    """Прямая проверка МНК (OLS) по 3 точкам CALIBRATION.md и синхронизации src/config.py."""
+    import src.config as cfg
+    from src.thermal_integration import ThermalAnalyzer
+
     vpd = np.array([0.53, 0.91, 1.61])
     dt = np.array([-0.4, -0.6, -1.7])
     slope_neg, intercept = np.polyfit(vpd, dt, 1)
@@ -183,6 +186,13 @@ def test_task9_cwsi_nwsb_ols_recalculation():
     assert intercept == pytest.approx(0.3703, abs=1e-3)
     assert -slope_neg == pytest.approx(1.2494, abs=1e-3)
     assert r2 == pytest.approx(0.9562, abs=1e-3)
+    assert cfg.IDSO_NWSB_INTERCEPT == pytest.approx(0.3703, abs=1e-4)
+    assert cfg.IDSO_NWSB_SLOPE == pytest.approx(1.2494, abs=1e-4)
+
+    analyzer = ThermalAnalyzer()
+    dt_wet = cfg.IDSO_NWSB_INTERCEPT - cfg.IDSO_NWSB_SLOPE * 0.91
+    assert analyzer.compute_cwsi(24.0 + dt_wet, 24.0, vpd=0.91) == pytest.approx(0.0, abs=1e-4)
+    assert analyzer.compute_cwsi(24.0 + 1.50, 24.0, vpd=0.91) == pytest.approx(1.0, abs=1e-4)
 
 
 def test_task8_kbal_calibration_profiles_versioned():

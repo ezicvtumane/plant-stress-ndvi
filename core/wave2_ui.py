@@ -473,7 +473,43 @@ def render_wave2_active_pot_card(
     current_weight = rec.get("Weight_g", "")
     current_t_leaf = rec.get("T_Leaf_C", "")
     parsed_card_turgor = parse_optional_turgor(rec.get("Turgor_Score"))
-    current_turgor = str(parsed_card_turgor) if parsed_card_turgor is not None else "4"
+    current_turgor = str(parsed_card_turgor) if parsed_card_turgor is not None else "--"
+
+    turgor_btn_specs = [
+        ("4", "Норма", "#059669", "#ecfdf5", "#a7f3d0"),
+        ("3", "Снижен", "#d97706", "#fffbeb", "#fde68a"),
+        ("2", "Увял", "#ea580c", "#fff7ed", "#fed7aa"),
+        ("1", "Коллапс", "#dc2626", "#fef2f2", "#fecaca"),
+    ]
+    turgor_hint_map = {
+        spec[0]: (TURGOR_SCALE[int(spec[0])], spec[2])
+        for spec in turgor_btn_specs
+    }
+    turgor_hint_txt, turgor_hint_col = turgor_hint_map.get(
+        current_turgor, ("не выбран (—)", "#64748b")
+    )
+    turgor_buttons_html = "".join(
+        (
+            f'<button type="button" data-turgor-btn="{val}" '
+            f'data-accent="{accent}" data-soft-bg="{bg_soft}" data-soft-border="{border_soft}" '
+            f'data-desc="{TURGOR_SCALE[int(val)]}" '
+            f'aria-pressed="{"true" if current_turgor == val else "false"}" '
+            f'title="{TURGOR_SCALE[int(val)]}" '
+            f'onclick="selectCardTurgor(\'{val}\')" '
+            f'style="padding: 5px 4px; border-radius: 8px; cursor: pointer; text-align: center; '
+            f'transition: all 0.12s ease; '
+            + (
+                f'background: {accent}; color: #ffffff; border: 1.5px solid {accent}; box-shadow: 0 2px 6px rgba(15,23,42,0.16);'
+                if current_turgor == val
+                else f'background: {bg_soft}; color: {accent}; border: 1.5px solid {border_soft};'
+            )
+            + f'">'
+            f'<span style="display: block; font-size: 14px; font-weight: 800; line-height: 1.1;">{val}</span>'
+            f'<span style="display: block; font-size: 10px; font-weight: 700; opacity: 0.95; margin-top: 1px;">{short_lbl}</span>'
+            f'</button>'
+        )
+        for val, short_lbl, accent, bg_soft, border_soft in turgor_btn_specs
+    )
     
     has_probe = meta.get("has_probe", False) or active_pot_id in ("K1", "R1", "P1")
     if has_probe:
@@ -568,18 +604,18 @@ def render_wave2_active_pot_card(
                     style="width: 100%; font-size: 15px; font-weight: 700; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box;">
             </div>
 
-            <!-- Поле 3: Тургор -->
+            <!-- Поле 3: Тургор (4 быстрые кнопки, без выпадающего списка) -->
             <div>
-                <label style="display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px;">
-                    3. Оценка тургора:
-                </label>
-                <select name="turgor_score" id="wave2_turgor" 
-                    style="width: 100%; font-size: 14px; font-weight: 600; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box;">
-                    <option value="4" {'selected' if str(current_turgor) == '4' else ''}>{TURGOR_SCALE[4]}</option>
-                    <option value="3" {'selected' if str(current_turgor) == '3' else ''}>{TURGOR_SCALE[3]}</option>
-                    <option value="2" {'selected' if str(current_turgor) == '2' else ''}>{TURGOR_SCALE[2]}</option>
-                    <option value="1" {'selected' if str(current_turgor) == '1' else ''}>{TURGOR_SCALE[1]}</option>
-                </select>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-bottom: 4px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; white-space: nowrap;">
+                        3. Оценка тургора:
+                    </label>
+                    <span id="wave2_turgor_hint" title="{turgor_hint_txt}" style="font-size: 11px; font-weight: 600; color: {turgor_hint_col}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{turgor_hint_txt}</span>
+                </div>
+                <input type="hidden" name="turgor_score" id="wave2_turgor" value="{current_turgor}">
+                <div id="wave2_turgor_buttons" role="group" aria-label="Оценка тургора" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+                    {turgor_buttons_html}
+                </div>
             </div>
 
             <!-- Поле 4: Термограмма UTi120S (файл) -->
@@ -646,6 +682,41 @@ def render_wave2_active_pot_card(
             if ('{cohort}' === 'Control') {{
                 doseEl.innerHTML = '<span style=\"color: #059669; font-weight: 800; font-size: 18px;\">' + dose + ' мл</span> (Ежедневный долив)';
             }}
+        }}
+    }}
+    function selectCardTurgor(val) {{
+        const hiddenInput = document.getElementById('wave2_turgor');
+        const hintEl = document.getElementById('wave2_turgor_hint');
+        if (!hiddenInput) return;
+        const nextVal = (hiddenInput.value === String(val)) ? '--' : String(val);
+        hiddenInput.value = nextVal;
+        let hintText = 'не выбран (—)';
+        let hintColor = '#64748b';
+        document.querySelectorAll('#wave2_turgor_buttons [data-turgor-btn]').forEach(function(btn) {{
+            const bVal = btn.getAttribute('data-turgor-btn');
+            const accent = btn.getAttribute('data-accent');
+            const softBg = btn.getAttribute('data-soft-bg');
+            const softBorder = btn.getAttribute('data-soft-border');
+            const isSel = (bVal === nextVal);
+            btn.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+            if (isSel) {{
+                btn.style.background = accent;
+                btn.style.color = '#ffffff';
+                btn.style.border = '1.5px solid ' + accent;
+                btn.style.boxShadow = '0 2px 6px rgba(15,23,42,0.16)';
+                hintText = btn.getAttribute('data-desc') || bVal;
+                hintColor = accent;
+            }} else {{
+                btn.style.background = softBg;
+                btn.style.color = accent;
+                btn.style.border = '1.5px solid ' + softBorder;
+                btn.style.boxShadow = 'none';
+            }}
+        }});
+        if (hintEl) {{
+            hintEl.innerText = hintText;
+            hintEl.title = hintText;
+            hintEl.style.color = hintColor;
         }}
     }}
     updateLiveDeltaT();
