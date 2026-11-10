@@ -344,3 +344,28 @@ def test_task3_missing_control_baseline_blocks_prevention_trigger(mock_capture_h
     assert up_p1_open.json()["cluster_status"]["prevention"]["triggered"] is True
     assert up_p1_open.json()["watering_allowed"] is True
     assert "10.0 мл" in up_p1_open.json()["dose"]
+
+
+@pytest.mark.parametrize("bad_turgor", ["abc", "0", "9", "nan"])
+def test_task3_e2e_invalid_turgor_strings_do_not_coerce_to_4(mock_capture_hw, bad_turgor):
+    """P0.3: Нечисловые и некорректные строки Turgor_Score на веб-эндпоинтах сохраняются как '--'."""
+    res = client.post("/api/wave2/capture_and_save", data={
+        "pot_id": "R1",
+        "weight_g": "95.0",
+        "t_leaf": "23.5",
+        "turgor_score": bad_turgor,
+    })
+    assert res.status_code == 200
+    assert res.json()["turgor_score"] is None
+    assert res.json()["watering_allowed"] is False
+
+    up = client.post("/api/wave2/update_record", data={
+        "pot_id": "R1",
+        "turgor_score": bad_turgor,
+    })
+    assert up.status_code == 200
+    assert up.json()["turgor_score"] is None
+
+    recs = Wave2Storage(web_station.DATA_DIR).load_today_records()
+    r1 = next(r for r in recs if r["ID"] == "R1")
+    assert r1["Turgor_Score"] == "--"

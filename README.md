@@ -13,7 +13,7 @@
 [![Сириус: Большие вызовы](https://img.shields.io/badge/Сириус-Большие%20вызовы%202025%2F2026-00a499.svg)](https://konkurs.sochisirius.ru/)
 [![Направление](https://img.shields.io/badge/Трек-Агропромышленные%20и%20биотехнологии-008276.svg)](https://konkurs.sochisirius.ru/)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests: pytest](https://img.shields.io/badge/Tests-67%20passed-brightgreen.svg)]()
+[![Tests: pytest](https://img.shields.io/badge/Tests-80%20passed-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Hardware: Orange Pi 4 Pro](https://img.shields.io/badge/Platform-Orange%20Pi%204%20Pro-orange.svg)]()
 
@@ -274,7 +274,7 @@ plant-stress-ndvi/
 * [Перспективный план научно-технологического развития (Roadmap TRL 5)](docs/ROADMAP.md)
 * [Академическая библиография проекта (17 источников)](docs/REFERENCES.md)
 * [Биометрический отчёт и статистика пилотной серии (Шапиро–Уилк, Уэлч, Cohen's d)](docs/STATISTICAL_ANALYSIS_SERIES1.md)
-* [Руководство к очной защите и ответы на 15 вопросов рецензентов](docs/DEFENSE_QA_GUIDE.md)
+* [Руководство к очной защите и ответы на 19 вопросов рецензентов](docs/DEFENSE_QA_GUIDE.md)
 * [Протокол эмпирической калибровки Стенда №0 и PTFE](CALIBRATION.md)
 * [Иллюстрированный натурный фотоальбом](docs/PHOTO_ALBUM.md)
 * [Мастер-протокол Второй волны эксперимента (Огурец, GRCBD по Доспехову)](docs/wave2/PROTOCOL_WAVE2_CUCUMBER.md)

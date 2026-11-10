@@ -75,19 +75,40 @@ def generate_reference_dataset() -> pd.DataFrame:
     df["WUE_mg_ml"] = (df["DW_g"] * 1000.0) / df["water_ml"]
     return df
 
+_CYR_TO_LAT = str.maketrans({"К": "K", "П": "P", "Р": "R"})
+_CANONICAL_GRCBD_RU = {
+    f"{c_lat}{idx}": (c_ru, f"Блок {(idx - 1) // 2 + 1}")
+    for c_lat, c_ru in (("K", "Контроль"), ("P", "Превенция"), ("R", "Реакция"))
+    for idx in range(1, 7)
+}
+
+
 def dospekhov_two_way_anova(df_balanced: pd.DataFrame, trait: str) -> dict:
     """
     Вычисление двухфакторного дисперсионного анализа по Б.А. Доспехову
     для строго сбалансированной схемы GRCBD: Фактор А (полив, a=3), Фактор В (блоки, b=3), n=2 (N=18).
-    При любом дисбалансе или пропусках возбуждает ValueError вместо тихого искажения сумм квадратов.
+    При любом дисбалансе, несоответствии ID->(когорта, блок) или пропусках возбуждает ValueError.
     """
     if trait not in df_balanced.columns:
         raise ValueError(f"Признак '{trait}' отсутствует во входной таблице")
     if df_balanced[trait].isna().any():
         raise ValueError(f"В признаке '{trait}' обнаружены пропуски (NaN): сбалансированный GRCBD 3×3×2 невозможен")
-    if "pot_id" in df_balanced.columns and df_balanced["pot_id"].duplicated().any():
-        dups = df_balanced[df_balanced["pot_id"].duplicated()]["pot_id"].tolist()
+    if "pot_id" not in df_balanced.columns:
+        raise ValueError("Отсутствует обязательный столбец pot_id для верификации 18 уникальных сосудов GRCBD")
+
+    norm_ids = df_balanced["pot_id"].astype(str).str.strip().str.upper().str.translate(_CYR_TO_LAT)
+    if norm_ids.duplicated().any():
+        dups = df_balanced[norm_ids.duplicated()]["pot_id"].tolist()
         raise ValueError(f"Обнаружены дубликаты pot_id в матрице ANOVA: {dups}")
+
+    mismatches = []
+    for (_, row), npid in zip(df_balanced.iterrows(), norm_ids):
+        exp = _CANONICAL_GRCBD_RU.get(npid)
+        act = (str(row["cohort"]).strip(), str(row["block"]).strip())
+        if exp is None or act != exp:
+            mismatches.append(f"{row['pot_id']}:{act[0]}/{act[1]}!={exp}")
+    if mismatches:
+        raise ValueError(f"Нарушено соответствие pot_id -> (когорта, блок): {', '.join(mismatches)}")
 
     cohorts = ["Контроль", "Превенция", "Реакция"]
     blocks = ["Блок 1", "Блок 2", "Блок 3"]

@@ -20,6 +20,14 @@ from core.agronomic_rules import (
     evaluate_cohort_reaction_trigger,
     evaluate_cohort_prevention_trigger,
 )
+from core.wave2_manager import POTS_CATALOG
+
+_CYR_TO_LAT_ID = str.maketrans({"К": "K", "П": "P", "Р": "R"})
+_CANONICAL_GRCBD_LAYOUT: Dict[str, Tuple[str, str]] = {
+    pid: (meta["cohort"], f"Блок {meta['block']}")
+    for pid, meta in POTS_CATALOG.items()
+    if meta.get("cohort") in ("Control", "Prevention", "Reaction")
+}
 
 TRAIT_LABELS = {
     "weight_g": "Масса сосуда (г)",
@@ -41,6 +49,10 @@ COHORT_COLORS = {
 }
 
 
+def _normalize_grcbd_pot_id(raw_id: Any) -> str:
+    return str(raw_id).strip().upper().translate(_CYR_TO_LAT_ID)
+
+
 def _inspect_grcbd_balance(df_clean: pd.DataFrame) -> Tuple[bool, Optional[str]]:
     """Проверяет точное соответствие матрицы схеме GRCBD 3 когорты × 3 блока × 2 повторности (N=18)."""
     expected_cohorts = ("Control", "Prevention", "Reaction")
@@ -52,6 +64,25 @@ def _inspect_grcbd_balance(df_clean: pd.DataFrame) -> Tuple[bool, Optional[str]]
     extra_cohorts = set(df_clean["cohort"].unique()) - set(expected_cohorts)
     if extra_cohorts:
         return False, f"Обнаружены внеплановые когорты {sorted(extra_cohorts)} (выполнен 1-way ANOVA)"
+
+    extra_blocks = set(df_clean["block"].astype(str).str.strip().unique()) - set(expected_blocks)
+    if extra_blocks:
+        return False, f"Обнаружены внеплановые блоки {sorted(extra_blocks)} (выполнен 1-way ANOVA)"
+
+    if "pot_id" not in df_clean.columns:
+        return False, "Отсутствует столбец pot_id: невозможна проверка 18 уникальных сосудов GRCBD (выполнен 1-way ANOVA)"
+
+    mismatches = []
+    for _, row in df_clean.iterrows():
+        pid = _normalize_grcbd_pot_id(row["pot_id"])
+        expected_pair = _CANONICAL_GRCBD_LAYOUT.get(pid)
+        actual_pair = (str(row["cohort"]).strip(), str(row["block"]).strip())
+        if expected_pair is None:
+            mismatches.append(f"{pid}(не в 18 GRCBD)")
+        elif actual_pair != expected_pair:
+            mismatches.append(f"{pid}:{actual_pair[0]}/{actual_pair[1]}!={expected_pair[0]}/{expected_pair[1]}")
+    if mismatches:
+        return False, f"Нарушено соответствие pot_id -> (когорта, блок): {', '.join(mismatches)} (выполнен 1-way ANOVA)"
 
     counts = df_clean.groupby(["cohort", "block"]).size()
     unbalanced_cells = []
@@ -70,14 +101,30 @@ def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, An
     """
     Выполняет двухфакторный дисперсионный анализ по Доспехову Б.А. (1985)
     для сбалансированного комплекса GRCBD: a=3 когорты, b=3 блока, n=2 повторности (N=18).
-    При неполной/несбалансированной матрице явно переключается на однофакторный 1-way ANOVA
-    либо описательную статистику с сохранением предупреждения в model_mode/model_label.
+    При неполной/несбалансированной матрице, дубликатах ID или расхождении pot_id->(когорта, блок)
+    явно переключается на 1-way ANOVA либо описательную статистику с отметкой в model_mode/model_label.
     """
-    df_clean = df.dropna(subset=[trait, "cohort", "block"]).copy()
-    if "pot_id" in df_clean.columns:
-        df_clean = df_clean.drop_duplicates(subset=["pot_id"], keep="last").copy()
+    raw_df = df.dropna(subset=[trait, "cohort", "block"]).copy()
+    has_dup_ids = False
+    dup_ids_list: List[str] = []
+    if "pot_id" in raw_df.columns:
+        raw_df["_norm_pid"] = raw_df["pot_id"].map(_normalize_grcbd_pot_id)
+        dup_mask = raw_df["_norm_pid"].duplicated(keep=False)
+        if dup_mask.any():
+            has_dup_ids = True
+            dup_ids_list = sorted(raw_df.loc[dup_mask, "_norm_pid"].unique().tolist())
+        df_clean = raw_df.drop_duplicates(subset=["_norm_pid"], keep="last").drop(columns=["_norm_pid"]).copy()
+    else:
+        df_clean = raw_df
 
-    is_balanced, balance_reason = _inspect_grcbd_balance(df_clean)
+    if has_dup_ids:
+        is_balanced = False
+        balance_reason = (
+            f"Обнаружены дубликаты pot_id {dup_ids_list}: строгий 2-way GRCBD запрещён "
+            f"(выполнен 1-way ANOVA после свёртывания повторов)"
+        )
+    else:
+        is_balanced, balance_reason = _inspect_grcbd_balance(df_clean)
     if not is_balanced:
         cohort_groups = [g[trait].values for _, g in df_clean.groupby("cohort")]
         if len(cohort_groups) >= 2 and all(len(g) >= 2 for g in cohort_groups):

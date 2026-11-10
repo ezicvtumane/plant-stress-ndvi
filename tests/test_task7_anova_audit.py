@@ -64,16 +64,16 @@ def _make_balanced_records(
 
 
 def test_task7_engine_strict_balanced_vs_unbalanced_and_descriptive():
-    cohorts = ["Control", "Prevention", "Reaction"]
+    cohorts = [("Control", "K"), ("Prevention", "P"), ("Reaction", "R")]
     blocks = ["Блок 1", "Блок 2", "Блок 3"]
     rows = []
-    idx = 0
-    for c_i, cohort in enumerate(cohorts):
+    for c_i, (cohort, prefix) in enumerate(cohorts):
+        pot_idx = 0
         for b_i, block in enumerate(blocks):
             for rep in range(2):
-                idx += 1
+                pot_idx += 1
                 rows.append({
-                    "pot_id": f"{cohort[0]}{idx}",
+                    "pot_id": f"{prefix}{pot_idx}",
                     "cohort": cohort,
                     "block": block,
                     "weight_g": 100.0 + c_i * 5.0 + b_i * 0.4 + rep * 0.3,
@@ -86,7 +86,7 @@ def test_task7_engine_strict_balanced_vs_unbalanced_and_descriptive():
     assert res_bal["lsd_05"] is not None
     assert res_bal["balance_note"] is None
 
-    # Unbalanced 18 rows: 3 in Control/Блок 1 and 1 in Control/Блок 2
+    # Mismatched pot_id -> (cohort, block) & unbalanced cells -> 1-way fallback
     df_unbal = df_balanced.copy()
     mask = (df_unbal["cohort"] == "Control") & (df_unbal["block"] == "Блок 2")
     first_k_b2 = df_unbal[mask].index[0]
@@ -95,7 +95,25 @@ def test_task7_engine_strict_balanced_vs_unbalanced_and_descriptive():
     assert res_unbal["is_balanced_grcbd"] is False
     assert res_unbal["model_mode"] == "one_way_fallback"
     assert "1-way" in res_unbal["model_label"]
-    assert "Нарушен баланс ячеек" in (res_unbal["balance_note"] or "")
+    assert "соответствие pot_id" in (res_unbal["balance_note"] or "")
+
+    # Even with balanced 3x3x2 counts, swapping K1 and P3 cohorts must be rejected!
+    df_swapped = df_balanced.copy()
+    k1_i = df_swapped[df_swapped["pot_id"] == "K1"].index[0]
+    p1_i = df_swapped[df_swapped["pot_id"] == "P1"].index[0]
+    df_swapped.loc[k1_i, "cohort"] = "Prevention"
+    df_swapped.loc[p1_i, "cohort"] = "Control"
+    res_swap = dospekhov_two_way_anova_engine(df_swapped, "weight_g")
+    assert res_swap["is_balanced_grcbd"] is False
+    assert res_swap["model_mode"] == "one_way_fallback"
+    assert "соответствие pot_id" in (res_swap["balance_note"] or "")
+
+    # Duplicate pot_id appended -> must forbid 2-way GRCBD
+    df_dup = pd.concat([df_balanced, df_balanced.iloc[[0]]], ignore_index=True)
+    res_dup = dospekhov_two_way_anova_engine(df_dup, "weight_g")
+    assert res_dup["is_balanced_grcbd"] is False
+    assert res_dup["model_mode"] == "one_way_fallback"
+    assert "дубликаты pot_id" in (res_dup["balance_note"] or "")
 
     # Too few samples -> descriptive_only
     df_tiny = df_balanced.groupby("cohort").head(1).copy()
@@ -210,11 +228,20 @@ def test_task7_standalone_dospekhov_script_strict_grcbd_and_posthoc():
     with pytest.raises(ValueError, match="18"):
         mod.dospekhov_two_way_anova(df_grcbd.iloc[:-1].copy(), "FW_g")
 
-    # Reject unbalanced 18 rows
+    # Reject wrong pot_id -> (cohort, block) assignment (balanced cell counts, swapped IDs)
+    df_swapped = df_grcbd.copy()
+    k1_i = df_swapped[df_swapped["pot_id"] == "К1"].index[0]
+    p1_i = df_swapped[df_swapped["pot_id"] == "П1"].index[0]
+    df_swapped.loc[k1_i, "cohort"] = "Превенция"
+    df_swapped.loc[p1_i, "cohort"] = "Контроль"
+    with pytest.raises(ValueError, match="соответствие pot_id"):
+        mod.dospekhov_two_way_anova(df_swapped, "FW_g")
+
+    # Reject unbalanced / wrong block assignment
     df_unbal = df_grcbd.copy()
     idx_move = df_unbal[(df_unbal["cohort"] == "Контроль") & (df_unbal["block"] == "Блок 2")].index[0]
     df_unbal.loc[idx_move, "block"] = "Блок 1"
-    with pytest.raises(ValueError, match="баланс ячеек"):
+    with pytest.raises(ValueError, match="соответствие pot_id"):
         mod.dospekhov_two_way_anova(df_unbal, "FW_g")
 
     # Reject NaN

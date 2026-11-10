@@ -85,11 +85,18 @@ def test_task6_pots_catalog_design_alignment():
 
 
 def test_task10_calculate_water_dose_with_and_without_pla_option_a():
-    """calculate_water_dose сохраняет опцию PLA, но без передачи PLA считает строго от 100.0 г."""
+    """P1.1: Проверка расчёта дозы (PLA=0, >0, None, отсутствует вес, отрицательная/невалидная PLA)."""
     assert calculate_water_dose(92.5, 100.0) == 7.5
     assert calculate_water_dose(92.5, 100.0, pla_cm2=None) == 7.5
-    # При явной передаче PLA формула продолжает работать для исследований
+    assert calculate_water_dose(92.5, 100.0, pla_cm2=0.0) == 7.5
+    # При явной передаче положительной PLA формула работает для исследований
     assert calculate_water_dose(92.5, 100.0, pla_cm2=50.0) == 10.5
+    # Отсутствующий или невалидный вес -> None
+    assert calculate_water_dose(None, 100.0, pla_cm2=50.0) is None
+    assert calculate_water_dose("--", 100.0, pla_cm2=50.0) is None
+    # Отрицательная или невалидная PLA безопасно игнорируется (не снижает целевую массу < 100 г)
+    assert calculate_water_dose(92.5, 100.0, pla_cm2=-15.0) == 7.5
+    assert calculate_water_dose(92.5, 100.0, pla_cm2="invalid") == 7.5
 
 
 def test_task10_active_pipeline_disables_auto_pla_compensation():
@@ -176,3 +183,47 @@ def test_task9_cwsi_nwsb_ols_recalculation():
     assert intercept == pytest.approx(0.3703, abs=1e-3)
     assert -slope_neg == pytest.approx(1.2494, abs=1e-3)
     assert r2 == pytest.approx(0.9562, abs=1e-3)
+
+
+def test_task8_kbal_calibration_profiles_versioned():
+    """P1.6: Конфигурация k_bal явно хранит версии калибровки для Серии 1 (C270) и Серии 2 (IMX179)."""
+    import src.config as cfg
+    from core.wave2_manager import WAVE2_EXPERIMENT_META
+
+    s1 = cfg.KBAL_CALIBRATION_PROFILES["series1_c270_v1"]
+    s2 = cfg.KBAL_CALIBRATION_PROFILES["series2_imx179_v1"]
+    assert s1["k_bal"] == cfg.DEFAULT_K_COEFFICIENT == 4.07
+    assert s1["ptfe_reference_archived"] is True
+    assert s2["k_bal"] == WAVE2_EXPERIMENT_META["k_bal_ptfe"] == 1.150
+    assert s2["calibration_version"] == WAVE2_EXPERIMENT_META["k_bal_calibration_version"]
+    assert cfg.ACTIVE_KBAL_CALIBRATION_PROFILE == "series2_imx179_v1"
+
+
+def test_task4_verify_image_links_script_real_and_broken_cases(tmp_path):
+    """P1.4: CLI-скрипт verify_wave2_image_links корректно проверяет реальный День 0 и ловит missing/ambiguous."""
+    from scripts.verify_wave2_image_links import verify_image_links
+
+    real_rep = verify_image_links(date_filter="2026-11-09")
+    assert real_rep["healthy"] is True
+    assert real_rep["counts"]["ok"] == 38
+    assert real_rep["counts"]["missing"] == 0
+    assert real_rep["counts"]["ambiguous"] == 0
+
+    # Синтетическая проверка missing + ambiguous (чужой ID в имени файла)
+    img_dir = tmp_path / "images"
+    img_dir.mkdir()
+    (img_dir / "K2_badprefix_opt.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"0" * 50)
+    (img_dir / "K1_ok_th.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"0" * 50)
+    csv_file = tmp_path / "m.csv"
+    csv_file.write_text(
+        "ID,Timestamp,Opt_File,Thermal_File\n"
+        "K1,2026-11-10,K2_badprefix_opt.jpg,K1_ok_th.jpg\n"
+        "K2,2026-11-10,K2_missing.jpg,--\n",
+        encoding="utf-8",
+    )
+    bad_rep = verify_image_links(str(csv_file), str(img_dir))
+    assert bad_rep["healthy"] is False
+    assert bad_rep["counts"]["ok"] == 1
+    assert bad_rep["counts"]["ambiguous"] == 1
+    assert bad_rep["counts"]["missing"] == 1
+    assert bad_rep["counts"]["unlinked"] == 1

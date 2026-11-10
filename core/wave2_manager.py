@@ -39,6 +39,7 @@ WAVE2_EXPERIMENT_META = {
     "turgor_reaction_trigger_score": 2,
     "emissivity_lwir": 0.98,
     "k_bal_ptfe": 1.150,
+    "k_bal_calibration_version": "calib-kbal-s2-2026-11-07",
     "nir_threshold_dn": 4.0,
     "ndvi_threshold": 0.25,
     "min_leaf_component_px": 100,
