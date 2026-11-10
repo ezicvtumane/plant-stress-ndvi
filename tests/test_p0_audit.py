@@ -45,8 +45,10 @@ client = TestClient(web_station.app)
     "scores,expected_triggered,expected_insufficient,expected_count",
     [
         ([4, 4, 4, 4, 4, 4], False, False, 0),
+        ([3, 3, 3, 3, 3, 3], False, False, 0),
         ([2, 2, 2, 2, 4, 4], True, False, 4),
         ([2, 2, 2, 4, 4, 4], False, False, 3),
+        ([1, 1, 1, 1, 4, 4], True, False, 4),
         ([1, 2, 1, 2, 3, 4], True, False, 4),
         ([2, 2, 4, None, None, None], False, True, 2),
         (["4", "4", "--", "", None, "NaN"], False, True, 0),
@@ -369,3 +371,23 @@ def test_task3_e2e_invalid_turgor_strings_do_not_coerce_to_4(mock_capture_hw, ba
     recs = Wave2Storage(web_station.DATA_DIR).load_today_records()
     r1 = next(r for r in recs if r["ID"] == "R1")
     assert r1["Turgor_Score"] == "--"
+
+
+def test_task2_config_wave2_handles_missing_and_string_placeholders():
+    """P0.2: evaluate_cluster_triggers в config_wave2.py безопасно обрабатывает '--', '' и строки."""
+    from docs.wave2.config_wave2 import evaluate_cluster_triggers
+
+    daily = {
+        "K1": {"delta_t": "--", "turgor": "4"},
+        "P1": {"delta_t": "abc", "turgor": ""},
+        "R1": {"delta_t": "0.1", "turgor": "--"},
+        "R2": {"delta_t": None, "turgor": "2"},
+        "R3": {"turgor": "abc"},
+        "R4": {"turgor": 2},
+    }
+    res = evaluate_cluster_triggers(daily)
+    assert res["control_baseline_ready"] is False
+    assert res["mean_control_delta_t"] is None
+    assert res["prevention_triggered"] is False
+    assert res["reaction_stressed_count"] == 2
+    assert res["reaction_triggered"] is False

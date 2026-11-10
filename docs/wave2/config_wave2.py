@@ -3,7 +3,15 @@
 Полностью согласована с агрономическим модулем core/agronomic_rules.py, core/wave2_manager.py и web_station.py.
 """
 
+import os
+import sys
 from typing import Dict, Any, List, Optional
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from core.agronomic_rules import parse_optional_turgor
 
 EXPERIMENT_META = {
     "title": "Прецизионная оптимизация водного баланса и ранняя индикация стресса",
@@ -81,17 +89,30 @@ def calculate_water_dose(current_weight: float, pla_cm2: float = 0.0, base_weigh
     return round(max(0.0, target - float(current_weight)), 1)
 
 
+def _parse_opt_float(val: Any) -> Optional[float]:
+    if val is None or isinstance(val, bool):
+        return None
+    s = str(val).strip()
+    if not s or s in ("--", "None", "nan", "NaN", "null"):
+        return None
+    try:
+        return float(s.replace(",", "."))
+    except (ValueError, TypeError):
+        return None
+
+
 def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """
     Оценка кластерных кворум-триггеров полива для когорт Превенция (П) и Реакция (Р).
     """
     # 1. Расчет синхронного термального базиса живого Контроля (К1-К6)
     control_pids = ["K1", "K2", "K3", "K4", "K5", "K6"]
-    ctrl_dts = [
-        daily_measurements[pid]["delta_t"]
-        for pid in control_pids
-        if pid in daily_measurements and daily_measurements[pid].get("delta_t") is not None
-    ]
+    ctrl_dts = []
+    for pid in control_pids:
+        if pid in daily_measurements:
+            parsed_dt = _parse_opt_float(daily_measurements[pid].get("delta_t"))
+            if parsed_dt is not None:
+                ctrl_dts.append(parsed_dt)
     mean_ctrl_dt = (sum(ctrl_dts) / len(ctrl_dts)) if ctrl_dts else None
 
     # 2. Анализ группы Превенция (П1-П6): триггер по нормированному ΔΔT >= +0.6 °C
@@ -100,9 +121,11 @@ def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> 
     for pid in p_pids:
         if pid in daily_measurements:
             m = daily_measurements[pid]
-            ddt = m.get("delta_delta_t")
-            if ddt is None and mean_ctrl_dt is not None and m.get("delta_t") is not None:
-                ddt = m["delta_t"] - mean_ctrl_dt
+            ddt = _parse_opt_float(m.get("delta_delta_t"))
+            if ddt is None and mean_ctrl_dt is not None:
+                dt_val = _parse_opt_float(m.get("delta_t"))
+                if dt_val is not None:
+                    ddt = dt_val - mean_ctrl_dt
             if ddt is not None and ddt >= EXPERIMENT_META["threshold_delta_delta_t"]:
                 p_stressed_count += 1
 
@@ -112,12 +135,12 @@ def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> 
 
     # 3. Анализ группы Реакция (Р1-Р6): триггер по потере тургора (балл <= 2 у >= 4 из 6)
     r_pids = ["R1", "R2", "R3", "R4", "R5", "R6"]
-    r_stressed_count = sum(
-        1 for pid in r_pids
-        if pid in daily_measurements
-        and daily_measurements[pid].get("turgor") is not None
-        and daily_measurements[pid]["turgor"] <= EXPERIMENT_META["turgor_reaction_trigger_score"]
-    )
+    r_stressed_count = 0
+    for pid in r_pids:
+        if pid in daily_measurements:
+            t_score = parse_optional_turgor(daily_measurements[pid].get("turgor"))
+            if t_score is not None and t_score <= EXPERIMENT_META["turgor_reaction_trigger_score"]:
+                r_stressed_count += 1
     reaction_triggered = r_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
 
     return {
