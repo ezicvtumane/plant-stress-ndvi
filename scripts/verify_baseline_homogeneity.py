@@ -101,20 +101,25 @@ def main():
     print(f"{'Признак':<26} | {'Контроль':<14} | {'Превенция':<14} | {'Реакция':<14} | {'F (когорта)':<11} | {'p-value':<9}")
     print("-" * 98)
     for row in res.get("summary_table", []):
-        print(f"{row['label']:<26} | {row['k_str']:<14} | {row['p_str']:<14} | {row['r_str']:<14} | {str(row['f_cohort']):<11} | {str(row['p_cohort']):<9}")
+        f_val = str(row['f_cohort']) if row['f_cohort'] is not None else "--"
+        p_val = str(row['p_cohort']) if row['p_cohort'] is not None else "--"
+        print(f"{row['label']:<26} | {row['k_str']:<14} | {row['p_str']:<14} | {row['r_str']:<14} | {f_val:<11} | {p_val:<9}")
 
     print("\n" + "-" * 75)
     print(f"График боксплотов сохранен: {res.get('chart_url')}")
     print(f"Markdown отчет сформирован: {res.get('report_file')}")
     print("-" * 75)
 
-    # Речь для защиты
-    dt_p = res.get("traits", {}).get("delta_t", {}).get("p_cohort", 1.0)
-    w_p = res.get("traits", {}).get("weight_g", {}).get("p_cohort", 1.0)
-    print("\n[Цитата для доклада Алисы на очной защите в Сириусе]:")
-    print(f"«Перед началом воздействий в День 0 мы провели тест на однородность рандомизированных групп:")
-    print(f"различия по исходной массе (p = {w_p}) и температуре листа (p = {dt_p}) статистически")
-    print(f"отсутствовали (p > 0.05), что гарантирует чистоту сравнения и исключает стартовый перекос.»\n")
+    # Научно корректная формулировка для защиты
+    dt_p = res.get("traits", {}).get("delta_t", {}).get("p_cohort")
+    w_p = res.get("traits", {}).get("weight_g", {}).get("p_cohort")
+    print("\n[Формулировка для доклада на защите]:")
+    if res.get("confirmatory_grcbd_performed"):
+        print("«На исходном срезе Дня 0 статистически значимых различий по исследованным показателям между когортами")
+        print(f"не выявлено (масса p = {w_p}, ΔT p = {dt_p}; одинаковая масса является следствием тарирования по протоколу).")
+        print("Это не доказывает полную эквивалентность групп и не исключает различий, незамеченных при N = 18.»\n")
+    else:
+        print("«На текущем неполном срезе подтверждающий GRCBD ANOVA не выполнен; приведена только описательная статистика.»\n")
 
 
 if __name__ == "__main__":

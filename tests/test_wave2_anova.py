@@ -77,9 +77,16 @@ def test_analyze_wave2_dataset_baseline_homogeneity(tmp_path):
     assert res["total_measured"] == 18
     assert res["phase"] == "baseline"
     assert "🟢 ДЕНЬ 0: ИСХОДНАЯ ОДНОРОДНОСТЬ" in res["status_badge"]
+    assert "Нулевая гипотеза подтверждена" not in res["verdict"]
+    assert "Стартовый перекос исключен" not in res["verdict"]
+    assert "не доказывает эквивалентность" in res["verdict"]
     assert len(res["summary_table"]) >= 5
     assert os.path.exists(os.path.join(static_tmp, "charts", "anova_latest.png"))
-    assert os.path.exists(os.path.join(docs_tmp, "ANOVA_LATEST_REPORT.md"))
+    report_path = os.path.join(docs_tmp, "ANOVA_LATEST_REPORT.md")
+    assert os.path.exists(report_path)
+    report_txt = open(report_path, encoding="utf-8").read()
+    assert "тарирования" in report_txt
+    assert "Стартовый перекос исключен" not in report_txt
 
 
 def test_analyze_wave2_dataset_prevention_and_reaction(tmp_path):
@@ -174,3 +181,48 @@ def test_wave2_anova_reads_csv_column_names(tmp_path):
             assert "0.62" in row["k_str"]
         if row["trait"] == "pla_cm2":
             assert "12.5" in row["k_str"]
+
+
+def test_day0_committed_report_scientifically_accurate_and_numbers_preserved():
+    """Проверка Раздела 6: в docs/wave2/ANOVA_LATEST_REPORT.md убраны завышенные выводы при сохранении всех чисел."""
+    report_path = os.path.join(PROJECT_ROOT, "docs", "wave2", "ANOVA_LATEST_REPORT.md")
+    txt = open(report_path, encoding="utf-8").read()
+    for forbidden in ("Нулевая гипотеза подтверждена", "Стартовый перекос исключен", "отсутствуют. Стартовый"):
+        assert forbidden not in txt
+    assert "не доказывает эквивалентность групп" in txt
+    assert "100.0 г" in txt and "тарирования" in txt
+    assert "не доказывает отсутствие всех возможных стартовых различий" in txt
+    # Исходные расчетные значения Дня 0 сохранены без изменений
+    for num in ("100.0 ± 0.0", "-1.67 ± 0.07", "0.2036", "0.177", "0.9404", "0.7277", "0.0542"):
+        assert num in txt
+
+
+def test_day1_slice_reports_monitoring_not_day0_baseline(tmp_path):
+    """Замеры Дня 1 (2026-11-10) при тургоре 4 и p > 0.05 маркируются как ДЕНЬ 1 мониторинг, а не ДЕНЬ 0 baseline."""
+    pots = [
+        "K1", "K2", "K3", "K4", "K5", "K6",
+        "P1", "P2", "P3", "P4", "P5", "P6",
+        "R1", "R2", "R3", "R4", "R5", "R6",
+    ]
+    records = []
+    for idx, pid in enumerate(pots):
+        records.append({
+            "ID": pid,
+            "Timestamp": "2026-11-10 18:30:00",
+            "Weight_g": str(93.5 + (idx % 3) * 0.4),
+            "Delta_T_C": str(-1.5 + (idx % 3) * 0.1),
+            "NDVI_Mean": str(0.58 + (idx % 3) * 0.02),
+            "Leaf_Area_cm2": str(10.0 + idx * 0.3),
+            "Turgor_Score": "4",
+        })
+    res = analyze_wave2_dataset(
+        records,
+        static_dir=str(tmp_path / "static"),
+        docs_dir=str(tmp_path / "docs"),
+    )
+    assert res["ok"] is True
+    assert res["confirmatory_grcbd_performed"] is True
+    assert res["phase"] == "monitoring"
+    assert "ДЕНЬ 1 / DAT 1" in res["status_badge"]
+    assert "ДЕНЬ 0" not in res["status_badge"]
+

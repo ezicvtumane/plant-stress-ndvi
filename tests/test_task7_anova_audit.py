@@ -81,20 +81,26 @@ def test_task7_engine_strict_balanced_vs_unbalanced_and_descriptive():
     df_balanced = pd.DataFrame(rows)
     res_bal = dospekhov_two_way_anova_engine(df_balanced, "weight_g")
     assert res_bal["is_balanced_grcbd"] is True
+    assert res_bal["confirmatory_allowed"] is True
     assert res_bal["model_mode"] == "two_way_grcbd"
     assert res_bal["df_error"] == 9
     assert res_bal["lsd_05"] is not None
     assert res_bal["balance_note"] is None
 
-    # Mismatched pot_id -> (cohort, block) & unbalanced cells -> 1-way fallback
+    # Mismatched pot_id -> (cohort, block) & unbalanced cells -> confirmatory GRCBD forbidden
     df_unbal = df_balanced.copy()
     mask = (df_unbal["cohort"] == "Control") & (df_unbal["block"] == "Блок 2")
     first_k_b2 = df_unbal[mask].index[0]
     df_unbal.loc[first_k_b2, "block"] = "Блок 1"
     res_unbal = dospekhov_two_way_anova_engine(df_unbal, "weight_g")
     assert res_unbal["is_balanced_grcbd"] is False
-    assert res_unbal["model_mode"] == "one_way_fallback"
-    assert "1-way" in res_unbal["model_label"]
+    assert res_unbal["confirmatory_allowed"] is False
+    assert res_unbal["confirmatory_status"] == "unavailable_grcbd_violated"
+    assert res_unbal["model_mode"] == "grcbd_violated_descriptive"
+    assert res_unbal["f_cohort"] is None
+    assert res_unbal["p_cohort"] is None
+    assert res_unbal["exploratory_one_way"]["is_confirmatory"] is False
+    assert res_unbal["exploratory_one_way"]["p_cohort"] is not None
     assert "соответствие pot_id" in (res_unbal["balance_note"] or "")
 
     # Even with balanced 3x3x2 counts, swapping K1 and P3 cohorts must be rejected!
@@ -105,21 +111,30 @@ def test_task7_engine_strict_balanced_vs_unbalanced_and_descriptive():
     df_swapped.loc[p1_i, "cohort"] = "Control"
     res_swap = dospekhov_two_way_anova_engine(df_swapped, "weight_g")
     assert res_swap["is_balanced_grcbd"] is False
-    assert res_swap["model_mode"] == "one_way_fallback"
+    assert res_swap["confirmatory_allowed"] is False
+    assert res_swap["model_mode"] != "one_way_fallback"
+    assert res_swap["p_cohort"] is None
+    assert res_swap["exploratory_one_way"]["is_confirmatory"] is False
     assert "соответствие pot_id" in (res_swap["balance_note"] or "")
 
     # Duplicate pot_id appended -> must forbid 2-way GRCBD
     df_dup = pd.concat([df_balanced, df_balanced.iloc[[0]]], ignore_index=True)
     res_dup = dospekhov_two_way_anova_engine(df_dup, "weight_g")
     assert res_dup["is_balanced_grcbd"] is False
-    assert res_dup["model_mode"] == "one_way_fallback"
+    assert res_dup["confirmatory_allowed"] is False
+    assert res_dup["model_mode"] != "one_way_fallback"
+    assert res_dup["p_cohort"] is None
     assert "дубликаты pot_id" in (res_dup["balance_note"] or "")
 
-    # Too few samples -> descriptive_only
+    # Too few samples -> descriptive_only without confirmatory or exploratory ANOVA
     df_tiny = df_balanced.groupby("cohort").head(1).copy()
     res_tiny = dospekhov_two_way_anova_engine(df_tiny, "weight_g")
     assert res_tiny["is_balanced_grcbd"] is False
+    assert res_tiny["confirmatory_allowed"] is False
     assert res_tiny["model_mode"] == "descriptive_only"
+    assert res_tiny["f_cohort"] is None
+    assert res_tiny["p_cohort"] is None
+    assert res_tiny["exploratory_one_way"] is None
 
 
 def test_task7_incomplete_slice_marks_report_with_warning_banner(tmp_path):
@@ -131,10 +146,27 @@ def test_task7_incomplete_slice_marks_report_with_warning_banner(tmp_path):
     assert res["ok"] is True
     assert res["total_measured"] == 12
     assert res["all_balanced_grcbd"] is False
+    assert res["confirmatory_grcbd_performed"] is False
+    assert res["confirmatory_status"] == "unavailable_grcbd_violated"
+    assert res["phase"] == "grcbd_violated"
+    assert all(row["p_cohort"] is None for row in res["summary_table"])
+    assert any(row["exploratory_p_cohort"] is not None for row in res["summary_table"])
     report_text = (docs_dir / "ANOVA_LATEST_REPORT.md").read_text(encoding="utf-8")
     assert "> [!WARNING]" in report_text
-    assert "не соответствует полной матрице 3×3×2" in report_text
-    assert "1-way ANOVA" in report_text
+    assert "Подтверждающий анализ GRCBD НЕ ВЫПОЛНЕН" in report_text
+    assert "НЕ подтверждающий анализ" in report_text
+
+
+def test_task7_violated_grcbd_exploratory_p_never_triggers_confirmatory_prevention_alert(tmp_path):
+    # Incomplete 12/18 slice where Prevention has strong ΔΔT >= +1.5°C and exploratory p < 0.05
+    records = [r for r in _make_balanced_records(k_dt=0.0, p_dt=2.0, r_dt=0.0) if not r["ID"].endswith(("5", "6"))]
+    res = analyze_wave2_dataset(records, static_dir=str(tmp_path / "st"), docs_dir=str(tmp_path / "dc"))
+    assert res["ok"] is True
+    assert res["confirmatory_grcbd_performed"] is False
+    assert res["traits"]["delta_t"]["p_cohort"] is None
+    assert res["traits"]["delta_t"]["exploratory_one_way"]["p_cohort"] <= 0.05
+    assert res["phase"] != "prevention_alert"
+    assert res["phase"] == "grcbd_violated"
 
 
 def test_task7_duplicate_pots_collapsed_and_report_annotated(tmp_path):

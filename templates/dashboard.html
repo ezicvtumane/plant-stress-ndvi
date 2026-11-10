@@ -815,15 +815,29 @@ async function openAnovaModal() {
 
         badge.style.background = data.badge_color || '#059669';
         badge.innerText = data.status_badge || 'ANOVA Complete';
-        verdict.innerHTML = `<strong>Вердикт:</strong> ${data.verdict}`;
-        
+        let verdictHtml = `<strong>Вердикт:</strong> ${data.verdict}`;
+        if (data.confirmatory_grcbd_performed === false) {
+            const reasonsTxt = (data.confirmatory_unavailable_reasons && data.confirmatory_unavailable_reasons.length)
+                ? data.confirmatory_unavailable_reasons[0]
+                : 'Нарушена структура сбалансированной матрицы GRCBD 3×3×2.';
+            verdictHtml += `<div style="margin-top:6px; padding:6px 10px; background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; color:#92400e; font-size:12px;">⚠️ <strong>Подтверждающий GRCBD ANOVA не выполнен:</strong> ${reasonsTxt}</div>`;
+        }
+        verdict.innerHTML = verdictHtml;
+
         let htmlRows = '';
+        let exploratoryItems = [];
         (data.summary_table || []).forEach(row => {
-            let pColor = (row.p_cohort <= 0.05) ? '#dc2626' : '#15803d';
-            let pWeight = (row.p_cohort <= 0.05) ? '800' : '600';
-            let fb = (row.f_block !== null && row.f_block !== undefined) ? row.f_block : '--';
-            let pb = (row.p_block !== null && row.p_block !== undefined) ? row.p_block : '--';
-            let lsd = (row.lsd_05 !== null && row.lsd_05 !== undefined) ? row.lsd_05 : '--';
+            const hasConfirmatory = (row.p_cohort !== null && row.p_cohort !== undefined && row.confirmatory_allowed !== false);
+            let pColor = hasConfirmatory ? ((row.p_cohort <= 0.05) ? '#dc2626' : '#15803d') : '#64748b';
+            let pWeight = hasConfirmatory ? ((row.p_cohort <= 0.05) ? '800' : '600') : '600';
+            let fc = (hasConfirmatory && row.f_cohort !== null && row.f_cohort !== undefined) ? row.f_cohort : '--';
+            let pc = hasConfirmatory ? row.p_cohort : '--';
+            let fb = (hasConfirmatory && row.f_block !== null && row.f_block !== undefined) ? row.f_block : '--';
+            let pb = (hasConfirmatory && row.p_block !== null && row.p_block !== undefined) ? row.p_block : '--';
+            let lsd = (hasConfirmatory && row.lsd_05 !== null && row.lsd_05 !== undefined) ? row.lsd_05 : '--';
+            if (!hasConfirmatory && row.exploratory_p_cohort !== null && row.exploratory_p_cohort !== undefined) {
+                exploratoryItems.push(`${row.label}: 1-way F=${row.exploratory_f_cohort ?? '--'}, p=${row.exploratory_p_cohort}`);
+            }
 
             htmlRows += `
                 <tr style="border-bottom:1px solid #f1f5f9;">
@@ -831,14 +845,23 @@ async function openAnovaModal() {
                     <td style="padding:7px 6px; color:#059669; font-weight:600;">${row.k_str}</td>
                     <td style="padding:7px 6px; color:#d97706; font-weight:600;">${row.p_str}</td>
                     <td style="padding:7px 6px; color:#2563eb; font-weight:600;">${row.r_str}</td>
-                    <td style="padding:7px 6px; color:#475569;">${row.f_cohort}</td>
-                    <td style="padding:7px 6px; color:${pColor}; font-weight:${pWeight};">${row.p_cohort}</td>
+                    <td style="padding:7px 6px; color:#475569;">${fc}</td>
+                    <td style="padding:7px 6px; color:${pColor}; font-weight:${pWeight};">${pc}</td>
                     <td style="padding:7px 6px; color:#64748b;">${fb}</td>
                     <td style="padding:7px 6px; color:#64748b;">${pb}</td>
                     <td style="padding:7px 6px; color:#0f172a; font-weight:600;">${lsd}</td>
                 </tr>
             `;
         });
+        if (exploratoryItems.length > 0) {
+            htmlRows += `
+                <tr style="background:#f8fafc; border-top:1px solid #e2e8f0;">
+                    <td colspan="9" style="padding:8px 10px; text-align:left; font-size:11px; color:#475569;">
+                        <strong>Разведочный 1-way ANOVA (НЕ подтверждающий анализ и НЕ подтверждает гипотезу):</strong> ${exploratoryItems.join(' · ')}
+                    </td>
+                </tr>
+            `;
+        }
         tbody.innerHTML = htmlRows;
 
         if (data.chart_url) {

@@ -8,6 +8,8 @@
 
 import os
 import math
+import re
+from datetime import date
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import pandas as pd
@@ -59,18 +61,18 @@ def _inspect_grcbd_balance(df_clean: pd.DataFrame) -> Tuple[bool, Optional[str]]
     expected_blocks = ("Блок 1", "Блок 2", "Блок 3")
 
     if len(df_clean) != 18:
-        return False, f"Неполный комплекс: {len(df_clean)}/18 валидных наблюдений (выполнен 1-way ANOVA без учета блоков)"
+        return False, f"Неполный комплекс: {len(df_clean)}/18 валидных наблюдений — подтверждающий 2-way GRCBD ANOVA невозможен"
 
     extra_cohorts = set(df_clean["cohort"].unique()) - set(expected_cohorts)
     if extra_cohorts:
-        return False, f"Обнаружены внеплановые когорты {sorted(extra_cohorts)} (выполнен 1-way ANOVA)"
+        return False, f"Обнаружены внеплановые когорты {sorted(extra_cohorts)} — подтверждающий 2-way GRCBD ANOVA невозможен"
 
     extra_blocks = set(df_clean["block"].astype(str).str.strip().unique()) - set(expected_blocks)
     if extra_blocks:
-        return False, f"Обнаружены внеплановые блоки {sorted(extra_blocks)} (выполнен 1-way ANOVA)"
+        return False, f"Обнаружены внеплановые блоки {sorted(extra_blocks)} — подтверждающий 2-way GRCBD ANOVA невозможен"
 
     if "pot_id" not in df_clean.columns:
-        return False, "Отсутствует столбец pot_id: невозможна проверка 18 уникальных сосудов GRCBD (выполнен 1-way ANOVA)"
+        return False, "Отсутствует столбец pot_id: невозможна проверка 18 уникальных сосудов GRCBD — подтверждающий 2-way ANOVA невозможен"
 
     mismatches = []
     for _, row in df_clean.iterrows():
@@ -82,7 +84,7 @@ def _inspect_grcbd_balance(df_clean: pd.DataFrame) -> Tuple[bool, Optional[str]]
         elif actual_pair != expected_pair:
             mismatches.append(f"{pid}:{actual_pair[0]}/{actual_pair[1]}!={expected_pair[0]}/{expected_pair[1]}")
     if mismatches:
-        return False, f"Нарушено соответствие pot_id -> (когорта, блок): {', '.join(mismatches)} (выполнен 1-way ANOVA)"
+        return False, f"Нарушено соответствие pot_id -> (когорта, блок): {', '.join(mismatches)} — подтверждающий 2-way GRCBD ANOVA невозможен"
 
     counts = df_clean.groupby(["cohort", "block"]).size()
     unbalanced_cells = []
@@ -93,16 +95,18 @@ def _inspect_grcbd_balance(df_clean: pd.DataFrame) -> Tuple[bool, Optional[str]]
                 unbalanced_cells.append(f"{cohort}/{block}={cnt}")
 
     if unbalanced_cells:
-        return False, f"Нарушен баланс ячеек 3×3×2 ({', '.join(unbalanced_cells)}; выполнен 1-way ANOVA без учета блоков)"
+        return False, f"Нарушен баланс ячеек 3×3×2 ({', '.join(unbalanced_cells)}) — подтверждающий 2-way GRCBD ANOVA невозможен"
     return True, None
 
 
 def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, Any]:
     """
-    Выполняет двухфакторный дисперсионный анализ по Доспехову Б.А. (1985)
-    для сбалансированного комплекса GRCBD: a=3 когорты, b=3 блока, n=2 повторности (N=18).
-    При неполной/несбалансированной матрице, дубликатах ID или расхождении pot_id->(когорта, блок)
-    явно переключается на 1-way ANOVA либо описательную статистику с отметкой в model_mode/model_label.
+    Выполняет подтверждающий двухфакторный дисперсионный анализ по Доспехову Б.А. (1985)
+    строго для сбалансированного комплекса GRCBD: a=3 когорты, b=3 блока, n=2 повторности (N=18).
+    При нарушении структуры GRCBD (неполный срез, дубликаты pot_id, смещение блоков/когорт)
+    подтверждающий анализ НЕ выполняется (confirmatory_allowed=False, p_cohort=None);
+    возможный однофакторный расчёт (1-way ANOVA) выносится строго в отдельный
+    разведочный блок exploratory_one_way и не может подменять подтверждающий GRCBD.
     """
     raw_df = df.dropna(subset=[trait, "cohort", "block"]).copy()
     has_dup_ids = False
@@ -120,40 +124,49 @@ def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, An
     if has_dup_ids:
         is_balanced = False
         balance_reason = (
-            f"Обнаружены дубликаты pot_id {dup_ids_list}: строгий 2-way GRCBD запрещён "
-            f"(выполнен 1-way ANOVA после свёртывания повторов)"
+            f"Обнаружены дубликаты pot_id {dup_ids_list}: подтверждающий 2-way GRCBD ANOVA запрещён"
         )
     else:
         is_balanced, balance_reason = _inspect_grcbd_balance(df_clean)
+
     if not is_balanced:
         cohort_groups = [g[trait].values for _, g in df_clean.groupby("cohort")]
+        exploratory_one_way: Optional[Dict[str, Any]] = None
         if len(cohort_groups) >= 2 and all(len(g) >= 2 for g in cohort_groups):
             f_val, p_val = stats.f_oneway(*cohort_groups)
-            return {
-                "trait": trait,
-                "is_balanced_grcbd": False,
-                "model_mode": "one_way_fallback",
-                "model_label": "1-way ANOVA (неполн., без блоков)",
-                "balance_note": balance_reason,
-                "N": int(len(df_clean)),
-                "f_cohort": round(float(f_val), 3) if not math.isnan(f_val) else 0.0,
-                "p_cohort": round(float(p_val), 4) if not math.isnan(p_val) else 1.0,
-                "f_block": None,
-                "p_block": None,
-                "ms_error": None,
-                "df_error": int(len(df_clean) - len(cohort_groups)),
+            exp_f = round(float(f_val), 3) if not math.isnan(f_val) else None
+            exp_p = round(float(p_val), 4) if not math.isnan(p_val) else None
+            exploratory_one_way = {
+                "f_cohort": exp_f,
+                "p_cohort": exp_p,
+                "df_between": len(cohort_groups) - 1,
+                "df_within": int(len(df_clean) - len(cohort_groups)),
+                "is_confirmatory": False,
+                "note": "Разведочный однофакторный 1-way ANOVA без учёта фактора Блок; НЕ подтверждает исходную гипотезу GRCBD.",
             }
+        mode = "grcbd_violated_descriptive" if exploratory_one_way is not None else "descriptive_only"
+        label = (
+            "Описательно (GRCBD невозможен; развед. 1-way отдельно)"
+            if exploratory_one_way is not None
+            else "Описательно (GRCBD невозможен, недостаточно данных для ANOVA)"
+        )
         return {
             "trait": trait,
             "is_balanced_grcbd": False,
-            "model_mode": "descriptive_only",
-            "model_label": "Описательно (недостаточно данных для ANOVA)",
+            "confirmatory_allowed": False,
+            "confirmatory_status": "unavailable_grcbd_violated",
+            "model_mode": mode,
+            "model_label": label,
             "balance_note": balance_reason,
             "N": int(len(df_clean)),
-            "f_cohort": 0.0,
-            "p_cohort": 1.0,
+            "f_cohort": None,
+            "p_cohort": None,
             "f_block": None,
             "p_block": None,
+            "ms_error": None,
+            "lsd_05": None,
+            "df_error": int(len(df_clean) - len(cohort_groups)) if exploratory_one_way is not None else None,
+            "exploratory_one_way": exploratory_one_way,
         }
 
     a = 3  # Когорты (К, П, Р)
@@ -215,6 +228,8 @@ def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, An
     return {
         "trait": trait,
         "is_balanced_grcbd": True,
+        "confirmatory_allowed": True,
+        "confirmatory_status": "confirmed_two_way_grcbd",
         "model_mode": "two_way_grcbd",
         "model_label": "Two-Way ANOVA (GRCBD 3×3×2)",
         "balance_note": None,
@@ -233,7 +248,8 @@ def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, An
         "p_block": round(float(p_B), 4),
         "f_interaction": round(float(F_AB), 3),
         "p_interaction": round(float(p_AB), 4),
-        "lsd_05": round(float(lsd_05), 3)
+        "lsd_05": round(float(lsd_05), 3),
+        "exploratory_one_way": None,
     }
 
 
@@ -349,6 +365,7 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         res["r_mean"] = r_mean
         res["r_se"] = r_se
         
+        exp_data = res.get("exploratory_one_way") or {}
         traits_results[t] = res
         summary_table.append({
             "trait": t,
@@ -356,18 +373,42 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
             "k_str": k_str,
             "p_str": p_str,
             "r_str": r_str,
-            "f_cohort": res.get("f_cohort", 0.0),
-            "p_cohort": res.get("p_cohort", 1.0),
+            "f_cohort": res.get("f_cohort"),
+            "p_cohort": res.get("p_cohort"),
             "f_block": res.get("f_block"),
             "p_block": res.get("p_block"),
             "lsd_05": res.get("lsd_05"),
-            "is_balanced_grcbd": res.get("is_balanced_grcbd", False),
+            "is_balanced_grcbd": bool(res.get("is_balanced_grcbd", False)),
+            "confirmatory_allowed": bool(res.get("confirmatory_allowed", False)),
+            "confirmatory_status": res.get("confirmatory_status", "unavailable_grcbd_violated"),
             "model_mode": res.get("model_mode", "descriptive_only"),
             "model_label": res.get("model_label", ""),
             "balance_note": res.get("balance_note"),
+            "exploratory_f_cohort": exp_data.get("f_cohort"),
+            "exploratory_p_cohort": exp_data.get("p_cohort"),
         })
 
-    # Автоматическая диагностика контекста / фазы (синхронизирована с кворумами и знаком ΔT)
+    all_balanced = all(bool(traits_results[t].get("confirmatory_allowed")) for t in traits)
+    unavailable_reasons: List[str] = []
+    for t in traits:
+        tr_item = traits_results[t]
+        if not tr_item.get("confirmatory_allowed") and tr_item.get("balance_note"):
+            unavailable_reasons.append(f"{TRAIT_LABELS.get(t, t)}: {tr_item['balance_note']}")
+
+    slice_dates: List[date] = []
+    for rec in latest_by_pot.values():
+        m_dt = re.match(r"^(\d{4}-\d{2}-\d{2})", str(rec.get("Timestamp", "")).strip())
+        if m_dt:
+            try:
+                slice_dates.append(date.fromisoformat(m_dt.group(1)))
+            except ValueError:
+                pass
+    day0_anchor = date(2026, 11, 9)
+    max_slice_date = max(slice_dates) if slice_dates else None
+    day_num = (max_slice_date - day0_anchor).days if max_slice_date is not None else 0
+    is_day0_slice = (max_slice_date is None) or (max_slice_date <= day0_anchor)
+
+    # Автоматическая диагностика контекста / фазы (синхронизирована с кворумами, датой и допуском GRCBD)
     valid_turgor_series = df["turgor"].dropna() if "turgor" in df else pd.Series(dtype=float)
     r_valid_turgor = df[df["cohort"] == "Reaction"]["turgor"].dropna() if "turgor" in df else pd.Series(dtype=float)
     mean_turgor = round(float(valid_turgor_series.mean()), 2) if len(valid_turgor_series) > 0 else None
@@ -377,7 +418,8 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     )
 
     dt_res = traits_results.get("delta_t", {})
-    p_val_dt = dt_res.get("p_cohort", 1.0)
+    dt_confirmed = bool(dt_res.get("confirmatory_allowed"))
+    p_val_dt = dt_res.get("p_cohort") if dt_confirmed else None
     k_dt_mean = dt_res.get("k_mean")
     p_dt_mean = dt_res.get("p_mean")
     p_dt_list = df[df["cohort"] == "Prevention"]["delta_t"].tolist() if "delta_t" in df else []
@@ -387,19 +429,25 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     ]
     p_eval = evaluate_cohort_prevention_trigger(p_ddts)
     has_dw = "dw_g" in traits
+    w_res = traits_results.get("weight_g", {})
+    w_p_val = w_res.get("p_cohort") if w_res.get("confirmatory_allowed") else None
 
     if has_dw:
         phase = "harvest"
         dw_res = traits_results.get("dw_g", {})
-        dw_p = dw_res.get("p_cohort", 1.0)
+        dw_p = dw_res.get("p_cohort") if dw_res.get("confirmatory_allowed") else None
         p_dw_mean = dw_res.get("p_mean", 0.0)
         r_dw_mean = dw_res.get("r_mean", 0.0)
         diff_pct = round((p_dw_mean - r_dw_mean) / max(0.001, r_dw_mean) * 100, 1)
-        
+        dw_stat_txt = (
+            f"p = {dw_p}"
+            if dw_p is not None
+            else "подтверждающий 2-way GRCBD ANOVA невозможен (структура 3×3×2 нарушена)"
+        )
         status_badge = "🏆 ФИНАЛЬНЫЙ СРЕЗ УРОЖАЯ (HARVEST ENDPOINT)"
         badge_color = "#059669"
-        verdict = f"Первичная конечная точка (сухая биомасса DW): Превенция {p_dw_mean} г vs Реакция {r_dw_mean} г (разница {diff_pct:+}%, p = {dw_p})."
-    
+        verdict = f"Первичная конечная точка (сухая биомасса DW): Превенция {p_dw_mean} г vs Реакция {r_dw_mean} г (разница {diff_pct:+}%, {dw_stat_txt})."
+
     elif r_eval["is_triggered"]:
         phase = "reaction_trigger"
         status_badge = "🔵 СТРЕСС-ФАЗА: КРИТИЧЕСКИЙ СТРЕСС УВЯДАНИЯ (РЕАКЦИЯ)"
@@ -411,7 +459,9 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         )
 
     elif (
-        dt_res.get("f_cohort", 0.0) > 3.0
+        dt_confirmed
+        and p_val_dt is not None
+        and (dt_res.get("f_cohort") or 0.0) > 3.0
         and p_val_dt <= 0.05
         and k_dt_mean is not None
         and p_dt_mean is not None
@@ -423,34 +473,61 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         badge_color = "#eab308"
         r_disp = f"{r_turgor:.1f}" if r_turgor is not None else "--"
         verdict = (
-            f"Термографический триггер подтвержден статистически и по кворуму ({p_eval['triggered_count']}/6 с ΔΔT ≥ +0.6°C): "
+            f"Термографический триггер подтвержден статистически (2-way GRCBD) и по кворуму ({p_eval['triggered_count']}/6 с ΔΔT ≥ +0.6°C): "
             f"перегрев Превенции ({p_dt_mean}°C против Контроля {k_dt_mean}°C; ΔT F={dt_res['f_cohort']}, p={p_val_dt}) "
             f"при сохранённом тургоре Реакции (балл {r_disp}). Превентивный полив активирован!"
         )
 
-    elif mean_turgor is not None and len(valid_turgor_series) >= 12 and mean_turgor >= 3.7 and p_val_dt > 0.05:
+    elif (
+        is_day0_slice
+        and all_balanced
+        and mean_turgor is not None
+        and len(valid_turgor_series) >= 12
+        and mean_turgor >= 3.7
+        and p_val_dt is not None
+        and p_val_dt > 0.05
+    ):
         phase = "baseline"
         status_badge = "🟢 ДЕНЬ 0: ИСХОДНАЯ ОДНОРОДНОСТЬ (BASELINE HOMOGENEITY)"
         badge_color = "#059669"
-        verdict = f"Нулевая гипотеза подтверждена (H0: p > 0.05). Различия между группами по массе (p={traits_results['weight_g']['p_cohort']}) и ΔT (p={p_val_dt}) отсутствуют. Стартовый перекос исключен. Старт стресс-фазы разрешен!"
-    
+        verdict = (
+            f"На исходном срезе статистически значимых различий по исследованным показателям между когортами "
+            f"не выявлено (масса сосуда p={w_p_val}, ΔT p={p_val_dt}). Это не доказывает эквивалентность групп "
+            f"и не исключает различий, которые могли остаться незамеченными при имеющемся объёме выборки."
+        )
+
     elif len(valid_turgor_series) < 6:
         phase = "incomplete_turgor"
         status_badge = "⚠️ НЕДОСТАТОЧНО ОЦЕНОК ТУРГОРА"
         badge_color = "#64748b"
         verdict = f"Замерено {total_measured}/18 сосудов, но валидные оценки тургора заполнены только у {len(valid_turgor_series)}/18. Пропуски сохранены как NaN и исключены из расчёта."
 
+    elif not all_balanced:
+        phase = "grcbd_violated"
+        status_badge = "⚠️ ПОДТВЕРЖДАЮЩИЙ АНАЛИЗ GRCBD НЕВОЗМОЖЕН"
+        badge_color = "#d97706"
+        reason_summary = unavailable_reasons[0] if unavailable_reasons else "нарушена структура GRCBD 3×3×2 (N=18)"
+        verdict = (
+            f"Подтверждающий дисперсионный анализ GRCBD не выполнен: {reason_summary}. "
+            f"Приведена только описательная статистика (M ± SE); возможный однофакторный расчёт носит "
+            f"сугубо разведочный характер и не является подтверждением исходной гипотезы."
+        )
+
     else:
         phase = "monitoring"
-        status_badge = "📊 ТЕКУЩИЙ МОНИТОРИНГ GRCBD"
+        day_label = f" (ДЕНЬ {day_num} / DAT {day_num})" if max_slice_date is not None and day_num >= 1 else ""
+        status_badge = f"📊 ТЕКУЩИЙ МОНИТОРИНГ GRCBD{day_label}"
         badge_color = "#4f46e5"
-        verdict = f"Замер {total_measured}/18 сосудов выполнен (оценок тургора: {len(valid_turgor_series)}/18). Критерий триггера не достигнут; продолжается мониторинг."
+        verdict = (
+            f"Замер {total_measured}/18 сосудов выполнен (оценок тургора: {len(valid_turgor_series)}/18; "
+            f"масса p={w_p_val}, ΔT p={p_val_dt}). Критерии стресс-триггеров не достигнуты; мониторинг продолжается."
+        )
 
     # Генерация графика боксплотов
     os.makedirs(os.path.join(static_dir, "charts"), exist_ok=True)
     chart_rel_path = "charts/anova_latest.png"
     chart_full_path = os.path.join(static_dir, chart_rel_path)
-    
+
     plot_traits = [t for t in ["weight_g", "delta_t", "ndvi", "pla_cm2"] if t in df.columns]
     fig, axes = plt.subplots(1, len(plot_traits), figsize=(3.8 * len(plot_traits), 4.2), dpi=130)
     if len(plot_traits) == 1:
@@ -469,7 +546,7 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         for patch, color in zip(bp['boxes'], palette):
             patch.set_facecolor(color)
             patch.set_alpha(0.65)
-            
+
         # Добавляем точки наблюдений (джиттер)
         for i, c in enumerate(cohort_order):
             vals = df[df["cohort"] == c][t].dropna().values
@@ -479,72 +556,109 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         ax.set_title(TRAIT_LABELS.get(t, t), fontsize=11, fontweight="bold", pad=8)
         ax.grid(axis="y", linestyle="--", alpha=0.4)
         ax.tick_params(labelsize=10)
-        
-        # Аннотация ANOVA p-value с явной маркировкой модели (2-way GRCBD vs 1-way)
-        tr_res = traits_results[t]
-        pv = tr_res["p_cohort"]
-        if tr_res.get("is_balanced_grcbd"):
-            xlabel = f"2-way ANOVA p = {pv:.4f}"
-        elif tr_res.get("model_mode") == "one_way_fallback":
-            xlabel = f"1-way p = {pv:.4f} (без блоков)"
-        else:
-            xlabel = "Описательно (без ANOVA)"
-        ax.set_xlabel(xlabel, fontsize=10, fontweight="bold", color="#0f172a" if pv > 0.05 else "#dc2626")
 
-    import re
-    clean_status = re.sub(r'[^\w\s\(\)\-\:\.\,\«\»\—]', '', status_badge).strip()
-    all_balanced = all(traits_results[t].get("is_balanced_grcbd") for t in traits)
+        tr_res = traits_results[t]
+        pv = tr_res.get("p_cohort")
+        exp_info = tr_res.get("exploratory_one_way") or {}
+        if tr_res.get("confirmatory_allowed") and pv is not None:
+            xlabel = f"2-way GRCBD p = {pv:.4f}"
+            xcolor = "#0f172a" if pv > 0.05 else "#dc2626"
+        elif exp_info.get("p_cohort") is not None:
+            xlabel = f"GRCBD невозможен\n(развед. 1-way p={exp_info['p_cohort']:.4f}, НЕ подтв.)"
+            xcolor = "#64748b"
+        else:
+            xlabel = "GRCBD невозможен (только M ± SE)"
+            xcolor = "#64748b"
+        ax.set_xlabel(xlabel, fontsize=9.5, fontweight="bold", color=xcolor)
+
+    clean_status = re.sub(r'[^\w\s\(\)\-\:\.\,\«\»\—\/]', '', status_badge).strip()
     model_banner = (
         "Two-Way ANOVA (сбалансированный GRCBD 3×3×2, N=18)"
         if all_balanced
-        else "Смешанный / неполный срез: признаки с <18 замерами рассчитаны как 1-way ANOVA без фактора Блок или описательно"
+        else "Подтверждающий GRCBD ANOVA НЕ ВЫПОЛНЕН (структура 3×3×2 нарушена; только описательная статистика M ± SE и отдельный разведочный расчёт)"
     )
     plt.suptitle(f"Мониторинг GRCBD (N={total_measured}) — {clean_status}", fontsize=11, fontweight="bold", y=1.02)
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.14)
+    plt.subplots_adjust(bottom=0.16)
     fig.text(0.5, 0.01, f"Статистическая модель: {model_banner}", ha="center", fontsize=8.5, color="#475569")
     plt.savefig(chart_full_path, bbox_inches="tight")
     plt.close(fig)
 
-    # Генерация Markdown отчета с явным разделением описательной, эксплораторной (1-way) и 2-way GRCBD статистики
+    # Генерация Markdown отчета с явным запретом подмены GRCBD и корректными выводами Day 0
     os.makedirs(docs_dir, exist_ok=True)
     report_path = os.path.join(docs_dir, "ANOVA_LATEST_REPORT.md")
     md_lines = [
-        f"# 📊 СТАТИСТИЧЕСКИЙ ОТЧЕТ МОНИТОРИНГА ВОЛНЫ 2",
+        "# 📊 СТАТИСТИЧЕСКИЙ ОТЧЕТ МОНИТОРИНГА ВОЛНЫ 2",
         f"**Статус сессии:** {status_badge}  ",
         f"**Объем выборки:** N = {total_measured} уникальных сосудов GRCBD (план: 3 когорты × 3 блока × 2 повторности)  ",
         f"**Режим статистической модели:** {model_banner}  ",
         f"**Вердикт алгоритма:** {verdict}  ",
-        f"",
+        "",
     ]
+    if phase == "baseline":
+        md_lines.append(
+            "> [!NOTE]\n"
+            "> **Методологические пояснения к срезу Day 0:**\n"
+            "> - Одинаковая масса `100.0 г` является результатом тарирования и регламента водоподготовки, а не независимым доказательством биологической однородности растений.\n"
+            "> - Отсутствие статистически значимых различий (`p > 0.05`) не доказывает эквивалентность когорт при `N = 18`.\n"
+            "> - Исходный срез Day 0 не доказывает отсутствие всех возможных стартовых различий.\n"
+        )
     if duplicate_pots_collapsed > 0:
-        md_lines.append(f"> [!NOTE]\n> Во входной выборке обнаружено и свёрнуто {duplicate_pots_collapsed} дублирующих записей `pot_id` (использована последняя запись по каждому сосуду).\n")
+        md_lines.append(
+            f"> [!NOTE]\n> Во входной выборке обнаружено и свёрнуто {duplicate_pots_collapsed} дублирующих записей `pot_id` (использована последняя запись по каждому сосуду).\n"
+        )
     if not all_balanced:
-        md_lines.append("> [!WARNING]\n> **Часть признаков не соответствует полной матрице 3×3×2!** Для таких строк двухфакторный GRCBD ANOVA **не применялся** — вместо него приведён разведочный 1-way ANOVA без учёта фактора блока либо только описательная статистика (`M ± SE`).\n")
+        reasons_md = "\n".join(f"> - {rs}" for rs in unavailable_reasons) or "> - Нарушена сбалансированная матрица GRCBD 3×3×2."
+        md_lines.append(
+            "> [!WARNING]\n"
+            "> **Подтверждающий анализ GRCBD НЕ ВЫПОЛНЕН!**\n"
+            "> Структура рандомизированного блочного дизайна нарушена, поэтому заранее запланированный подтверждающий 2-way тест не проводился.\n"
+            f"{reasons_md}\n"
+            "> Любой однофакторный 1-way расчёт ниже является **сугубо разведочным** (без фактора блока) и **не может использоваться для подтверждения исходной гипотезы**.\n"
+        )
     md_lines.extend([
-        f"---",
-        f"",
-        f"### Описательная статистика и сводка дисперсионного анализа",
-        f"",
+        "---",
+        "",
+        "### Описательная статистика и сводка подтверждающего дисперсионного анализа",
+        "",
         "| Физиологический параметр | Режим модели | Контроль (M ± SE) | Превенция (M ± SE) | Реакция (M ± SE) | Когорта (F) | p (когорта) | Блок (F) | p (блок) | НСР₀₅ |",
-        "| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
+        "| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
     ])
     for row in summary_table:
-        f_b_str = str(row['f_block']) if row['f_block'] is not None else "--"
-        p_b_str = str(row['p_block']) if row['p_block'] is not None else "--"
-        lsd_str = str(row['lsd_05']) if row['lsd_05'] is not None else "--"
+        f_c_str = str(row["f_cohort"]) if row["f_cohort"] is not None else "--"
+        p_c_str = f"**{row['p_cohort']}**" if row["p_cohort"] is not None else "--"
+        f_b_str = str(row["f_block"]) if row["f_block"] is not None else "--"
+        p_b_str = str(row["p_block"]) if row["p_block"] is not None else "--"
+        lsd_str = str(row["lsd_05"]) if row["lsd_05"] is not None else "--"
         md_lines.append(
-            f"| **{row['label']}** | {row['model_label']} | {row['k_str']} | {row['p_str']} | {row['r_str']} | {row['f_cohort']} | **{row['p_cohort']}** | {f_b_str} | {p_b_str} | {lsd_str} |"
+            f"| **{row['label']}** | {row['model_label']} | {row['k_str']} | {row['p_str']} | {row['r_str']} | {f_c_str} | {p_c_str} | {f_b_str} | {p_b_str} | {lsd_str} |"
         )
 
+    expl_rows = [r for r in summary_table if not r["confirmatory_allowed"] and r["exploratory_p_cohort"] is not None]
+    if expl_rows:
+        md_lines.extend([
+            "",
+            "### Разведочный однофакторный расчёт (НЕ подтверждающий анализ!)",
+            "",
+            "> [!WARNING]",
+            "> Приведённые ниже однофакторные значения `1-way ANOVA` рассчитаны без учёта фактора блока при нарушенной схеме GRCBD. Они **не эквивалентны подтверждающему анализу** и **не подтверждают исходную гипотезу**.",
+            "",
+            "| Признак | F (развед. 1-way) | p (развед., НЕ подтв.) | Причина отказа от GRCBD |",
+            "| :--- | :---: | :---: | :--- |",
+        ])
+        for row in expl_rows:
+            md_lines.append(
+                f"| **{row['label']}** | {row['exploratory_f_cohort']} | {row['exploratory_p_cohort']} | {row['balance_note'] or 'Нарушена схема 3×3×2'} |"
+            )
+
     md_lines.extend([
-        f"",
-        f"---",
-        f"",
-        f"### Графическая визуализация",
+        "",
+        "---",
+        "",
+        "### Графическая визуализация",
         f"![Boxplots](../../static/{chart_rel_path})",
-        f"",
-        f"*Отчет сгенерирован автоматически аналитическим ядром станции `PlantStation`.*"
+        "",
+        "*Отчет сгенерирован автоматически аналитическим ядром станции `PlantStation`.*",
     ])
     open(report_path, "w", encoding="utf-8").write("\n".join(md_lines))
 
@@ -553,6 +667,14 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         "total_measured": total_measured,
         "duplicate_pots_collapsed": duplicate_pots_collapsed,
         "all_balanced_grcbd": all_balanced,
+        "confirmatory_grcbd_performed": all_balanced,
+        "confirmatory_status": "confirmed" if all_balanced else "unavailable_grcbd_violated",
+        "confirmatory_unavailable_reasons": unavailable_reasons,
+        "exploratory_warning": (
+            None
+            if all_balanced
+            else "Подтверждающий GRCBD не выполнен; разведочный 1-way (при наличии) не подтверждает исходную гипотезу."
+        ),
         "model_mode_summary": model_banner,
         "phase": phase,
         "status_badge": status_badge,
@@ -561,5 +683,5 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         "traits": traits_results,
         "summary_table": summary_table,
         "chart_url": f"/static/{chart_rel_path}",
-        "report_file": report_path
+        "report_file": report_path,
     }
