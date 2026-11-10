@@ -655,14 +655,14 @@ def render_wave2_active_pot_card(
 
 def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
     """
-    Генерация таблицы замеров (27 колонок) с возможностью inline-редактирования
-    любого параметра прямо в интерфейсе на время проведения замеров.
+    Генерация таблицы замеров (все дни без скрытия ранних записей) с группировкой по датам:
+    актуальный день поддерживает inline-редактирование, прошлые дни отображаются как архив.
     """
     rows_html = []
     if not records:
         rows_html.append("""
         <tr>
-            <td colspan="12" style="padding: 24px; text-align: center; color: #64748b; font-size: 13px;">
+            <td colspan="13" style="padding: 24px; text-align: center; color: #64748b; font-size: 13px;">
                 Замеров Волны 2 пока нет. Выберите горшок выше и нажмите <strong>«Снять NoIR и далее»</strong>.
             </td>
         </tr>
@@ -678,10 +678,37 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             for ts_key, day_recs in records_by_date.items()
         }
 
-        for r in reversed(records[-30:]):  # последние 30 записей
-            rec_id = r.get("ID", "--")
+        ordered_records = list(reversed(records))
+        first_ts = str(ordered_records[0].get("Timestamp", "--")).strip()
+        latest_day = first_ts[:10] if len(first_ts) >= 10 and first_ts[4:5] == "-" else first_ts
+        current_group_day = None
+        seen_active_ids = set()
+
+        for row_idx, r in enumerate(ordered_records):
+            rec_id = str(r.get("ID", "--")).strip()
             ts = str(r.get("Timestamp", "--")).strip()
             ts_day = ts[:10] if len(ts) >= 10 and ts[4:5] == "-" else ts
+
+            if ts_day != current_group_day:
+                current_group_day = ts_day
+                day_count = len(records_by_date.get(ts_day, []))
+                if ts_day == latest_day:
+                    grp_bg, grp_fg, grp_icon, grp_note = "#f0fdfa", "#0f766e", "📅", "активная смена"
+                else:
+                    grp_bg, grp_fg, grp_icon, grp_note = "#f8fafc", "#475569", "🗄️", "архив (только просмотр)"
+                rows_html.append(f"""
+                <tr data-day-header="{ts_day}" style="background: {grp_bg}; border-top: 2px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
+                    <td colspan="13" style="padding: 7px 10px; font-size: 12px; font-weight: 800; color: {grp_fg};">
+                        {grp_icon} {ts_day} — {day_count} замеров ({grp_note})
+                    </td>
+                </tr>
+                """)
+
+            rec_key = rec_id.upper()
+            is_editable_row = (ts_day == latest_day) and (rec_key not in seen_active_ids)
+            if is_editable_row:
+                seen_active_ids.add(rec_key)
+
             wt = r.get("Weight_g", "")
             t_leaf = r.get("T_Leaf_C", "")
             t_air = r.get("T_Air_C", "--")
@@ -707,7 +734,6 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             th_file = r.get("Thermal_File", "")
             ndvi_std = r.get("NDVI_Std", "")
 
-            # Форматирование значения NDVI с СКО (как в Волне 1)
             if ndvi != "--" and ndvi != "":
                 try:
                     n_val = float(ndvi)
@@ -720,13 +746,11 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             else:
                 ndvi_txt = "--"
 
-            # Ячейка NDVI с интерактивным просмотром и лупой
             if opt_file and opt_file != "--":
                 ndvi_cell = f'''<a href="/wave2_image/{opt_file}" target="_blank" onclick="openImageViewer(\'/wave2_image/{opt_file}\', \'Карта NDVI — Горшок [{rec_id}] ({ndvi_txt})\'); return false;" title="Открыть карту NDVI [{rec_id}]" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{ndvi_txt}</span> 🔍</a>'''
             else:
                 ndvi_cell = f'''<span style="font-family: monospace; font-size: 11px; color: #334155; font-weight: 600;">{ndvi_txt}</span>'''
 
-            # Ячейка Термограммы в едином стиле с NDVI (превью с температурой: 24.0° 🔍 или —)
             if th_file and th_file != "--":
                 clean_th = os.path.basename(th_file)
                 if t_leaf and t_leaf != "--":
@@ -736,70 +760,80 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
                         th_txt = f"{t_leaf}°"
                 else:
                     th_txt = "✓"
-                th_cell = f'''<div id="cell_th_{rec_id}" style="text-align: center;"><a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}] ({th_txt} OCR)\'); return false;" title="Термограмма [{rec_id}] — {th_txt} (распознано OCR)" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{th_txt}</span> 🔍</a></div>'''
+                th_inner = f'''<a href="/wave2_image/{clean_th}" target="_blank" onclick="openImageViewer(\'/wave2_image/{clean_th}\', \'Термограмма UTi120S — Горшок [{rec_id}] ({th_txt} OCR)\'); return false;" title="Термограмма [{rec_id}] — {th_txt} (распознано OCR)" style="color: #0d9488; text-decoration: none; font-weight: 700; white-space: nowrap;"><span style="font-family: monospace; font-size: 11px;">{th_txt}</span> 🔍</a>'''
             else:
-                th_cell = f'''<div id="cell_th_{rec_id}" style="text-align: center;"><span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span></div>'''
+                th_inner = '''<span style="font-family: monospace; font-size: 11px; color: #94a3b8; font-weight: 600;">—</span>'''
 
             meta = POTS_CATALOG.get(rec_id, {})
             color = meta.get("color", "#475569")
             has_probe = meta.get("has_probe", False) or rec_id in ("K1", "R1", "P1")
             soil = r.get("Moisture_Pct", "--")
-            if has_probe:
-                soil_cell = f'''<input type="number" step="0.1" value="{soil if soil != '--' else ''}" placeholder="--" id="cell_soil_{rec_id}" onchange="saveRowEdit(\'{rec_id}\', true)" onkeydown="if(event.key===\'Enter\') this.blur();" style="width: 55px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center;">'''
-            else:
-                soil_cell = '<span style="color: #94a3b8; font-weight: 600;">--</span>'
 
-            rows_html.append(f"""
-            <tr id="row_{rec_id}" style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 8px 10px; font-weight: 800; color: {color};">{rec_id}</td>
-                <td style="padding: 8px 10px; font-size: 11px; color: #64748b;">{ts}</td>
-                <td style="padding: 6px 4px;">
-                    <input type="number" step="0.1" value="{wt if wt != '--' else ''}" placeholder="--" id="cell_wt_{rec_id}" 
-                        onchange="saveRowEdit('{rec_id}', true)"
-                        onkeydown="if(event.key==='Enter') this.blur();"
-                        style="width: 70px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px;">
-                </td>
-                <td style="padding: 6px 4px;">
-                    <input type="number" step="0.1" value="{t_leaf if t_leaf != '--' else ''}" placeholder="--" id="cell_tl_{rec_id}" 
-                        onchange="saveRowEdit('{rec_id}', true)"
-                        onkeydown="if(event.key==='Enter') this.blur();"
-                        style="width: 65px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px;">
-                </td>
-                <td id="cell_ta_{rec_id}" data-ta="{t_air}" style="padding: 8px 10px; font-size: 12px; color: #64748b;">{t_air}°</td>
-                <td id="cell_dt_{rec_id}" style="padding: 8px 10px; font-size: 12px; font-weight: 700; color: #0284c7;">{dt}</td>
-                <td style="padding: 6px 4px; text-align: center;">{soil_cell}</td>
-                <td style="padding: 6px 4px;">
-                    <select id="cell_tr_{rec_id}" onchange="saveRowEdit('{rec_id}', true)" style="padding: 4px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
+            if is_editable_row:
+                row_attr = f'id="row_{rec_id}"'
+                wt_cell = f'''<input type="number" step="0.1" value="{wt if wt != '--' else ''}" placeholder="--" id="cell_wt_{rec_id}" onchange="saveRowEdit('{rec_id}', true)" onkeydown="if(event.key==='Enter') this.blur();" style="width: 70px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px;">'''
+                tl_cell = f'''<input type="number" step="0.1" value="{t_leaf if t_leaf != '--' else ''}" placeholder="--" id="cell_tl_{rec_id}" onchange="saveRowEdit('{rec_id}', true)" onkeydown="if(event.key==='Enter') this.blur();" style="width: 65px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px;">'''
+                ta_attr = f'id="cell_ta_{rec_id}" data-ta="{t_air}"'
+                dt_attr = f'id="cell_dt_{rec_id}"'
+                soil_cell = f'''<input type="number" step="0.1" value="{soil if soil != '--' else ''}" placeholder="--" id="cell_soil_{rec_id}" onchange="saveRowEdit(\'{rec_id}\', true)" onkeydown="if(event.key===\'Enter\') this.blur();" style="width: 55px; padding: 4px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center;">''' if has_probe else '<span style="color: #94a3b8; font-weight: 600;">--</span>'
+                tr_cell = f'''<select id="cell_tr_{rec_id}" onchange="saveRowEdit('{rec_id}', true)" style="padding: 4px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px;">
                         <option value="--" {'selected' if str(turgor) == '--' else ''}>--</option>
                         <option value="4" {'selected' if str(turgor) == '4' else ''}>4</option>
                         <option value="3" {'selected' if str(turgor) == '3' else ''}>3</option>
                         <option value="2" {'selected' if str(turgor) == '2' else ''}>2</option>
                         <option value="1" {'selected' if str(turgor) == '1' else ''}>1</option>
-                    </select>
-                </td>
-                <td id="cell_dose_{rec_id}" style="padding: 8px 10px; font-size: 12px; font-weight: 800; color: #059669;">{dose_display}</td>
-                <td style="padding: 8px 10px;">{ndvi_cell}</td>
-                <td id="cell_pla_{rec_id}" data-pla="{pla}" style="padding: 8px 10px; font-size: 12px;">{pla}</td>
-                <td style="padding: 8px 10px;">{th_cell}</td>
-                <td style="padding: 6px 4px; text-align: center; white-space: nowrap;">
+                    </select>'''
+                dose_attr = f'id="cell_dose_{rec_id}"'
+                pla_attr = f'id="cell_pla_{rec_id}" data-pla="{pla}"'
+                th_cell = f'<div id="cell_th_{rec_id}" style="text-align: center;">{th_inner}</div>'
+                actions_cell = f'''
                     <input type="file" id="file_th_{rec_id}" accept="image/*,.bmp,.BMP,.jpg,.jpeg,.png,.JPG,.PNG" style="display:none;" onchange="uploadThermalImage('{rec_id}', this)">
-                    <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить снимок с компьютера через проводник" 
+                    <button type="button" onclick="document.getElementById('file_th_{rec_id}').click()" title="Загрузить снимок с компьютера через проводник"
                         style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s ease;">
                         📷
                     </button>
-                    <button type="button" onclick="openUtiFolderModal('{rec_id}')" title="Открыть папку Images на тепловизоре (выбрать, резервировать и стереть)" 
+                    <button type="button" onclick="openUtiFolderModal('{rec_id}')" title="Открыть папку Images на тепловизоре (выбрать, резервировать и стереть)"
                         style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px; transition: all 0.15s ease;">
                         📁
                     </button>
-                    <button type="button" onclick="reshootWave2Pot('{rec_id}')" title="Выбрать этот горшок и переснять оптику NoIR" 
+                    <button type="button" onclick="reshootWave2Pot('{rec_id}')" title="Выбрать этот горшок и переснять оптику NoIR"
                         style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px; transition: all 0.15s ease;">
                         🔄
                     </button>
-                    <button type="button" onclick="deleteWave2Row('{rec_id}')" title="Удалить ошибочный замер" 
+                    <button type="button" onclick="deleteWave2Row('{rec_id}')" title="Удалить ошибочный замер"
                         style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px; transition: all 0.15s ease;">
                         🗑️
-                    </button>
-                </td>
+                    </button>'''
+                row_bg = ""
+            else:
+                row_attr = f'data-archive-row="{ts_day}_{rec_id}_{row_idx}"'
+                wt_cell = f'<span style="font-weight: 700; color: #334155;">{wt if wt not in (None, "", "--") else "--"}</span>'
+                tl_cell = f'<span style="font-weight: 700; color: #334155;">{t_leaf if t_leaf not in (None, "", "--") else "--"}</span>'
+                ta_attr = ''
+                dt_attr = ''
+                soil_cell = f'<span style="font-weight: 700; color: #0369a1;">{soil if soil not in (None, "", "--") else "--"}</span>' if has_probe else '<span style="color: #94a3b8; font-weight: 600;">--</span>'
+                tr_cell = f'<span style="font-weight: 700; color: #334155;">{turgor}</span>'
+                dose_attr = ''
+                pla_attr = ''
+                th_cell = f'<div style="text-align: center;">{th_inner}</div>'
+                actions_cell = '<span style="color: #94a3b8; font-size: 11px; font-weight: 600;">🔒 Архив</span>'
+                row_bg = "background: #fcfcfd;"
+
+            rows_html.append(f"""
+            <tr {row_attr} style="border-bottom: 1px solid #f1f5f9; {row_bg}">
+                <td style="padding: 8px 10px; font-weight: 800; color: {color};">{rec_id}</td>
+                <td style="padding: 8px 10px; font-size: 11px; color: #64748b;">{ts}</td>
+                <td style="padding: 6px 4px;">{wt_cell}</td>
+                <td style="padding: 6px 4px;">{tl_cell}</td>
+                <td {ta_attr} style="padding: 8px 10px; font-size: 12px; color: #64748b;">{t_air}°</td>
+                <td {dt_attr} style="padding: 8px 10px; font-size: 12px; font-weight: 700; color: #0284c7;">{dt}</td>
+                <td style="padding: 6px 4px; text-align: center;">{soil_cell}</td>
+                <td style="padding: 6px 4px;">{tr_cell}</td>
+                <td {dose_attr} style="padding: 8px 10px; font-size: 12px; font-weight: 800; color: #059669;">{dose_display}</td>
+                <td style="padding: 8px 10px;">{ndvi_cell}</td>
+                <td {pla_attr} style="padding: 8px 10px; font-size: 12px;">{pla}</td>
+                <td style="padding: 8px 10px;">{th_cell}</td>
+                <td style="padding: 6px 4px; text-align: center; white-space: nowrap;">{actions_cell}</td>
             </tr>
             """)
 

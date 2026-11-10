@@ -176,3 +176,44 @@ def test_wave2_ui_redesign_and_scrolling():
     real_exps = ExperimentManager(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")).get_experiments()
     wave2_real = next(e for e in real_exps if e["id"] == "exp_1792918800")
     assert wave2_real["count"] == 19
+
+
+def test_wave2_table_renders_all_days_without_30_row_cutoff():
+    """Все дни и строки (включая K1..R2 Дня 0 при >30 записях) должны отображаться в таблице с уникальными ID."""
+    from core.wave2_manager import BATCH_QUEUE_WAVE2
+    from core.wave2_ui import render_wave2_measurements_table
+
+    records = []
+    for day in ("2026-11-09", "2026-11-10"):
+        for pid in BATCH_QUEUE_WAVE2:
+            if pid == "C20":
+                continue
+            records.append({
+                "ID": pid,
+                "Timestamp": day if day == "2026-11-09" else f"{day} 18:30:00",
+                "Weight_g": "100.0" if day == "2026-11-09" else "93.0",
+                "T_Leaf_C": "24.0",
+                "T_Air_C": "25.8",
+                "Delta_T_C": "-1.8",
+                "Moisture_Pct": "80.0" if pid in ("K1", "R1", "P1") else "--",
+                "Turgor_Score": "4",
+                "Water_Dose_ml": "0.0",
+                "NDVI_Mean": "0.600",
+                "NDVI_Std": "0.180",
+                "Leaf_Area_cm2": "10.0",
+                "Opt_File": f"{pid}_{day}_annotated.jpg",
+                "Thermal_File": f"{pid}_{day}_thermal.jpg",
+            })
+
+    assert len(records) == 38
+    html = render_wave2_measurements_table(records)
+
+    assert 'data-day-header="2026-11-10"' in html
+    assert 'data-day-header="2026-11-09"' in html
+    # Все 19 активных строк и все 19 архивных строк (включая K1..R2 от 2026-11-09) присутствуют
+    assert html.count('id="row_') == 19
+    assert html.count('data-archive-row="2026-11-09_') == 19
+    assert 'data-archive-row="2026-11-09_K1_' in html
+    assert 'data-archive-row="2026-11-09_R2_' in html
+    assert html.count('id="row_K1"') == 1
+    assert f"K1_2026-11-09_annotated.jpg" in html
