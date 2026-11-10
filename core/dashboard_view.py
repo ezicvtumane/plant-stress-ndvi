@@ -541,7 +541,7 @@ def build_review_view(pending_session: dict, offset: int, t_now: int, uti_info: 
                     <span>🎯</span> ArUco-маркер #{s.get('aruco_id', '--')} распознан: когорта «{s['group']}»
                 </div>
                 <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:5px; font-weight:700; font-size:10.5px;">
-                    White Ref k={s.get('k_bal', 1.025)} (PTFE)
+                    White Ref k={s.get('k_bal', '--')} (PTFE)
                 </span>
             </div>
             <div style="margin-top:5px; font-size:11.5px; color:#15803d;">
@@ -555,7 +555,7 @@ def build_review_view(pending_session: dict, offset: int, t_now: int, uti_info: 
                     ✓ Спектральный замер выполнен (когорта: «{s['group']}»)
                 </div>
                 <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:5px; font-weight:700; font-size:10.5px;">
-                    White Ref k={s.get('k_bal', 1.025)} (PTFE)
+                    White Ref k={s.get('k_bal', '--')} (PTFE)
                 </span>
             </div>
             <div style="margin-top:5px; font-size:11.5px; color:#0f766e;">

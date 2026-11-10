@@ -30,6 +30,8 @@ CAMERA_AUTO_WB = 0  # 0 = Manual White Balance (AWB disabled)
 
 # Photometric Calibration Parameters (PTFE / Pure Fluoroplastic-4 White Reference)
 # k_bal = I_660_ref / I_850_ref (sensor sensitivity ratio balancing 660nm and 850nm)
+# - Series 1 (Logitech C270 NoIR, Oct 2026): k_bal = 4.070 (195.2 / 48.0, PTFE photos archived)
+# - Series 2 (Sony IMX179 NoIR, 07.11.2026, NIR 5000us/g115, Red 100us/g40): k_bal = 1.150 in data/calibrated_k_bal.txt
 DEFAULT_K_COEFFICIENT = 4.07
 FLAT_FIELD_K_FACTOR = 0.0518  # Lens vignetting compensation factor for edge cells
 
@@ -49,9 +51,13 @@ CWSI_ALERT_THRESHOLD = 0.5   # Empirical Crop Water Stress Index alert
 
 # Empirical Idso NWSB (Non-Water-Stressed Baseline) parameters for Pisum sativum (Stand #0)
 # Delta_T_wet = IDSO_NWSB_INTERCEPT - IDSO_NWSB_SLOPE * VPD
+# AUDIT NOTE (Task 9): Reported fit (a=0.24, b=1.20, R^2=0.985) is UNVERIFIED against the 3 published
+# rounded points (0.53,-0.4), (0.91,-0.6), (1.61,-1.7): exact OLS on those 3 points yields
+# a=0.3703, b=1.2494, R^2=0.9562 (while 0.24 - 1.20*VPD gives R^2=0.9351).
+# Exploratory indicator only; Delta_T_dry=+1.50 C is a 1-point Vaseline approximation.
 IDSO_NWSB_INTERCEPT = 0.24
 IDSO_NWSB_SLOPE = 1.20
-IDSO_DELTA_T_DRY = 1.50  # Calibrated via Oleum Vaselini stomatal block on Stand #0
+IDSO_DELTA_T_DRY = 1.50  # 1-point approximation via Oleum Vaselini stomatal block on Stand #0
 
 # Thermal & NDVI False-Color Palettes
 NDVI_COLORMAP = "COLORMAP_JET"      # Standard OpenCV palette for NDVI thermal representation

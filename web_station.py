@@ -83,7 +83,7 @@ def ensure_wave2_registered(data_dir: str):
                 'name': 'Волна 2: Огурец «Каскад» (GRCBD)',
                 'plant': 'Огурец «Каскад»',
                 'created_at': time.strftime('%Y-%m-%d %H:%M'),
-                'description': 'Огурец Каскад 19 горшков GRCBD + X0, превентивный полив по Delta T и тепловизионный триггер',
+                'description': 'Огурец Каскад: 18 горшков GRCBD + C20 (сателлит-микроскопия) + X0 (лизиметр), превентивный полив по ΔΔT',
                 'folder': 'exp_1792918800'
             })
             reg['experiments'] = exps
@@ -2409,7 +2409,7 @@ async def index(
                         <span>🎯</span> ArUco-маркер #{s.get('aruco_id', '--')} распознан: когорта «{s['group']}»
                     </div>
                     <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:5px; font-weight:700; font-size:10.5px;">
-                        White Ref k={s.get('k_bal', 1.025)} (PTFE)
+                        White Ref k={s.get('k_bal', get_calibrated_k_bal())} (PTFE)
                     </span>
                 </div>
                 <div style="margin-top:5px; font-size:11.5px; color:#15803d;">
@@ -2423,7 +2423,7 @@ async def index(
                         ✓ Спектральный замер выполнен (когорта: «{s['group']}»)
                     </div>
                     <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:5px; font-weight:700; font-size:10.5px;">
-                        White Ref k={s.get('k_bal', 1.025)} (PTFE)
+                        White Ref k={s.get('k_bal', get_calibrated_k_bal())} (PTFE)
                     </span>
                 </div>
                 <div style="margin-top:5px; font-size:11.5px; color:#0f766e;">

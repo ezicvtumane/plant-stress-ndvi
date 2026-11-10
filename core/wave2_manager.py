@@ -51,7 +51,7 @@ TURGOR_SCALE = {
     1: "1 — Глубокое увядание (критический стресс, потеря прочности)"
 }
 
-# Каталог 20 горшков (3 поддона по 6 штук + 1 малый лоток пилота)
+# Каталог 20 сосудов (18 GRCBD в 3 блоках + C20 сателлит-микроскопия + X0 холостой лизиметр)
 POTS_CATALOG: Dict[str, Dict[str, Any]] = {
     # ХОЛОСТОЙ ЛИЗИМЕТР (Контроль испарения почвы E по FAO-56)
     "X0": {"id": "X0", "cohort": "Lysimeter_Blank", "block": 0, "color": "#64748b", "badge": "⚖️ Лизиметр Х0 (FAO-56)", "target_weight": 100.0, "has_probe": False},
@@ -84,7 +84,7 @@ POTS_CATALOG: Dict[str, Dict[str, Any]] = {
     "C20": {"id": "C20", "cohort": "Satellite", "block": 0, "color": "#8b5cf6", "badge": "🟣 Сателлит (Микроскопия)", "target_weight": 100.0, "has_probe": False},
 }
 
-# Порядок очереди конвейера по когортам: Контроль -> Реакция -> Превенция -> Пилот
+# Порядок очереди конвейера по когортам: Лизиметр X0 -> Контроль -> Реакция -> Превенция -> Сателлит C20
 BATCH_QUEUE_WAVE2 = [
     # 0. Холостой лизиметр FAO-56 (Х0)
     "X0",
@@ -113,7 +113,12 @@ CSV_HEADER_WAVE2 = [
 # ==============================================================================
 
 def calculate_water_dose(current_weight: Any, target_weight: float = 100.0, pla_cm2: Optional[float] = None) -> Optional[float]:
-    """Расчет дефицита полива в миллилитрах с динамической компенсацией нарастания биомассы по PLA."""
+    """
+    Расчет дефицита полива (мл) до целевой массы сосуда.
+    По итогам аудита (Option A) активный конвейер Волны 2 передает pla_cm2=None
+    (целевая масса строго 100.0 г); опциональный параметр pla_cm2 сохранен для
+    исследовательских расчетов (+ round(pla_cm2 * 0.06, 1) при явной передаче).
+    """
     if current_weight is None or current_weight == "" or current_weight == "--":
         return None
     try:
@@ -225,16 +230,30 @@ def detect_aruco_scale_on_floor(gray_img: np.ndarray, real_size_cm: float = 1.5,
                 corners, ids, _ = cv2.aruco.detectMarkers(gray_u8, aruco_dict, parameters=params)
             
             if ids is not None and len(corners) > 0:
-                c = corners[0][0]
-                side_px = (
-                    np.linalg.norm(c[0] - c[1]) +
-                    np.linalg.norm(c[1] - c[2]) +
-                    np.linalg.norm(c[2] - c[3]) +
-                    np.linalg.norm(c[3] - c[0])
-                ) / 4.0
-                if side_px > 5.0:
+                h_img, w_img = cur_img.shape[:2]
+                flat_ids = np.asarray(ids).flatten()
+                for idx_c, corner_wrap in enumerate(corners):
+                    c = np.asarray(corner_wrap).reshape(4, 2)
+                    sides = [float(np.linalg.norm(c[i] - c[(i + 1) % 4])) for i in range(4)]
+                    min_side = min(sides)
+                    max_side = max(sides)
+                    aspect = (min_side / max_side) if max_side > 0 else 0.0
+                    cx = float(np.mean(c[:, 0]))
+                    cy = float(np.mean(c[:, 1]))
+                    # Геометрический и позиционный фильтр против CLAHE-артефактов на стенках бокса:
+                    # отвергаем сплющенные/мелкие ложные срабатывания (<30 px, aspect < 0.70) и краевые стены (<15% / >85% X).
+                    if (
+                        min_side < 30.0
+                        or aspect < 0.70
+                        or cx < 0.15 * w_img
+                        or cx > 0.85 * w_img
+                        or cy < 0.05 * h_img
+                        or cy > 0.95 * h_img
+                    ):
+                        continue
+                    side_px = sum(sides) / 4.0
                     scale = float(side_px / real_size_cm)
-                    mid = int(ids[0][0])
+                    mid = int(flat_ids[idx_c])
                     print(f"[ArUco Scale]: Обнаружен маркер ID={mid}, грань={side_px:.1f}px, масштаб дна={scale:.2f} px/cm")
                     return ScaleResult(scale, detected=True, marker_id=mid, corners=c, side_px=side_px)
         except Exception as e:

@@ -10,10 +10,10 @@ EXPERIMENT_META = {
     "track": "Агропромышленные и биотехнологии (Сириус «Большие вызовы» 2026)",
     "crop": "Cucumis sativus L. (сорт «Каскад»)",
     "start_date": "2026-10-25",
-    "measurement_window": "18:00-18:30",
+    "target_window": "18:00-18:30",  # Целевое окно (факт 09.11: 19:27-19:40 оптика / 20:48-23:08 тепло)
     "pot_tare_g": 5.0,
     "target_weight_gross_g": 100.0,
-    "biomass_pla_coeff": 0.06,  # Правило №1 (CWSI / FAO-56): 0.06 г/см² сырой биомассы листа
+    "biomass_pla_coeff": 0.06,  # Правило №1 (опционально) (опционально; в активном этапе Option A отключено)
     "emissivity_lwir": 0.98,
     "threshold_delta_delta_t": 0.6,  # Правило №2: нормированный триггер ΔΔT >= +0.6 °C относительно контроля
     "cluster_min_plants": 4,  # Кворум: минимум 4 из 6 растений когорты
@@ -112,7 +112,9 @@ def evaluate_cluster_triggers(daily_measurements: Dict[str, Dict[str, Any]]) -> 
     r_pids = ["R1", "R2", "R3", "R4", "R5", "R6"]
     r_stressed_count = sum(
         1 for pid in r_pids
-        if pid in daily_measurements and daily_measurements[pid].get("turgor", 4) <= EXPERIMENT_META["turgor_reaction_trigger_score"]
+        if pid in daily_measurements
+        and daily_measurements[pid].get("turgor") is not None
+        and daily_measurements[pid]["turgor"] <= EXPERIMENT_META["turgor_reaction_trigger_score"]
     )
     reaction_triggered = r_stressed_count >= EXPERIMENT_META["cluster_min_plants"]
 
