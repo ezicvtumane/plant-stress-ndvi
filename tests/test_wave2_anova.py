@@ -183,18 +183,40 @@ def test_wave2_anova_reads_csv_column_names(tmp_path):
             assert "12.5" in row["k_str"]
 
 
-def test_day0_committed_report_scientifically_accurate_and_numbers_preserved():
-    """Проверка Раздела 6: в docs/wave2/ANOVA_LATEST_REPORT.md убраны завышенные выводы при сохранении всех чисел."""
+def test_day0_committed_report_scientifically_accurate_and_numbers_preserved(tmp_path):
+    """Проверка Раздела 6: в ANOVA_LATEST_REPORT.md нет завышенных выводов, а Day 0 воспроизводит все исходные числа."""
+    import csv
+
     report_path = os.path.join(PROJECT_ROOT, "docs", "wave2", "ANOVA_LATEST_REPORT.md")
-    txt = open(report_path, encoding="utf-8").read()
+    latest_txt = open(report_path, encoding="utf-8").read()
     for forbidden in ("Нулевая гипотеза подтверждена", "Стартовый перекос исключен", "отсутствуют. Стартовый"):
-        assert forbidden not in txt
-    assert "не доказывает эквивалентность групп" in txt
-    assert "100.0 г" in txt and "тарирования" in txt
-    assert "не доказывает отсутствие всех возможных стартовых различий" in txt
+        assert forbidden not in latest_txt
+    assert "Two-Way ANOVA" in latest_txt
+
+    csv_path = os.path.join(PROJECT_ROOT, "data", "experiments", "exp_1792918800", "measurements_wave2.csv")
+    with open(csv_path, "r", encoding="utf-8-sig") as f:
+        nov9_rows = [
+            r for r in csv.DictReader(f)
+            if r["Timestamp"].strip().startswith("2026-11-09") and r["ID"].strip().upper() != "X0"
+        ]
+    assert len(nov9_rows) == 18
+
+    res = analyze_wave2_dataset(
+        nov9_rows,
+        static_dir=str(tmp_path / "static"),
+        docs_dir=str(tmp_path / "docs"),
+    )
+    assert res["ok"] is True
+    assert res["phase"] == "baseline"
+    day0_txt = (tmp_path / "docs" / "ANOVA_LATEST_REPORT.md").read_text(encoding="utf-8")
+    for forbidden in ("Нулевая гипотеза подтверждена", "Стартовый перекос исключен", "отсутствуют. Стартовый"):
+        assert forbidden not in day0_txt
+    assert "не доказывает эквивалентность групп" in day0_txt
+    assert "100.0 г" in day0_txt and "тарирования" in day0_txt
+    assert "не доказывает отсутствие всех возможных стартовых различий" in day0_txt
     # Исходные расчетные значения Дня 0 сохранены без изменений
     for num in ("100.0 ± 0.0", "-1.67 ± 0.07", "0.2036", "0.177", "0.9404", "0.7277", "0.0542"):
-        assert num in txt
+        assert num in day0_txt
 
 
 def test_day1_slice_reports_monitoring_not_day0_baseline(tmp_path):
