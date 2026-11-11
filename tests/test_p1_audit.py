@@ -460,3 +460,38 @@ def test_do_hardware_capture_wave2_captures_ambient_before_led_and_cleans_up(mon
     assert "auto_exposure=3" in v4l2_calls[-1]
     assert metrics["valid_pixels"] >= 14000
     assert metrics["ndvi_mean"] > 0.45
+
+
+def test_phenotyping_rejects_dry_peat_glare_sensor_wire_and_empty_lysimeter():
+    """При ненулевом фоне бокса и сухом торфе (32-42 DN) маска выделяет только лист, а X0 даёт PLA = 0."""
+    h, w = 720, 1280
+    # Базовый фон дна бокса (8-14 DN) и слабый красный фон (2-3 DN)
+    nir = np.full((h, w), 10.0, dtype=np.float32)
+    red = np.full((h, w), 2.5, dtype=np.float32)
+
+    # Сухой торф (32-40 DN NIR, 5-6 DN RED -> высокий ложный NDVI ~0.73)
+    nir[150:390, 460:700] = 36.0
+    red[150:390, 460:700] = 5.5
+
+    # Блик на дне бокса (14 DN NIR, 2.5 DN RED)
+    nir[520:580, 500:820] = 14.0
+    red[520:580, 500:820] = 2.5
+
+    # Узкий блестящий край бортика горшка (7x40 px) и белый провод датчика влажности слева
+    nir[320:360, 440:447] = 58.0
+    red[320:360, 440:447] = 4.0
+    nir[180:460, 305:312] = 65.0
+    red[180:460, 305:312] = 52.0
+
+    # Пустой лизиметр X0 (только фон, торф, бортик и провод) -> PLA должен быть строго 0
+    _, metrics_x0 = compute_single_pot_phenotyping(red, nir, pot_id="X0", k_bal=1.150)
+    assert metrics_x0["valid_pixels"] == 0
+    assert metrics_x0["pla_cm2"] == 0.0
+
+    # Добавляем реальный лист 200x220 px (44000 px, 90 DN NIR, 4 DN RED)
+    nir[190:410, 580:780] = 90.0
+    red[190:410, 580:780] = 4.0
+    _, metrics_k1 = compute_single_pot_phenotyping(red, nir, pot_id="K1", k_bal=1.150)
+    assert 42500 <= metrics_k1["valid_pixels"] <= 44500
+    assert 9.5 <= metrics_k1["pla_cm2"] <= 10.6
+    assert metrics_k1["ndvi_mean"] > 0.85

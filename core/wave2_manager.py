@@ -48,9 +48,10 @@ WAVE2_EXPERIMENT_META = {
     "emissivity_lwir": 0.98,
     "k_bal_ptfe": 1.150,
     "k_bal_calibration_version": "calib-kbal-s2-2026-11-07",
-    "nir_threshold_dn": 6.5,
-    "ndvi_threshold": 0.25,
-    "min_leaf_component_px": 160,
+    "nir_threshold_dn": 50.0,
+    "nir_synthetic_min_dn": 6.5,
+    "ndvi_threshold": 0.45,
+    "min_leaf_component_px": 220,
 }
 
 _CYR_TO_LAT_POT_ID = str.maketrans({"К": "K", "П": "P", "Р": "R", "Х": "X", "С": "C"})
@@ -274,6 +275,38 @@ def detect_aruco_scale_on_floor(gray_img: np.ndarray, real_size_cm: float = 1.5,
     return ScaleResult(default_px_per_cm, detected=False)
 
 
+def _compute_adaptive_nir_threshold(
+    nir_smooth: np.ndarray,
+    roi_mask: np.ndarray,
+    nir_floor_dn: float,
+    nir_synthetic_min_dn: float,
+) -> float:
+    """
+    Адаптивный порог NIR-маски листа внутри рабочего ROI (без краёв бокса и ArUco):
+    - для реальной съёмки бокса (ненулевой фон/торф или высокий сигнал ≥45 DN) отсекает
+      отражение сухого торфа и блики дна через max(nir_floor_dn, Otsu, bg_med + 6*MAD) с потолком 56 DN;
+    - для разреженных синтетических сцен на строго нулевом фоне масштабируется по Otsu.
+    """
+    roi_vals = nir_smooth[roi_mask]
+    if roi_vals.size == 0:
+        return float(nir_floor_dn)
+
+    roi_nonzero_frac = float(np.mean(roi_vals > 0.5))
+    roi_p99 = float(np.percentile(roi_vals, 99))
+    bg_med = float(np.median(roi_vals))
+    bg_mad = float(np.median(np.abs(roi_vals - bg_med)))
+
+    roi_u8 = np.clip(roi_vals, 0, 255).astype(np.uint8).reshape(-1, 1)
+    otsu_t = 0.0
+    if roi_u8.max() > roi_u8.min():
+        otsu_t, _ = cv2.threshold(roi_u8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    is_real_scene = (roi_nonzero_frac >= 0.10) or (roi_p99 >= 45.0)
+    if is_real_scene:
+        return float(min(56.0, max(float(nir_floor_dn), float(otsu_t), bg_med + max(18.0, 6.0 * bg_mad))))
+    return float(max(float(nir_synthetic_min_dn), min(14.0, float(otsu_t) * 0.8)))
+
+
 def compute_single_pot_phenotyping(
     red_channel: np.ndarray,
     nir_channel: np.ndarray,
@@ -301,22 +334,15 @@ def compute_single_pot_phenotyping(
     ndvi_raw = numerator / denominator
     ndvi_clamped = np.clip(ndvi_raw, -1.0, 1.0)
     
-    # 2. Сегментация мезофилла листа (устранение фона торфа, пластика и боковых стенок бокса)
-    nir_thresh = WAVE2_EXPERIMENT_META["nir_threshold_dn"]
-    ndvi_thresh = WAVE2_EXPERIMENT_META["ndvi_threshold"]
-    raw_mask = (ndvi_clamped > ndvi_thresh) & (nir_f > nir_thresh)
-
-    # Масштаб дна определяем до сегментации, чтобы сразу исключить белую карточку ArUco
+    # 2. Сегментация мезофилла листа (устранение фона торфа, пластика, провода датчика и боковых стенок бокса)
+    # Масштаб дна определяем до сегментации, чтобы сразу исключить белую карточку ArUco из расчёта порога и маски
     px_per_cm_floor = detect_aruco_scale_on_floor(nir_channel, secondary_img=red_channel)
 
-    # Отсечение боковых стенок и углов бокса (20% по горизонтали, 6% сверху, 16% снизу)
     margin_x = int(w * 0.20)
     margin_top = int(h * 0.06)
     margin_bottom = int(h * 0.16)
-    raw_mask[:, :margin_x] = False
-    raw_mask[:, w - margin_x:] = False
-    raw_mask[:margin_top, :] = False
-    raw_mask[h - margin_bottom:, :] = False
+    roi_mask = np.zeros((h, w), dtype=bool)
+    roi_mask[margin_top:h - margin_bottom, margin_x:w - margin_x] = True
 
     if getattr(px_per_cm_floor, "detected", False) and getattr(px_per_cm_floor, "corners", None) is not None:
         pts = np.asarray(px_per_cm_floor.corners, dtype=np.float32)
@@ -326,11 +352,24 @@ def compute_single_pot_phenotyping(
         ay1 = max(0, int(np.floor(np.min(pts[:, 1]))) - pad)
         ax2 = min(w, int(np.ceil(np.max(pts[:, 0]))) + pad)
         ay2 = min(h, int(np.ceil(np.max(pts[:, 1]))) + pad)
-        raw_mask[ay1:ay2, ax1:ax2] = False
+        roi_mask[ay1:ay2, ax1:ax2] = False
+
+    nir_smooth = cv2.GaussianBlur(nir_f, (5, 5), 0)
+    nir_thresh = _compute_adaptive_nir_threshold(
+        nir_smooth,
+        roi_mask,
+        nir_floor_dn=WAVE2_EXPERIMENT_META["nir_threshold_dn"],
+        nir_synthetic_min_dn=WAVE2_EXPERIMENT_META["nir_synthetic_min_dn"],
+    )
+    ndvi_thresh = WAVE2_EXPERIMENT_META["ndvi_threshold"]
+    raw_mask = roi_mask & (ndvi_clamped > ndvi_thresh) & (nir_smooth > nir_thresh)
 
     mask_u8 = raw_mask.astype(np.uint8) * 255
-    # Морфологическое связывание и устранение микробликов кутикулы
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+    # MORPH_OPEN отсекает тонкие линейные блики (бортик горшка, провод датчика A0),
+    # MORPH_CLOSE восстанавливает целостность листа и сглаживает микроблики кутикулы
+    kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+    mask_u8 = cv2.morphologyEx(mask_u8, cv2.MORPH_OPEN, kernel_open)
     mask_u8 = cv2.morphologyEx(mask_u8, cv2.MORPH_CLOSE, kernel_close)
 
     # Фильтрация шумов через connectedComponentsWithStats с проверкой центроидов
