@@ -85,6 +85,7 @@ static/thermal_uploads/
 *.bak
 *.monolith_bak
 *.npz
+data/raw_channels/
 archive_*/
 _archive_scratch_workspace/
 scratch/

@@ -3270,6 +3270,15 @@ def do_hardware_capture_wave2(pot_id: str):
     except Exception:
         pass
 
+    # Локальный архив сырых каналов без потерь (npz float32) для возможности повторного анализа
+    raw_channels_dir = os.path.join(DATA_DIR, 'raw_channels')
+    try:
+        os.makedirs(raw_channels_dir, exist_ok=True)
+        raw_pot_path = os.path.join(raw_channels_dir, f"{pot_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_raw.npz")
+        np.savez_compressed(raw_pot_path, red=red_channel, nir=nir_channel)
+    except Exception as e:
+        print(f'[Wave 2 Raw Channels Archive Warning]: {e}', flush=True)
+
     k_bal = get_calibrated_k_bal()
     annotated_img, metrics = compute_single_pot_phenotyping(
         red_channel=red_channel,
