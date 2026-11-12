@@ -966,7 +966,8 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
         const titleEl = document.getElementById('imageViewerTitle');
         const linkEl = document.getElementById('imageViewerDownload');
         if (!modal || !img) return;
-        img.src = url;
+        const sep = url.indexOf('?') === -1 ? '?' : '&';
+        img.src = url + sep + '_ts=' + Date.now();
         if (titleEl) titleEl.innerText = title || 'Просмотр снимка';
         if (linkEl) linkEl.href = url;
         modal.style.display = 'flex';

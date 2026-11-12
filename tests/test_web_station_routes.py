@@ -3,6 +3,7 @@
 Автор: Ковалева Алиса, Большие вызовы (Сириус)
 """
 
+import re
 import pytest
 from fastapi.testclient import TestClient
 from web_station import app
@@ -123,8 +124,12 @@ def test_wave2_update_record_and_thermal():
     assert res_upload.status_code == 200
     up_data = res_upload.json()
     assert up_data['status'] == 'ok'
-    assert 'K1_' in up_data['filename']
-    assert up_data['filename'].endswith('.jpg')
+    assert re.fullmatch(r'K1_\d{8}_thermal\.jpg', up_data['filename'])
+
+    # 4. Повторная загрузка в тот же день сохраняет имя {ID}_{YYYYMMDD}_thermal.jpg без _HHMMSS
+    res_reupload = client.post('/api/wave2/upload_thermal', data={'pot_id': 'K1'}, files={'thermal_file': ('K1_new.jpg', fake_img, 'image/jpeg')})
+    assert res_reupload.status_code == 200
+    assert res_reupload.json()['filename'] == up_data['filename']
 
 
 def test_wave2_bmp_upload_and_conversion():
@@ -141,8 +146,8 @@ def test_wave2_bmp_upload_and_conversion():
     assert res.status_code == 200
     data = res.json()
     assert data['status'] == 'ok'
-    assert data['filename'].endswith('.jpg')
-    assert data['raw_filename'].endswith('.bmp')
+    assert re.fullmatch(r'K2_\d{8}_thermal\.jpg', data['filename'])
+    assert re.fullmatch(r'K2_\d{8}_thermal\.bmp', data['raw_filename'])
 
 
 def test_wave2_ui_redesign_and_scrolling():

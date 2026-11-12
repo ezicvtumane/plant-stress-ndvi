@@ -3388,8 +3388,7 @@ async def handle_wave2_capture_and_save(
             ext = os.path.splitext(thermal_file.filename)[1].lower()
             if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp'):
                 ext = '.jpg'
-            ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
-            thermal_saved_name = f"{pot_id}_{ts_f}_thermal{ext}"
+            thermal_saved_name = build_thermal_filename(pot_id, ext)
             th_save_path = os.path.join(wave2_storage.images_dir, thermal_saved_name)
             with open(th_save_path, "wb") as buf:
                 shutil.copyfileobj(thermal_file.file, buf)
@@ -3454,6 +3453,15 @@ async def handle_wave2_capture_and_save(
     except Exception as e:
         return JSONResponse({'status': 'error', 'error': str(e)}, status_code=500)
 
+
+
+def build_thermal_filename(pot_id: str, ext: str = '.jpg') -> str:
+    """Формирует имя файла термограммы вида `{pot_id}_{YYYYMMDD}_thermal{ext}` (только дата, без времени)."""
+    norm_ext = (ext or '.jpg').lower()
+    if not norm_ext.startswith('.'):
+        norm_ext = f'.{norm_ext}'
+    date_f = datetime.now().strftime('%Y%m%d')
+    return f"{pot_id}_{date_f}_thermal{norm_ext}"
 
 
 def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: str) -> tuple[str, float | None]:
@@ -3703,8 +3711,7 @@ async def handle_wave2_update_record(
             ext = os.path.splitext(thermal_file.filename)[1].lower()
             if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp', '.dib'):
                 ext = '.jpg'
-            ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
-            saved_th_name = f"{pot_id}_{ts_f}_thermal{ext}"
+            saved_th_name = build_thermal_filename(pot_id, ext)
             th_save_path = os.path.join(wave2_storage.images_dir, saved_th_name)
             with open(th_save_path, "wb") as buf:
                 shutil.copyfileobj(thermal_file.file, buf)
@@ -3925,9 +3932,8 @@ def grab_latest_uti_thermal_image(pot_id: str, images_dir: str):
     latest_src = all_files[0]
     orig_name = os.path.basename(latest_src)
 
-    ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
-    ext = os.path.splitext(latest_src)[1].lower()
-    raw_saved_name = f"{pot_id}_{ts_f}_thermal{ext}"
+    ext = os.path.splitext(latest_src)[1].lower() or '.jpg'
+    raw_saved_name = build_thermal_filename(pot_id, ext)
     raw_save_path = os.path.join(images_dir, raw_saved_name)
 
     # 1. Сохраняем снимок на станцию
@@ -4143,11 +4149,8 @@ async def handle_wave2_uti_import_file(
         shutil.copyfile(src_path, os.path.join(exp_reserve, safe_name))
         
         # 2. Сохраняем в рабочую папку серии с привязкой к горшку
-        ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
-        ext = os.path.splitext(safe_name)[1].lower()
-        if not ext:
-            ext = '.bmp'
-        raw_saved_name = f"{pot_id}_{ts_f}_thermal{ext}"
+        ext = os.path.splitext(safe_name)[1].lower() or '.bmp'
+        raw_saved_name = build_thermal_filename(pot_id, ext)
         raw_save_path = os.path.join(wave2_storage.images_dir, raw_saved_name)
         shutil.copyfile(src_path, raw_save_path)
         
@@ -4236,8 +4239,7 @@ async def handle_wave2_upload_thermal(
         ext = os.path.splitext(thermal_file.filename)[1].lower()
         if not ext or ext not in ('.jpg', '.jpeg', '.png', '.bmp', '.dib'):
             ext = '.jpg'
-        ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
-        thermal_saved_name = f"{pot_id}_{ts_f}_thermal{ext}"
+        thermal_saved_name = build_thermal_filename(pot_id, ext)
         th_save_path = os.path.join(wave2_storage.images_dir, thermal_saved_name)
         with open(th_save_path, "wb") as buf:
             shutil.copyfileobj(thermal_file.file, buf)
