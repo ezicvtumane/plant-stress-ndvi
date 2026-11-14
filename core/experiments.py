@@ -151,7 +151,11 @@ class ExperimentManager:
     def get_active_csv_path(self) -> str:
         active = self.get_active_experiment()
         folder = active.get('folder', 'exp_1')
-        csv_path = os.path.join(self.exp_base_dir, folder, 'measurements.csv')
+        exp_dir = os.path.join(self.exp_base_dir, folder)
+        wave2_csv = os.path.join(exp_dir, 'measurements_wave2.csv')
+        if os.path.isfile(wave2_csv):
+            return wave2_csv
+        csv_path = os.path.join(exp_dir, 'measurements.csv')
         if not os.path.exists(csv_path):
             self._write_csv_header(csv_path)
         return csv_path

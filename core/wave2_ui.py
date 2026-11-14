@@ -42,7 +42,11 @@ def render_wave2_cluster_banner(records_today: List[Dict[str, Any]]) -> str:
     """
 
 
-def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id: str) -> str:
+def render_wave2_tray_layout(
+    records_today: List[Dict[str, Any]],
+    active_pot_id: str,
+    all_records: Optional[List[Dict[str, Any]]] = None,
+) -> str:
     """
     Покогортный конвейер съемки со встроенными статусами триггеров в заголовках блоков:
     1. КОНТРОЛЬ (К1-К6)
@@ -51,7 +55,7 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
     4. САТЕЛЛИТ (С20) + ЛИЗИМЕТР (Х0)
     """
     by_pot = {str(r.get("ID", "")).strip().upper(): r for r in records_today}
-    status = evaluate_cohort_cluster_status(records_today)
+    status = evaluate_cohort_cluster_status(records_today, all_records=all_records)
     p_st = status["prevention"]
     r_st = status["reaction"]
     sat_st = status.get("satellite", {"status_text": "Донор лаковых реплик (долив до 100.0 г)", "badge_color": "#8b5cf6"})
@@ -460,7 +464,8 @@ def render_wave2_tray_layout(records_today: List[Dict[str, Any]], active_pot_id:
 def render_wave2_active_pot_card(
     active_pot_id: str,
     records_today: List[Dict[str, Any]],
-    current_climate: Dict[str, Any]
+    current_climate: Dict[str, Any],
+    all_records: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Генерация центральной карточки замера для выбранного горшка."""
     meta = POTS_CATALOG.get(active_pot_id, POTS_CATALOG["K1"])
@@ -525,8 +530,8 @@ def render_wave2_active_pot_card(
     else:
         probe_badge = "<span style='color: #94a3b8; font-size: 11px;'>🌱 Датчик почвы: нет (—)</span>" 
 
-    # Оценка триггера когорты и единое решение о поливе
-    status = evaluate_cohort_cluster_status(records_today)
+    # Оценка триггера когорты и единое решение о поливе (с учетом режима восстановления)
+    status = evaluate_cohort_cluster_status(records_today, all_records=all_records)
     cohort = meta["cohort"]
 
     # Расчет дефицита массы без авто-PLA (Option A: целевая масса строго 100.0 г)
@@ -542,7 +547,10 @@ def render_wave2_active_pot_card(
     elif cohort in ("Prevention", "Reaction"):
         deficit_note = f" (расчётный дефицит: {raw_dose} мл)" if raw_dose is not None else ""
         if watering_decision["watering_allowed"]:
-            action_note = "ТРИГГЕР СРАБОТАЛ — ПОЛИТЬ!" if cohort == "Prevention" else "УВЯДАНИЕ — РЕАНИМАЦИЯ!"
+            if watering_decision.get("reason") == "recovery":
+                action_note = "РЕЖИМ ВОССТАНОВЛЕНИЯ (пост-стресс) — Ежедневный долив"
+            else:
+                action_note = "ТРИГГЕР СРАБОТАЛ — ПОЛИТЬ!" if cohort == "Prevention" else "УВЯДАНИЕ — РЕАНИМАЦИЯ!"
             dose_val_txt = f"{raw_dose} мл" if raw_dose is not None else "введите массу"
             dose_html = f"<span style='color: #059669; font-weight: 800; font-size: 18px;'>{dose_val_txt}</span> ({action_note})"
         elif watering_decision["reason"] == "insufficient_data":
@@ -749,7 +757,7 @@ def render_wave2_measurements_table(records: List[Dict[str, Any]]) -> str:
             rec_day = raw_ts[:10] if len(raw_ts) >= 10 and raw_ts[4:5] == "-" else raw_ts
             records_by_date.setdefault(rec_day, []).append(rec_item)
         cluster_by_date = {
-            ts_key: evaluate_cohort_cluster_status(day_recs)
+            ts_key: evaluate_cohort_cluster_status(day_recs, all_records=records)
             for ts_key, day_recs in records_by_date.items()
         }
 

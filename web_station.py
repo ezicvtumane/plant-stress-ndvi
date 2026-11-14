@@ -1796,11 +1796,12 @@ async def index(
             else (None, None)
         )
 
-        tray_layout_html = render_wave2_tray_layout(records_today, active_pot_id)
+        tray_layout_html = render_wave2_tray_layout(records_today, active_pot_id, all_records=all_records)
         active_card_html = render_wave2_active_pot_card(
             active_pot_id,
             records_today,
             {'t_c': cur_t, 'rh_pct': cur_rh, 'cur_v': cur_v, 'soil_v': soil_v, 'soil_pct': soil_pct},
+            all_records=all_records,
         )
         channels_card_html = render_wave2_channels_card(t_now)
         table_html = render_wave2_measurements_table(all_records)
@@ -3104,13 +3105,14 @@ def download_experiment_zip():
 
 @app.get('/download/csv')
 def download_active_csv():
-    """Скачивание CSV журнала активной серии опытов."""
+    """Скачивание CSV журнала активной серии опытов (с автовыбором measurements_wave2.csv для Волны 2)."""
     exp_mgr = get_experiment_manager(DATA_DIR)
     active_csv = exp_mgr.get_active_csv_path()
     active_exp = exp_mgr.get_active_experiment()
     exp_name = active_exp.get('name', 'measurements').replace(' ', '_')
     if os.path.exists(active_csv):
-        return FileResponse(active_csv, filename=f"{exp_name}.csv", media_type='text/csv')
+        fname = f"{exp_name}_wave2.csv" if "wave2" in os.path.basename(active_csv).lower() else f"{exp_name}.csv"
+        return FileResponse(active_csv, filename=fname, media_type='text/csv')
     return HTMLResponse('Файл CSV не найден')
 
 @app.get('/download/images_zip')
@@ -3381,6 +3383,7 @@ async def handle_wave2_capture_and_save(
         # 3. Сохранение в measurements_wave2.csv
         wave2_storage = Wave2Storage(DATA_DIR)
         today_recs = wave2_storage.load_today_records()
+        all_recs = wave2_storage.load_all_records()
         preview_fields = {
             'ID': pot_id,
             'Weight_g': round(parsed_weight, 1) if parsed_weight is not None else '--',
@@ -3388,7 +3391,7 @@ async def handle_wave2_capture_and_save(
             'Turgor_Score': parsed_turgor if parsed_turgor is not None else '--',
         }
         decision, cluster_status = evaluate_pot_watering_with_projection(
-            today_recs, pot_id, preview_fields, raw_deficit
+            today_recs, pot_id, preview_fields, raw_deficit, all_records=all_recs
         )
         dose = decision['effective_dose']
         dose_out = format_watering_decision_output(decision)
@@ -3437,7 +3440,7 @@ async def handle_wave2_capture_and_save(
             'Turgor_Score': parsed_turgor if parsed_turgor is not None else '--',
             'Water_Dose_ml': dose if dose is not None else '--'
         }
-        ok, msg = wave2_storage.save_or_update_record(row_data)
+        ok, msg = wave2_storage.save_or_update_record(row_data, allow_session_split=True)
         if ok:
             wave2_storage.sync_cohort_water_doses()
 
@@ -3465,12 +3468,15 @@ async def handle_wave2_capture_and_save(
 
 
 def build_thermal_filename(pot_id: str, ext: str = '.jpg') -> str:
-    """Формирует имя файла термограммы вида `{pot_id}_{YYYYMMDD}_thermal{ext}` (только дата, без времени)."""
+    """
+    Формирует уникальное имя файла термограммы вида `{pot_id}_{YYYYMMDD}_{HHMMSS}_thermal{ext}`.
+    Включение секунд гарантирует сохранность повторных дневных замеров при стрессе.
+    """
     norm_ext = (ext or '.jpg').lower()
     if not norm_ext.startswith('.'):
         norm_ext = f'.{norm_ext}'
-    date_f = datetime.now().strftime('%Y%m%d')
-    return f"{pot_id}_{date_f}_thermal{norm_ext}"
+    ts_f = datetime.now().strftime('%Y%m%d_%H%M%S')
+    return f"{pot_id}_{ts_f}_thermal{norm_ext}"
 
 
 def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: str) -> tuple[str, float | None]:
@@ -3571,8 +3577,9 @@ def _apply_thermal_ocr_and_save_wave2(
 
     existing_weight = existing.get('Weight_g') if existing else None
     raw_deficit = calculate_water_dose(existing_weight, 100.0)
+    all_recs = wave2_storage.load_all_records()
     decision, cluster_status = evaluate_pot_watering_with_projection(
-        today_recs, pot_id, update_dict, raw_deficit
+        today_recs, pot_id, update_dict, raw_deficit, all_records=all_recs
     )
     dose = decision['effective_dose']
     dose_out = format_watering_decision_output(decision)
@@ -3755,8 +3762,9 @@ async def handle_wave2_update_record(
             update_dict['Moisture_Pct'] = '--'
             update_dict['Moisture_V'] = '--'
 
+        all_recs = wave2_storage.load_all_records()
         decision, cluster_status = evaluate_pot_watering_with_projection(
-            today_recs, pot_id, update_dict, raw_deficit
+            today_recs, pot_id, update_dict, raw_deficit, all_records=all_recs
         )
         dose = decision['effective_dose']
         dose_out = format_watering_decision_output(decision)

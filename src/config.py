@@ -30,7 +30,7 @@ CAMERA_AUTO_WB = 0  # 0 = Manual White Balance (AWB disabled)
 
 # Photometric Calibration Parameters (PTFE / Pure Fluoroplastic-4 White Reference)
 # k_bal = I_660_ref / I_850_ref (sensor sensitivity ratio balancing 660nm and 850nm)
-DEFAULT_K_COEFFICIENT = 4.07
+DEFAULT_K_COEFFICIENT = 4.07  # Legacy Series 1 (C270); Wave 2 uses 1.150 from data/calibrated_k_bal.txt
 ACTIVE_KBAL_CALIBRATION_PROFILE = "series2_imx179_v1"
 KBAL_CALIBRATION_PROFILES = {
     "series1_c270_v1": {

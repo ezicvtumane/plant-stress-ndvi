@@ -28,6 +28,9 @@ from core.wave2_manager import (
     calculate_water_dose,
     compute_single_pot_phenotyping,
     detect_aruco_scale_on_floor,
+    evaluate_cohort_cluster_status,
+    resolve_cohort_watering_decision,
+    detect_prior_cohort_trigger,
 )
 from core.wave2_ui import render_wave2_active_pot_card
 from core.dashboard_view import build_review_view
@@ -498,3 +501,79 @@ def test_phenotyping_rejects_dry_peat_glare_sensor_wire_and_empty_lysimeter():
     assert 42500 <= metrics_k1["valid_pixels"] <= 44500
     assert 9.5 <= metrics_k1["pla_cm2"] <= 10.6
     assert metrics_k1["ndvi_mean"] > 0.85
+
+
+def test_prevention_recovery_phase_persistence_on_next_day():
+    """Проверка P1: триггер Превенции переходит в Режим восстановления на следующий день после первого полива."""
+    exp_dir = os.path.join(PROJECT_ROOT, "data", "experiments", "exp_1792918800")
+    csv_path = os.path.join(exp_dir, "measurements_wave2.csv")
+    with open(csv_path, "r", encoding="utf-8") as f:
+        all_records = list(csv.DictReader(f))
+
+    # На Дне 3 (2026-11-12) Превенция получила 101.2 мл суммарно
+    p_prior = detect_prior_cohort_trigger("Prevention", all_records, current_date="2026-11-13")
+    r_prior = detect_prior_cohort_trigger("Reaction", all_records, current_date="2026-11-13")
+    assert p_prior is True, "Prevention prior trigger must be detected from Day 3 watering (101.2 ml)"
+    assert r_prior is False, "Reaction has not yet triggered"
+
+    # Эмулируем замер Дня 4, когда листья остыли (DeltaDelta T = 0.0)
+    mock_records_day4 = [
+        {"ID": f"K{i}", "Delta_T": -1.5, "Timestamp": "2026-11-13", "Turgor": 4} for i in range(1, 7)
+    ] + [
+        {"ID": f"P{i}", "Delta_T": -1.5, "Timestamp": "2026-11-13", "Turgor": 4} for i in range(1, 7)
+    ] + [
+        {"ID": f"R{i}", "Delta_T": -0.5, "Timestamp": "2026-11-13", "Turgor": 3} for i in range(1, 7)
+    ]
+
+    cluster_status = evaluate_cohort_cluster_status(mock_records_day4, all_records=all_records)
+    p_status = cluster_status["prevention"]
+    r_status = cluster_status["reaction"]
+
+    assert p_status["is_recovery"] is True
+    assert p_status["triggered"] is True
+    assert p_status["state"] == "recovery"
+    assert "РЕЖИМ ВОССТАНОВЛЕНИЯ" in p_status["status_text"]
+
+    # Проверяем решение о поливе для P1 с дефицитом 6.0 г
+    p1_decision = resolve_cohort_watering_decision(
+        pot_id="P1",
+        raw_deficit_ml=6.0,
+        cluster_status=cluster_status,
+    )
+    assert p1_decision["watering_allowed"] is True
+    assert p1_decision["effective_dose"] == 6.0
+    assert p1_decision["reason"] == "recovery"
+    assert "РЕЖИМ ВОССТАНОВЛЕНИЯ" in p1_decision["status_label"]
+
+    # Реакция пока не должна поливаться (тургор 3, кворум не достигнут)
+    r1_decision = resolve_cohort_watering_decision(
+        pot_id="R1",
+        raw_deficit_ml=8.0,
+        cluster_status=cluster_status,
+    )
+    assert r1_decision["watering_allowed"] is False
+
+
+def test_download_csv_serves_wave2_measurements():
+    """Проверка п. 2 аудита: эндпоинт /download/csv отдаёт реальный measurements_wave2.csv, а не пустой measurements.csv."""
+    import shutil
+    from fastapi.testclient import TestClient
+    from core.experiments import get_experiment_manager
+    exp_mgr = get_experiment_manager(web_station.DATA_DIR)
+    exp_mgr.set_active_experiment("exp_1792918800")
+
+    src_csv = os.path.join(PROJECT_ROOT, "data", "experiments", "exp_1792918800", "measurements_wave2.csv")
+    dst_dir = os.path.join(exp_mgr.exp_base_dir, "exp_1792918800")
+    os.makedirs(dst_dir, exist_ok=True)
+    shutil.copyfile(src_csv, os.path.join(dst_dir, "measurements_wave2.csv"))
+
+    client = TestClient(web_station.app)
+    response = client.get("/download/csv")
+    assert response.status_code == 200
+    assert "text/csv" in response.headers.get("content-type", "")
+    assert "_wave2.csv" in response.headers.get("content-disposition", "")
+    content = response.text
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    assert len(lines) >= 77, f"Expected >= 77 lines in active CSV, got {len(lines)}"
+    assert lines[0].startswith("ID,Timestamp,Group,Weight_g")
+    assert "K1," in lines[1]

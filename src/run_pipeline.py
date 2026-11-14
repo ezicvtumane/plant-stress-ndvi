@@ -115,7 +115,7 @@ def main():
     parser = argparse.ArgumentParser(description="Plant Stress Spectrophotometry Acquisition")
     parser.add_argument("--sample", type=str, default="sample_01", help="Identifier of the plant specimen")
     parser.add_argument("--group", type=str, choices=["Контроль", "Засуха", "Осмос", "Превенция", "Реакция", "Control", "Drought", "Salinity", "Prevention", "Reaction"], default="Контроль", help="Experimental cohort")
-    parser.add_argument("--k", type=float, default=config.DEFAULT_K_COEFFICIENT, help="Calibrated k factor")
+    parser.add_argument("--k", type=float, default=config.DEFAULT_K_COEFFICIENT, help="Calibrated k factor (default 4.07 for Series 1; pass 1.150 for Wave 2)")
     parser.add_argument("--weight", type=float, default=None, help="Gravimetric tray mass in grams (Ground Truth)")
     args = parser.parse_args()
 

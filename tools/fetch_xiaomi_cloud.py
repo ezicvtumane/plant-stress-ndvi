@@ -143,11 +143,8 @@ def main():
     user = os.environ.get("XIAOMI_USER")
     password = os.environ.get("XIAOMI_PASS")
 
-    default_uid = "634965042"
     if not user:
-        print(f"\nВаш числовой Mi ID: {default_uid}")
-        u_input = input(f"Введите логин Mi Home [{default_uid}]: ").strip()
-        user = u_input if u_input else default_uid
+        user = input("Введите логин / числовой Mi ID Mi Home (или задайте XIAOMI_USER): ").strip()
 
     if not password:
         password = getpass.getpass("Введите пароль Mi-аккаунта (ввод скрыт): ").strip()
@@ -275,7 +272,7 @@ def main():
 
     def write_csv_file(target_file):
         with open(target_file, "w", encoding="utf-8") as f:
-            f.write("Timestamp,DateTime,Phase,T_Windowsill_C,RH_Windowsill_Pct,VPD_kPa\n")
+            f.write("Timestamp,DateTime,Phase,T_Windowsill_C,RH_Windowsill_Pct,VPD_kPa,Imputed\n")
             last_t, last_rh = None, None
             written = 0
             for ts in sorted_ts:
@@ -288,15 +285,18 @@ def main():
                 else:
                     phase = "Wave2_Cucumber"
 
-                t_val = records[ts]["temp"] if records[ts]["temp"] is not None else last_t
-                rh_val = records[ts]["rh"] if records[ts]["rh"] is not None else last_rh
+                raw_t = records[ts]["temp"]
+                raw_rh = records[ts]["rh"]
+                t_val = raw_t if raw_t is not None else last_t
+                rh_val = raw_rh if raw_rh is not None else last_rh
+                imputed = 1 if (raw_t is None or raw_rh is None) else 0
                 if t_val is not None:
                     last_t = t_val
                 if rh_val is not None:
                     last_rh = rh_val
                 if t_val is not None and rh_val is not None:
                     vpd = calculate_vpd(t_val, rh_val)
-                    f.write(f"{ts},{dt_str},{phase},{t_val},{rh_val},{vpd}\n")
+                    f.write(f"{ts},{dt_str},{phase},{t_val},{rh_val},{vpd},{imputed}\n")
                     written += 1
             return written
 

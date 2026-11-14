@@ -497,17 +497,83 @@ def _extract_record_date(rec: Dict[str, Any]) -> Optional[str]:
     return m.group(1) if m else None
 
 
+def detect_prior_cohort_trigger(
+    cohort_name: str,
+    all_records: Optional[List[Dict[str, Any]]],
+    current_date: Optional[str],
+) -> bool:
+    """
+    Проверяет, активировался ли триггер для когорты ('prevention' или 'reaction')
+    на любой из дат, строго предшествующих current_date.
+    
+    Когорта переходит в постоянный статус восстановления ('recovery'), если на любой
+    более ранней дате:
+    1. Суммарный выданный объем полива когорты превысил 10.0 мл (минимум 3 растения полито);
+       на 12.11 для Превенции суммарно выдано 101.2 мл при срабатывании триггера.
+    2. ИЛИ на дату d < current_date был зафиксирован нормативный кворум:
+       - для Превенции: >= 4 растений с Delta_Delta_T >= +0.6 °C относительно K1-K6.
+       - для Реакции: >= 4 растений с Turgor_Score <= 2.
+    """
+    if not all_records or not current_date:
+        return False
+
+    target_prefix = "P" if cohort_name.lower().startswith("prev") else "R"
+    doses_by_date: Dict[str, float] = {}
+    pots_watered_by_date: Dict[str, set] = {}
+
+    for r in all_records:
+        pid = str(r.get("ID", "")).strip().upper()
+        if not pid.startswith(target_prefix) or pid not in POTS_CATALOG:
+            continue
+        ts = str(r.get("Timestamp", "")).strip()
+        d = ts[:10] if len(ts) >= 10 and ts[4:5] == "-" else None
+        if not d or d >= current_date:
+            continue
+        try:
+            dose = float(str(r.get("Water_Dose_ml", 0) or 0).replace(",", "."))
+            if dose > 0:
+                doses_by_date[d] = doses_by_date.get(d, 0.0) + dose
+                pots_watered_by_date.setdefault(d, set()).add(pid)
+        except (ValueError, TypeError):
+            pass
+
+    for d, total_dose in doses_by_date.items():
+        if total_dose >= 10.0 and len(pots_watered_by_date.get(d, set())) >= 3:
+            return True
+
+    # Резервная проверка по кворуму на более ранней дате
+    records_by_prior_date: Dict[str, List[Dict[str, Any]]] = {}
+    for r in all_records:
+        ts = str(r.get("Timestamp", "")).strip()
+        d = ts[:10] if len(ts) >= 10 and ts[4:5] == "-" else None
+        if d and d < current_date:
+            records_by_prior_date.setdefault(d, []).append(r)
+
+    for d, day_recs in records_by_prior_date.items():
+        prior_eval = evaluate_cohort_cluster_status(day_recs, all_records=None)
+        key = "prevention" if target_prefix == "P" else "reaction"
+        if prior_eval.get(key, {}).get("triggered"):
+            return True
+
+    return False
+
+
 # ==============================================================================
 # 3. КЛАСТЕРНЫЙ ДВИЖОК ПРИНЯТИЯ РЕШЕНИЙ (DECISION ENGINE)
 # ==============================================================================
 
-def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[str, Any]:
+def evaluate_cohort_cluster_status(
+    records_today: List[Dict[str, Any]],
+    all_records: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     """
     Кластерный расчет для групп Превенция [П1-П6] и Реакция [Р1-Р6].
     Делегирует классификацию единым правилам core/agronomic_rules.py:
     - Базис Контроля K1–K6: синхронный кворум минимум >= 4 из 6 валидных ΔT одной даты.
     - Превенция: ΔΔT >= +0.6 °C минимум у 4 из 6 растений.
     - Реакция: Turgor_Score <= 2 минимум у 4 из 6 растений.
+    - Фаза восстановления (Recovery Phase): если когорта уже активировалась в более ранние дни,
+      она автоматически переходит в статус 'recovery' с ежедневным компенсационным доливом 100%.
     Пропуски (None / '' / '--' / 'NaN') не подменяются значениями по умолчанию и не считаются замеренными.
     """
     by_pot: Dict[str, Dict[str, Any]] = {}
@@ -541,6 +607,25 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
             if d_p:
                 p_dates.add(d_p)
 
+    # Определение активной даты среза
+    eval_date = None
+    if k_dates:
+        eval_date = next(iter(k_dates))
+    elif p_dates:
+        eval_date = next(iter(p_dates))
+    elif records_today:
+        for r in records_today:
+            d = _extract_record_date(r)
+            if d:
+                eval_date = d
+                break
+    if not eval_date:
+        eval_date = datetime.now().strftime("%Y-%m-%d")
+
+    # Проверка предшествующей активации в истории (Режим восстановления)
+    p_is_recovery = detect_prior_cohort_trigger("prevention", all_records, eval_date)
+    r_is_recovery = detect_prior_cohort_trigger("reaction", all_records, eval_date)
+
     # Если у замеров K или P заданы даты, все задействованные замеры ΔT должны относиться к одному дню
     dates_synchronized = (
         len(k_dates) <= 1
@@ -573,7 +658,16 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
         else:
             p_ddts.append(None)
 
-    if control_baseline_ready:
+    if p_is_recovery:
+        p_measured_cnt = sum(1 for pid in p_ids if pid in by_pot)
+        p_stressed_cnt = sum(1 for val in p_ddts if val is not None and val >= WAVE2_EXPERIMENT_META["threshold_delta_t"])
+        p_all_measured = p_measured_cnt == WAVE2_EXPERIMENT_META["cluster_total_plants"]
+        p_triggered = True
+        p_insufficient = False
+        p_state = "recovery"
+        p_status_text = "🟢 РЕЖИМ ВОССТАНОВЛЕНИЯ (пост-стресс) — Ежедневный долив 100% дефицита"
+        p_badge_color = "#059669"
+    elif control_baseline_ready:
         prev_eval = evaluate_cohort_prevention_trigger(
             p_ddts,
             threshold=WAVE2_EXPERIMENT_META["threshold_delta_t"],
@@ -595,6 +689,7 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
                 else f"Недостаточно данных ({p_measured_cnt}/6 измерено, {p_stressed_cnt} со стрессом)"
             )
         )
+        p_badge_color = "#059669" if p_triggered else ("#dc2626" if not p_insufficient else "#eab308")
     else:
         p_measured_cnt = len(p_raw_dts)
         p_stressed_cnt = 0
@@ -602,6 +697,7 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
         p_triggered = False
         p_insufficient = True
         p_state = "insufficient_data"
+        p_badge_color = "#eab308"
         k_cnt = baseline_eval["measured_count"]
         if not dates_synchronized:
             p_status_text = (
@@ -631,8 +727,27 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
     r_measured_cnt = react_eval["total_measured"]
     r_stressed_cnt = react_eval["triggered_count"]
     r_all_measured = r_measured_cnt == WAVE2_EXPERIMENT_META["cluster_total_plants"]
-    r_triggered = react_eval["is_triggered"]
-    r_insufficient = react_eval["is_insufficient"]
+
+    if r_is_recovery:
+        r_triggered = True
+        r_insufficient = False
+        r_state = "recovery"
+        r_status_text = "🟢 РЕЖИМ ВОССТАНОВЛЕНИЯ (пост-стресс) — Ежедневный долив 100% дефицита"
+        r_badge_color = "#059669"
+    else:
+        r_triggered = react_eval["is_triggered"]
+        r_insufficient = react_eval["is_insufficient"]
+        r_state = react_eval["state"]
+        r_status_text = (
+            f"УВЯДАНИЕ ({r_stressed_cnt}/6) — РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ!"
+            if r_triggered
+            else (
+                f"Тургор в норме ({r_stressed_cnt}/6) — Полив заблокирован"
+                if not r_insufficient
+                else f"Недостаточно данных ({r_measured_cnt}/6 измерено, {r_stressed_cnt} увяло)"
+            )
+        )
+        r_badge_color = "#059669" if r_triggered else ("#2563eb" if not r_insufficient else "#64748b")
 
     return {
         "prevention": {
@@ -647,26 +762,20 @@ def evaluate_cohort_cluster_status(records_today: List[Dict[str, Any]]) -> Dict[
             "mean_control_dt": mean_control_dt,
             "state": p_state,
             "triggered": p_triggered,
+            "is_recovery": p_is_recovery,
             "status_text": p_status_text,
-            "badge_color": "#059669" if p_triggered else ("#dc2626" if not p_insufficient else "#eab308"),
+            "badge_color": p_badge_color,
         },
         "reaction": {
             "measured_count": r_measured_cnt,
             "stressed_count": r_stressed_cnt,
             "all_measured": r_all_measured,
             "insufficient_data": r_insufficient,
-            "state": react_eval["state"],
+            "state": r_state,
             "triggered": r_triggered,
-            "status_text": (
-                f"УВЯДАНИЕ ({r_stressed_cnt}/6) — РЕАНИМАЦИОННЫЙ ПОЛИВ ВОДОЙ!"
-                if r_triggered
-                else (
-                    f"Тургор в норме ({r_stressed_cnt}/6) — Полив заблокирован"
-                    if not r_insufficient
-                    else f"Недостаточно данных ({r_measured_cnt}/6 измерено, {r_stressed_cnt} увяло)"
-                )
-            ),
-            "badge_color": "#059669" if r_triggered else ("#2563eb" if not r_insufficient else "#64748b"),
+            "is_recovery": r_is_recovery,
+            "status_text": r_status_text,
+            "badge_color": r_badge_color,
         },
         "satellite": {
             "status_text": "Донор лаковых реплик (долив воды до 100.0 г)",
@@ -700,6 +809,14 @@ def resolve_cohort_watering_decision(
     if cohort in ("Prevention", "Reaction"):
         key = "prevention" if cohort == "Prevention" else "reaction"
         st = cluster_status.get(key, {})
+        if st.get("is_recovery") or st.get("state") == "recovery":
+            return {
+                "watering_allowed": True,
+                "effective_dose": raw_deficit_ml,
+                "raw_deficit": raw_deficit_ml,
+                "reason": "recovery",
+                "status_label": "РЕЖИМ ВОССТАНОВЛЕНИЯ (ДОЛИВ 100%)",
+            }
         if st.get("triggered"):
             return {
                 "watering_allowed": True,
@@ -765,14 +882,16 @@ def evaluate_pot_watering_with_projection(
     pot_id: str,
     updated_fields: Dict[str, Any],
     raw_deficit_ml: Optional[float],
+    all_records: Optional[List[Dict[str, Any]]] = None,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     Проецирует текущее измерение/правку горшка в дневной срез и возвращает
     (решение_о_поливе, статус_кластера) для всей группы с учетом новых данных.
+    Поддерживает учет предшествующих активаций когорт через all_records.
     """
     pid = normalize_and_validate_pot_id(pot_id)
     if pid is None:
-        cluster_status = evaluate_cohort_cluster_status(today_records)
+        cluster_status = evaluate_cohort_cluster_status(today_records, all_records=all_records)
         decision = resolve_cohort_watering_decision(pot_id, raw_deficit_ml, cluster_status)
         return decision, cluster_status
 
@@ -785,7 +904,7 @@ def evaluate_pot_watering_with_projection(
     projected = [
         r for r in today_records if normalize_and_validate_pot_id(r.get("ID")) != pid
     ] + [existing]
-    cluster_status = evaluate_cohort_cluster_status(projected)
+    cluster_status = evaluate_cohort_cluster_status(projected, all_records=all_records)
     decision = resolve_cohort_watering_decision(pid, raw_deficit_ml, cluster_status)
     return decision, cluster_status
 
@@ -892,13 +1011,25 @@ class Wave2Storage:
         all_recs = self.load_all_records()
         return [r for r in all_recs if r.get("Timestamp", "").startswith(date_str)]
 
-    def save_or_update_record(self, record_data: Dict[str, Any]) -> Tuple[bool, str]:
+    def save_or_update_record(
+        self,
+        record_data: Dict[str, Any],
+        allow_session_split: bool = False,
+        session_split_window_sec: int = 5400,
+    ) -> Tuple[bool, str]:
         """
         Идемпотентная потокобезопасная запись: если замер этого горшка за сегодня уже существует,
-        он корректно обновляется. Если нет — дописывается новая строка.
+        он корректно обновляется. Если allow_session_split=True и существующий замер был сделан
+        более session_split_window_sec (по умолчанию 90 мин) назад, создается новая запись,
+        чтобы не затирать дневной замер стресса вечерним прогоном.
         """
         now = datetime.now()
-        today_prefix = now.strftime("%Y-%m-%d")
+        record_ts = str(record_data.get("Timestamp", "")).strip()
+        today_prefix = (
+            record_ts[:10]
+            if (record_ts and len(record_ts) >= 10 and record_ts[4:5] == "-")
+            else now.strftime("%Y-%m-%d")
+        )
         raw_id = str(record_data.get("ID", "")).strip()
         pot_id = normalize_and_validate_pot_id(raw_id) or raw_id.upper()
 
@@ -911,7 +1042,22 @@ class Wave2Storage:
             updated = False
             for idx, row in enumerate(all_records):
                 row_pid = normalize_and_validate_pot_id(row.get("ID")) or str(row.get("ID", "")).strip().upper()
-                if row_pid == pot_id and row.get("Timestamp", "").startswith(today_prefix):
+                if row_pid == pot_id and str(row.get("Timestamp", "")).startswith(today_prefix):
+                    if allow_session_split:
+                        old_ts_str = str(row.get("Timestamp", "")).strip()
+                        try:
+                            t_old = datetime.strptime(old_ts_str[:19], "%Y-%m-%d %H:%M:%S")
+                            t_new = (
+                                datetime.strptime(record_ts[:19], "%Y-%m-%d %H:%M:%S")
+                                if (record_ts and len(record_ts) >= 19)
+                                else now
+                            )
+                            if abs((t_new - t_old).total_seconds()) > session_split_window_sec:
+                                # Превышен интервал сессии -> не перезаписываем старый замер, а сохраняем новый
+                                continue
+                        except Exception:
+                            pass
+
                     for k in CSV_HEADER_WAVE2:
                         if k in record_data:
                             row[k] = str(record_data[k])
@@ -940,6 +1086,7 @@ class Wave2Storage:
         """
         Пересчитывает `Water_Dose_ml` для уже сохранённых за дату горшков Превенции и Реакции,
         чтобы при срабатывании или сбросе кворума 4/6 CSV оставался согласованным с UI.
+        Учитывает исторические активации когорт через all_records.
         """
         target_date = date_str or datetime.now().strftime("%Y-%m-%d")
         with _STORAGE_LOCK:
@@ -952,7 +1099,7 @@ class Wave2Storage:
             if not date_rows:
                 return 0
 
-            cluster_status = evaluate_cohort_cluster_status(date_rows)
+            cluster_status = evaluate_cohort_cluster_status(date_rows, all_records=all_records)
             changed = 0
             for row in all_records:
                 if not str(row.get("Timestamp", "")).startswith(target_date):
