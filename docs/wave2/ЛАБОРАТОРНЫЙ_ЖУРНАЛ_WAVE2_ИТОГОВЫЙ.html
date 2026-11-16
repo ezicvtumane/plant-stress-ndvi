@@ -1,0 +1,3480 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Лабораторный журнал измерений — Волна 2 (Огурец Каскад)</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 8mm 10mm 8mm 10mm;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #0f172a;
+    background-color: #ffffff;
+    font-size: 7.8pt;
+    line-height: 1.25;
+    margin: 0;
+    padding: 0;
+  }
+  .page {
+    page-break-after: always;
+    page-break-inside: avoid;
+    clear: both;
+    height: 194mm;
+    max-height: 194mm;
+    overflow: hidden;
+    position: relative;
+  }
+  .page:last-child {
+    page-break-after: avoid;
+  }
+  .header-box {
+    border-bottom: 2px solid #0f172a;
+    padding-bottom: 3px;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .org-title {
+    font-size: 7.2pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    font-weight: 700;
+  }
+  .doc-title {
+    font-size: 13.5pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 1px 0;
+    line-height: 1.15;
+  }
+  .doc-subtitle {
+    font-size: 8.2pt;
+    color: #0284c7;
+    font-weight: 600;
+  }
+  .stamp-box {
+    text-align: right;
+    font-size: 7pt;
+    color: #475569;
+    border: 1px dashed #94a3b8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: #f8fafc;
+    line-height: 1.2;
+  }
+  h2 {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #0f172a;
+    border-left: 3px solid #0284c7;
+    padding-left: 5px;
+    margin: 6px 0 3px 0;
+  }
+  p {
+    margin: 2px 0;
+  }
+  .grid-2 {
+    display: flex;
+    gap: 8px;
+  }
+  .card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 5px 8px;
+    flex: 1;
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 8pt;
+    color: #0f172a;
+    margin-bottom: 3px;
+    border-bottom: 1px solid #cbd5e1;
+    padding-bottom: 1px;
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7pt;
+    margin-top: 2px;
+    margin-bottom: 4px;
+  }
+  table.data-table th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 600;
+    text-align: center;
+    padding: 3px 2px;
+    border: 1px solid #334155;
+    font-size: 6.8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+  }
+  table.data-table td {
+    padding: 2px 3px;
+    border: 1px solid #cbd5e1;
+    text-align: center;
+  }
+  table.data-table tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+  .badge {
+    display: inline-block;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .badge-k { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  .badge-p { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+  .badge-r { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .badge-x { background-color: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; }
+
+  .stat-grid {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .stat-box {
+    flex: 1;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 4px 6px;
+    text-align: center;
+  }
+  .stat-val {
+    font-size: 11pt;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+  }
+  .stat-lbl {
+    font-size: 6.5pt;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .note-alert {
+    background-color: #eff6ff;
+    border-left: 3px solid #3b82f6;
+    padding: 4px 6px;
+    font-size: 7.2pt;
+    margin: 4px 0;
+    border-radius: 0 3px 3px 0;
+  }
+  .footer-sig {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.5pt;
+    border-top: 1px solid #94a3b8;
+    padding-top: 5px;
+  }
+  .sig-line {
+    border-bottom: 1px solid #475569;
+    width: 120px;
+    display: inline-block;
+    margin: 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Министерство науки и высшего образования РФ | Тимирязевский научно-испытательный центр</div>
+      <div class="doc-title">ОФИЦИАЛЬНЫЙ ЛАБОРАТОРНЫЙ ЖУРНАЛ ИЗМЕРЕНИЙ (ВОЛНА 2)</div>
+      <div class="doc-subtitle">Оптико-электронный комплекс фенотипирования стресса растений | ID опыта: exp_1792918800</div>
+    </div>
+    <div class="stamp-box">
+      <strong>СТАТУС: ЗАВЕРШЕН</strong><br>
+      Дата: 15.11.2026<br>
+      Срез: +48ч Уборка
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">1. ПАСПОРТ ОБЪЕКТА И ДИЗАЙН ЭКСПЕРИМЕНТА (GRCBD)</div>
+      <table style="width:100%; font-size:7.2pt; line-height:1.35;">
+        <tr><td style="width:28%; font-weight:700;">Культура / Сорт:</td><td>Огурец посевной (<em>Cucumis sativus</em> L.), сорт «Каскад»</td></tr>
+        <tr><td style="font-weight:700;">Схема опыта:</td><td>Рандомизированные блоки GRCBD 3×3×2: 3 когорты × 3 блока × 2 повторности (N=18)</td></tr>
+        <tr><td style="font-weight:700;">Базисный лизиметр:</td><td>Сосуд X0 — чистый субстрат без растения (FAO-56 Dual Kc, учет испарения E)</td></tr>
+        <tr><td style="font-weight:700;">Когорта К (Контроль):</td><td>Сосуды K1..K6. Оптимальный водный режим (80% ПВ, полив при дефиците)</td></tr>
+        <tr><td style="font-weight:700;">Когорта P (Превенция):</td><td>Сосуды P1..P6. Полив по ИК-триггеру (ΔΔT ≥ +0.5°C при полном тургоре 4.0)</td></tr>
+        <tr><td style="font-weight:700;">Когорта R (Реакция):</td><td>Сосуды R1..R6. Полив по визуальному триггеру завядания (тургор ≤ 2.2 балла)</td></tr>
+        <tr><td style="font-weight:700;">Сроки и хронология:</td><td>09.11.2026 (День 0) – 15.11.2026 (День 6). Завершение через 48ч после полива R</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">2. АППАРАТНО-ПРОГРАММНЫЙ ИЗМЕРИТЕЛЬНЫЙ КОМПЛЕКС</div>
+      <table style="width:100%; font-size:7.2pt; line-height:1.35;">
+        <tr><td style="width:30%; font-weight:700;">Вычислительный узел:</td><td>Микрокомпьютер Orange Pi 3 LTS (Linux Debian, Python 3.12, SQLite/CSV)</td></tr>
+        <tr><td style="font-weight:700;">Тепловизионный канал:</td><td>Микроболометрическая матрица LWIR (8–14 мкм, NETD &lt; 50 мК, калибровка ±0.5°C)</td></tr>
+        <tr><td style="font-weight:700;">Спектральный канал:</td><td>Мультиспектральная камера VIS-NIR (NDVI = (NIR - Red)/(NIR + Red), ArUco метки)</td></tr>
+        <tr><td style="font-weight:700;">Гравиметрический канал:</td><td>Прецизионная тензоплатформа с компенсацией ползучести (±0.05 г)</td></tr>
+        <tr><td style="font-weight:700;">Микроклимат:</td><td>Sensirion SHT31 (T_возд ±0.2°C, RH ±2.0%), дефицит давления пара VPD (Тетенс)</td></tr>
+        <tr><td style="font-weight:700;">Регламент измерений:</td><td>Ежесуточно в 17:50–18:15 (строгая изохронность, адаптация к фоновому VPD)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2>3. СВОДНЫЙ БАЛАНС МИКРОКЛИМАТА И ВОДОПОТРЕБЛЕНИЯ (FAO-56 DUAL CROP COEFFICIENT)</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>День</th>
+        <th>Дата</th>
+        <th>Т возд (°C)</th>
+        <th>RH (%)</th>
+        <th>VPD (кПа)</th>
+        <th>E почвы Х0 (мл)</th>
+        <th>Полив К (мл)</th>
+        <th>Полив P (мл)</th>
+        <th>Полив R (мл)</th>
+        <th>ΔT Контроль (°C)</th>
+        <th>ΔT Превенция (°C)</th>
+        <th>ΔT Реакция (°C)</th>
+        <th>Агрономический статус этапа</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td><strong>День 0</strong></td>
+        <td>2026-11-09</td>
+        <td>25.8</td>
+        <td>54.9</td>
+        <td><strong>1.50</strong></td>
+        <td>0.0</td>
+        <td>0.0</td>
+        <td>0.0</td>
+        <td>0.0</td>
+        <td style="color:#047857; font-weight:700;">-1.67</td>
+        <td style="color:#b45309; font-weight:700;">-1.77</td>
+        <td style="color:#1d4ed8; font-weight:700;">-1.82</td>
+        <td style="text-align:left; font-size:6.8pt;">Калибровка однородности. Базовый уровень транспирации (ΔT ≈ -1.3°C)</td>
+      </tr>
+
+      <tr>
+        <td><strong>День 1</strong></td>
+        <td>2026-11-10</td>
+        <td>25.7</td>
+        <td>53.3</td>
+        <td><strong>1.54</strong></td>
+        <td>5.7</td>
+        <td>6.1</td>
+        <td>0.0</td>
+        <td>0.0</td>
+        <td style="color:#047857; font-weight:700;">-1.48</td>
+        <td style="color:#b45309; font-weight:700;">-1.47</td>
+        <td style="color:#1d4ed8; font-weight:700;">-1.45</td>
+        <td style="text-align:left; font-size:6.8pt;">Синхронный рост. Превенция и Реакция поставлены на режим десикации</td>
+      </tr>
+
+      <tr>
+        <td><strong>День 2</strong></td>
+        <td>2026-11-11</td>
+        <td>25.6</td>
+        <td>50.5</td>
+        <td><strong>1.63</strong></td>
+        <td>3.6</td>
+        <td>6.6</td>
+        <td>0.0</td>
+        <td>0.0</td>
+        <td style="color:#047857; font-weight:700;">-1.37</td>
+        <td style="color:#b45309; font-weight:700;">-0.95</td>
+        <td style="color:#1d4ed8; font-weight:700;">-0.97</td>
+        <td style="text-align:left; font-size:6.8pt;">Нарастание водного дефицита. Расход влаги почвой E = 3.6 мл</td>
+      </tr>
+
+      <tr>
+        <td><strong>День 3</strong></td>
+        <td>2026-11-12</td>
+        <td>25.2</td>
+        <td>46.3</td>
+        <td><strong>1.72</strong></td>
+        <td>5.5</td>
+        <td>8.2</td>
+        <td>16.9</td>
+        <td>0.0</td>
+        <td style="color:#047857; font-weight:700;">-1.47</td>
+        <td style="color:#b45309; font-weight:700;">-0.87</td>
+        <td style="color:#1d4ed8; font-weight:700;">-0.95</td>
+        <td style="text-align:left; font-size:6.8pt;">Срабатывание превентивного триггера P (ΔΔT = +0.60°C). Доза 16.9 мл</td>
+      </tr>
+
+      <tr>
+        <td><strong>День 4</strong></td>
+        <td>2026-11-13</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td><strong>1.49</strong></td>
+        <td>4.0</td>
+        <td>7.6</td>
+        <td>8.9</td>
+        <td>23.1</td>
+        <td style="color:#047857; font-weight:700;">-1.93</td>
+        <td style="color:#b45309; font-weight:700;">-1.48</td>
+        <td style="color:#1d4ed8; font-weight:700;">+0.20</td>
+        <td style="text-align:left; font-size:6.8pt;">Срабатывание визуального триггера R (тургор 2.2, ΔT = +0.20°C). Полив 23.1 мл</td>
+      </tr>
+
+      <tr>
+        <td><strong>День 5</strong></td>
+        <td>2026-11-14</td>
+        <td>25.3</td>
+        <td>54.1</td>
+        <td><strong>1.48</strong></td>
+        <td>4.2</td>
+        <td>9.1</td>
+        <td>9.2</td>
+        <td>12.2</td>
+        <td style="color:#047857; font-weight:700;">-2.00</td>
+        <td style="color:#b45309; font-weight:700;">-1.78</td>
+        <td style="color:#1d4ed8; font-weight:700;">-1.13</td>
+        <td style="text-align:left; font-size:6.8pt;">+24ч регидратации. Контроль -1.9°C, Превенция -1.6°C, Реакция -1.1°C</td>
+      </tr>
+
+      <tr>
+        <td><strong>День 6</strong></td>
+        <td>2026-11-15</td>
+        <td>25.9</td>
+        <td>43.0</td>
+        <td><strong>1.91</strong></td>
+        <td>5.1</td>
+        <td>10.7</td>
+        <td>10.4</td>
+        <td>10.2</td>
+        <td style="color:#047857; font-weight:700;">-1.87</td>
+        <td style="color:#b45309; font-weight:700;">-1.57</td>
+        <td style="color:#1d4ed8; font-weight:700;">-1.05</td>
+        <td style="text-align:left; font-size:6.8pt;">+48ч регидратации. Стойкий устьичный лаг в когорте Реакция (ΔT = -1.05°C)</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div class="note-alert">
+    <strong>Методологическая справка FAO-56:</strong> Лизиметр Х0 позволил количественно разделить суммарную эвапотранспирацию (ET) на физическое испарение почвы (E) и чистую транспирацию листового полога: <em>T = ET - E</em>. В условиях повышенного VPD (1.82–1.93 кПа на Днях 5–6) испарение почвы возросло с 3.6 до 5.1 мл/сутки.
+  </div>
+</div>
+
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Журнал первичных измерений оптико-электронного комплекса</div>
+      <div class="doc-title">ПЕРВИЧНЫЕ ДАННЫЕ: ДЕНЬ 0 И ДЕНЬ 1 (КАЛИБРОВКА И СТАРТ)</div>
+      <div class="doc-subtitle">Протокол замеров температуры листа, спектрального индекса NDVI и биометрии</div>
+    </div>
+    <div class="stamp-box">ГОСТ Р ИСО 5725<br>Точность: ±0.05 г / ±0.1°C</div>
+  </div>
+
+  <div style="font-weight:700; font-size:7.5pt; margin: 3px 0 1px 0; color:#0f172a;">📅 День 0 (09.11.2026) — Исходное состояние и калибровка однородности</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:45px;">Время</th>
+        <th style="width:25px;">ID</th>
+        <th style="width:75px;">Когорта</th>
+        <th style="width:50px;">Блок</th>
+        <th>Масса (г)</th>
+        <th>T возд (°C)</th>
+        <th>RH (%)</th>
+        <th>VPD (кПа)</th>
+        <th>T листа (°C)</th>
+        <th>ΔT (°C)</th>
+        <th>NDVI</th>
+        <th>PLA (см²)</th>
+        <th>Тургор</th>
+        <th>Полив (мл)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:27:14</td>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.7</td>
+        <td>1.50</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#047857;">-1.6</td>
+        <td>0.642</td>
+        <td>13.44</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:27:46</td>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>55.6</td>
+        <td>1.47</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#047857;">-1.7</td>
+        <td>0.633</td>
+        <td>14.47</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:28:13</td>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>55.8</td>
+        <td>1.47</td>
+        <td>23.9</td>
+        <td style="font-weight:700; color:#047857;">-1.9</td>
+        <td>0.621</td>
+        <td>12.97</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:28:41</td>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.9</td>
+        <td>1.50</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#047857;">-1.6</td>
+        <td>0.499</td>
+        <td>8.73</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:29:13</td>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.9</td>
+        <td>1.50</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#047857;">-1.4</td>
+        <td>0.541</td>
+        <td>6.20</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:29:37</td>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>55.0</td>
+        <td>1.49</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#047857;">-1.8</td>
+        <td>0.478</td>
+        <td>6.86</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:31:29</td>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>53.8</td>
+        <td>1.53</td>
+        <td>23.9</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.9</td>
+        <td>0.601</td>
+        <td>9.90</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:32:14</td>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>55.0</td>
+        <td>1.49</td>
+        <td>23.7</td>
+        <td style="font-weight:700; color:#1d4ed8;">-2.1</td>
+        <td>0.665</td>
+        <td>15.52</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:32:43</td>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>55.0</td>
+        <td>1.49</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.7</td>
+        <td>0.614</td>
+        <td>14.96</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:33:09</td>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.8</td>
+        <td>1.50</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.8</td>
+        <td>0.504</td>
+        <td>8.63</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:33:35</td>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.8</td>
+        <td>1.50</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.7</td>
+        <td>0.386</td>
+        <td>4.32</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:33:59</td>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.9</td>
+        <td>1.50</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.7</td>
+        <td>0.598</td>
+        <td>5.95</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:36:54</td>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>55.4</td>
+        <td>1.48</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#b45309;">-1.6</td>
+        <td>0.647</td>
+        <td>16.89</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:37:31</td>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>55.0</td>
+        <td>1.49</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#b45309;">-1.7</td>
+        <td>0.504</td>
+        <td>6.90</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:37:58</td>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.7</td>
+        <td>1.50</td>
+        <td>23.9</td>
+        <td style="font-weight:700; color:#b45309;">-1.9</td>
+        <td>0.625</td>
+        <td>12.08</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:38:31</td>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.4</td>
+        <td>1.51</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#b45309;">-1.8</td>
+        <td>0.570</td>
+        <td>10.69</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:38:54</td>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.5</td>
+        <td>1.51</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#b45309;">-1.8</td>
+        <td>0.588</td>
+        <td>11.61</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:39:15</td>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>54.9</td>
+        <td>1.50</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#b45309;">-1.8</td>
+        <td>0.528</td>
+        <td>10.31</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:40:26</td>
+        <td><strong>X0</strong></td>
+        <td><span class="badge badge-x">Лизиметр FAO-56</span></td>
+        <td style="font-size:6.8pt;">Базис E</td>
+        <td>100.0</td>
+        <td>25.8</td>
+        <td>55.1</td>
+        <td>1.49</td>
+        <td>23.5</td>
+        <td style="font-weight:700; color:#334155;">-2.3</td>
+        <td>0.490</td>
+        <td>0.00</td>
+        <td><strong>0</strong></td>
+        <td>0.0</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div style="font-weight:700; font-size:7.5pt; margin: 3px 0 1px 0; color:#0f172a;">📅 День 1 (10.11.2026) — Активная транспирация, насыщающий режим</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:45px;">Время</th>
+        <th style="width:25px;">ID</th>
+        <th style="width:75px;">Когорта</th>
+        <th style="width:50px;">Блок</th>
+        <th>Масса (г)</th>
+        <th>T возд (°C)</th>
+        <th>RH (%)</th>
+        <th>VPD (кПа)</th>
+        <th>T листа (°C)</th>
+        <th>ΔT (°C)</th>
+        <th>NDVI</th>
+        <th>PLA (см²)</th>
+        <th>Тургор</th>
+        <th>Полив (мл)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:28:26</td>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>92.3</td>
+        <td>25.7</td>
+        <td>55.3</td>
+        <td>1.48</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#047857;">-1.7</td>
+        <td>0.682</td>
+        <td>12.23</td>
+        <td><strong>4</strong></td>
+        <td>7.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:29:26</td>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>93.6</td>
+        <td>25.7</td>
+        <td>55.1</td>
+        <td>1.48</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#047857;">-1.5</td>
+        <td>0.622</td>
+        <td>10.10</td>
+        <td><strong>4</strong></td>
+        <td>6.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:30:37</td>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>94.2</td>
+        <td>25.7</td>
+        <td>54.7</td>
+        <td>1.50</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#047857;">-1.7</td>
+        <td>0.547</td>
+        <td>13.17</td>
+        <td><strong>4</strong></td>
+        <td>5.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:31:38</td>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>94.6</td>
+        <td>25.7</td>
+        <td>55.4</td>
+        <td>1.47</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#047857;">-1.3</td>
+        <td>0.457</td>
+        <td>4.76</td>
+        <td><strong>4</strong></td>
+        <td>5.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:32:32</td>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>94.1</td>
+        <td>25.7</td>
+        <td>55.3</td>
+        <td>1.48</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#047857;">-1.4</td>
+        <td>0.638</td>
+        <td>2.87</td>
+        <td><strong>4</strong></td>
+        <td>5.9</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:33:27</td>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>94.6</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#047857;">-1.3</td>
+        <td>0.543</td>
+        <td>7.82</td>
+        <td><strong>4</strong></td>
+        <td>5.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:35:42</td>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>92.1</td>
+        <td>25.7</td>
+        <td>54.9</td>
+        <td>1.49</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.4</td>
+        <td>0.584</td>
+        <td>13.71</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:36:48</td>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>92.4</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.5</td>
+        <td>0.627</td>
+        <td>16.19</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:38:04</td>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>93.4</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.3</td>
+        <td>0.625</td>
+        <td>20.09</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:39:17</td>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>96.1</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.6</td>
+        <td>0.466</td>
+        <td>5.29</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:40:06</td>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>95.8</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.5</td>
+        <td>0.436</td>
+        <td>6.29</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:40:53</td>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>92.5</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.4</td>
+        <td>0.572</td>
+        <td>3.81</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:43:40</td>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>93.7</td>
+        <td>25.7</td>
+        <td>55.5</td>
+        <td>1.47</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#b45309;">-1.3</td>
+        <td>0.688</td>
+        <td>11.91</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:44:49</td>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>91.8</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#b45309;">-1.4</td>
+        <td>0.517</td>
+        <td>22.72</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:45:34</td>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>92.8</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#b45309;">-1.4</td>
+        <td>0.626</td>
+        <td>10.04</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:46:20</td>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>94.6</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#b45309;">-1.7</td>
+        <td>0.607</td>
+        <td>6.03</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:47:10</td>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>93.0</td>
+        <td>25.7</td>
+        <td>51.6</td>
+        <td>1.60</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#b45309;">-1.5</td>
+        <td>0.622</td>
+        <td>5.76</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:47:58</td>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>93.0</td>
+        <td>25.7</td>
+        <td>54.9</td>
+        <td>1.49</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#b45309;">-1.5</td>
+        <td>0.550</td>
+        <td>8.53</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:51:21</td>
+        <td><strong>X0</strong></td>
+        <td><span class="badge badge-x">Лизиметр FAO-56</span></td>
+        <td style="font-size:6.8pt;">Базис E</td>
+        <td>94.3</td>
+        <td>25.7</td>
+        <td>56.3</td>
+        <td>1.44</td>
+        <td>23.8</td>
+        <td style="font-weight:700; color:#334155;">-1.9</td>
+        <td>0.426</td>
+        <td>0.05</td>
+        <td><strong>4</strong></td>
+        <td>5.7</td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Журнал первичных измерений оптико-электронного комплекса</div>
+      <div class="doc-title">ПЕРВИЧНЫЕ ДАННЫЕ: ДЕНЬ 2 И ДЕНЬ 3 (ДЕСИКАЦИЯ И ПРЕВЕНЦИЯ)</div>
+      <div class="doc-subtitle">Фиксация превентивного оптико-электронного триггера (ΔΔT ≥ +0.5°C)</div>
+    </div>
+    <div class="stamp-box">Триггер Превенции: ДЕНЬ 3<br>Полив P: 16.9 мл</div>
+  </div>
+
+  <div style="font-weight:700; font-size:7.5pt; margin: 3px 0 1px 0; color:#0f172a;">📅 День 2 (11.11.2026) — Начало дифференциации расхода влаги</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:45px;">Время</th>
+        <th style="width:25px;">ID</th>
+        <th style="width:75px;">Когорта</th>
+        <th style="width:50px;">Блок</th>
+        <th>Масса (г)</th>
+        <th>T возд (°C)</th>
+        <th>RH (%)</th>
+        <th>VPD (кПа)</th>
+        <th>T листа (°C)</th>
+        <th>ΔT (°C)</th>
+        <th>NDVI</th>
+        <th>PLA (см²)</th>
+        <th>Тургор</th>
+        <th>Полив (мл)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:22:29</td>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>93.8</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#047857;">-1.3</td>
+        <td>0.880</td>
+        <td>10.45</td>
+        <td><strong>4</strong></td>
+        <td>6.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:23:37</td>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>92.7</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#047857;">-1.4</td>
+        <td>0.842</td>
+        <td>12.35</td>
+        <td><strong>4</strong></td>
+        <td>7.3</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:24:01</td>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>93.6</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#047857;">-1.4</td>
+        <td>0.871</td>
+        <td>7.55</td>
+        <td><strong>4</strong></td>
+        <td>6.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:25:10</td>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>94.0</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#047857;">-1.3</td>
+        <td>0.766</td>
+        <td>7.51</td>
+        <td><strong>4</strong></td>
+        <td>6.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:25:40</td>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>92.5</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#047857;">-1.3</td>
+        <td>0.663</td>
+        <td>5.83</td>
+        <td><strong>4</strong></td>
+        <td>7.5</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:26:24</td>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>94.0</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#047857;">-1.5</td>
+        <td>0.705</td>
+        <td>5.95</td>
+        <td><strong>4</strong></td>
+        <td>6.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:27:27</td>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>87.3</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.6</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.0</td>
+        <td>0.877</td>
+        <td>7.12</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:29:06</td>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>86.6</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.2</td>
+        <td>0.884</td>
+        <td>10.68</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:35:51</td>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>88.2</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.7</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.9</td>
+        <td>0.892</td>
+        <td>10.57</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:37:06</td>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>93.4</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.7</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.9</td>
+        <td>0.681</td>
+        <td>8.99</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:38:15</td>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>92.1</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.6</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.0</td>
+        <td>0.698</td>
+        <td>4.96</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:39:03</td>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>87.8</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.8</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.8</td>
+        <td>0.842</td>
+        <td>5.56</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:41:38</td>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>83.7</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#b45309;">-1.2</td>
+        <td>0.848</td>
+        <td>9.35</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:42:15</td>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>86.3</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.7</td>
+        <td style="font-weight:700; color:#b45309;">-0.9</td>
+        <td>0.896</td>
+        <td>6.77</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:42:37</td>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>88.6</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.8</td>
+        <td style="font-weight:700; color:#b45309;">-0.8</td>
+        <td>0.868</td>
+        <td>8.14</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:43:03</td>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>91.4</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.9</td>
+        <td style="font-weight:700; color:#b45309;">-0.7</td>
+        <td>0.855</td>
+        <td>8.51</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:44:29</td>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>88.5</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#b45309;">-1.3</td>
+        <td>0.738</td>
+        <td>3.42</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:45:06</td>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>87.5</td>
+        <td>25.6</td>
+        <td>50.4</td>
+        <td>1.63</td>
+        <td>24.8</td>
+        <td style="font-weight:700; color:#b45309;">-0.8</td>
+        <td>0.783</td>
+        <td>6.48</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:49:01</td>
+        <td><strong>X0</strong></td>
+        <td><span class="badge badge-x">Лизиметр FAO-56</span></td>
+        <td style="font-size:6.8pt;">Базис E</td>
+        <td>96.4</td>
+        <td>25.6</td>
+        <td>53.0</td>
+        <td>1.54</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#334155;">-1.5</td>
+        <td>0.000</td>
+        <td>0.00</td>
+        <td><strong>--</strong></td>
+        <td>3.6</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div style="font-weight:700; font-size:7.5pt; margin: 3px 0 1px 0; color:#0f172a;">📅 День 3 (12.11.2026) — Срабатывание превентивного триггера (ΔΔT ≥ +0.5°C)</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:45px;">Время</th>
+        <th style="width:25px;">ID</th>
+        <th style="width:75px;">Когорта</th>
+        <th style="width:50px;">Блок</th>
+        <th>Масса (г)</th>
+        <th>T возд (°C)</th>
+        <th>RH (%)</th>
+        <th>VPD (кПа)</th>
+        <th>T листа (°C)</th>
+        <th>ΔT (°C)</th>
+        <th>NDVI</th>
+        <th>PLA (см²)</th>
+        <th>Тургор</th>
+        <th>Полив (мл)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:52:43</td>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>90.2</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>23.7</td>
+        <td style="font-weight:700; color:#047857;">-1.5</td>
+        <td>0.886</td>
+        <td>9.80</td>
+        <td><strong>4</strong></td>
+        <td>9.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:54:00</td>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>89.7</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>23.8</td>
+        <td style="font-weight:700; color:#047857;">-1.4</td>
+        <td>0.845</td>
+        <td>13.80</td>
+        <td><strong>4</strong></td>
+        <td>10.3</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:54:33</td>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>92.4</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>23.6</td>
+        <td style="font-weight:700; color:#047857;">-1.6</td>
+        <td>0.878</td>
+        <td>5.76</td>
+        <td><strong>4</strong></td>
+        <td>7.6</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:55:04</td>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>91.2</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>23.6</td>
+        <td style="font-weight:700; color:#047857;">-1.6</td>
+        <td>0.773</td>
+        <td>4.94</td>
+        <td><strong>4</strong></td>
+        <td>8.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:55:45</td>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>93.7</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>23.9</td>
+        <td style="font-weight:700; color:#047857;">-1.3</td>
+        <td>0.573</td>
+        <td>4.53</td>
+        <td><strong>4</strong></td>
+        <td>6.3</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:56:23</td>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>93.8</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>23.8</td>
+        <td style="font-weight:700; color:#047857;">-1.4</td>
+        <td>0.864</td>
+        <td>7.02</td>
+        <td><strong>4</strong></td>
+        <td>6.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:57:22</td>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>83.0</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>23.9</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.3</td>
+        <td>0.864</td>
+        <td>6.38</td>
+        <td><strong>3</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:57:58</td>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>80.0</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.1</td>
+        <td>0.863</td>
+        <td>7.44</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:59:08</td>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>81.6</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.9</td>
+        <td>0.884</td>
+        <td>10.35</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:05:41</td>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>82.4</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>24.6</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.6</td>
+        <td>0.744</td>
+        <td>9.04</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:06:23</td>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>84.9</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.9</td>
+        <td>0.717</td>
+        <td>5.16</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:07:10</td>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>82.5</td>
+        <td>25.2</td>
+        <td>45.5</td>
+        <td>1.75</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.9</td>
+        <td>0.865</td>
+        <td>7.89</td>
+        <td><strong>4</strong></td>
+        <td>0.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:08:24</td>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>84.6</td>
+        <td>25.2</td>
+        <td>47.8</td>
+        <td>1.67</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#b45309;">-0.8</td>
+        <td>0.866</td>
+        <td>9.73</td>
+        <td><strong>4</strong></td>
+        <td>15.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:09:31</td>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>81.3</td>
+        <td>25.2</td>
+        <td>47.8</td>
+        <td>1.67</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#b45309;">-1.2</td>
+        <td>0.860</td>
+        <td>7.26</td>
+        <td><strong>4</strong></td>
+        <td>18.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:09:57</td>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>83.1</td>
+        <td>25.2</td>
+        <td>47.8</td>
+        <td>1.67</td>
+        <td>24.5</td>
+        <td style="font-weight:700; color:#b45309;">-0.7</td>
+        <td>0.875</td>
+        <td>7.56</td>
+        <td><strong>4</strong></td>
+        <td>16.9</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:13:43</td>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>83.2</td>
+        <td>25.2</td>
+        <td>47.8</td>
+        <td>1.67</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#b45309;">-0.8</td>
+        <td>0.748</td>
+        <td>4.97</td>
+        <td><strong>4</strong></td>
+        <td>16.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:14:28</td>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>83.6</td>
+        <td>25.2</td>
+        <td>47.8</td>
+        <td>1.67</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#b45309;">-0.9</td>
+        <td>0.758</td>
+        <td>4.85</td>
+        <td><strong>4</strong></td>
+        <td>16.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:15:00</td>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>83.0</td>
+        <td>25.2</td>
+        <td>47.8</td>
+        <td>1.67</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#b45309;">-0.8</td>
+        <td>0.881</td>
+        <td>6.54</td>
+        <td><strong>4</strong></td>
+        <td>17.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:15:47</td>
+        <td><strong>X0</strong></td>
+        <td><span class="badge badge-x">Лизиметр FAO-56</span></td>
+        <td style="font-size:6.8pt;">Базис E</td>
+        <td>94.5</td>
+        <td>25.2</td>
+        <td>47.8</td>
+        <td>1.67</td>
+        <td>23.3</td>
+        <td style="font-weight:700; color:#334155;">-1.9</td>
+        <td>0.000</td>
+        <td>0.00</td>
+        <td><strong>--</strong></td>
+        <td>5.5</td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Журнал первичных измерений оптико-электронного комплекса</div>
+      <div class="doc-title">ПЕРВИЧНЫЕ ДАННЫЕ: ДЕНЬ 4 И ДЕНЬ 5 (ТРИГГЕР R И РЕГИДРАТАЦИЯ)</div>
+      <div class="doc-subtitle">Фиксация критического завядания когорты R (тургор 2.2) и восстановительный полив</div>
+    </div>
+    <div class="stamp-box">Триггер Реакции: ДЕНЬ 4<br>Полив R: 23.1 мл</div>
+  </div>
+
+  <div style="font-weight:700; font-size:7.5pt; margin: 3px 0 1px 0; color:#0f172a;">📅 День 4 (13.11.2026) — Срабатывание визуального триггера Реакции (тургор 2.2)</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:45px;">Время</th>
+        <th style="width:25px;">ID</th>
+        <th style="width:75px;">Когорта</th>
+        <th style="width:50px;">Блок</th>
+        <th>Масса (г)</th>
+        <th>T возд (°C)</th>
+        <th>RH (%)</th>
+        <th>VPD (кПа)</th>
+        <th>T листа (°C)</th>
+        <th>ΔT (°C)</th>
+        <th>NDVI</th>
+        <th>PLA (см²)</th>
+        <th>Тургор</th>
+        <th>Полив (мл)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:42:44</td>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>91.3</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.3</td>
+        <td style="font-weight:700; color:#047857;">-2.0</td>
+        <td>0.879</td>
+        <td>10.71</td>
+        <td><strong>4</strong></td>
+        <td>8.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:43:33</td>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>90.4</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.0</td>
+        <td style="font-weight:700; color:#047857;">-2.3</td>
+        <td>0.851</td>
+        <td>16.89</td>
+        <td><strong>4</strong></td>
+        <td>9.6</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:43:59</td>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>92.7</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.6</td>
+        <td style="font-weight:700; color:#047857;">-1.7</td>
+        <td>0.875</td>
+        <td>7.06</td>
+        <td><strong>4</strong></td>
+        <td>7.3</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:44:31</td>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>93.6</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.4</td>
+        <td style="font-weight:700; color:#047857;">-1.9</td>
+        <td>0.722</td>
+        <td>7.11</td>
+        <td><strong>4</strong></td>
+        <td>6.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:45:28</td>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>93.4</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.8</td>
+        <td style="font-weight:700; color:#047857;">-1.5</td>
+        <td>0.563</td>
+        <td>5.74</td>
+        <td><strong>4</strong></td>
+        <td>6.6</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:48:06</td>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>93.3</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.1</td>
+        <td style="font-weight:700; color:#047857;">-2.2</td>
+        <td>0.603</td>
+        <td>4.52</td>
+        <td><strong>4</strong></td>
+        <td>6.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:49:28</td>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>78.8</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>24.6</td>
+        <td style="font-weight:700; color:#1d4ed8;">+0.3</td>
+        <td>0.801</td>
+        <td>3.34</td>
+        <td><strong>2</strong></td>
+        <td>21.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:50:33</td>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>76.2</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>24.8</td>
+        <td style="font-weight:700; color:#1d4ed8;">+0.5</td>
+        <td>0.871</td>
+        <td>5.75</td>
+        <td><strong>2</strong></td>
+        <td>23.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:51:30</td>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>78.4</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.3</td>
+        <td>0.901</td>
+        <td>8.05</td>
+        <td><strong>2</strong></td>
+        <td>21.6</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:52:10</td>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>75.2</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>24.6</td>
+        <td style="font-weight:700; color:#1d4ed8;">+0.3</td>
+        <td>0.892</td>
+        <td>8.27</td>
+        <td><strong>2</strong></td>
+        <td>24.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:53:01</td>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>74.6</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.2</td>
+        <td>0.598</td>
+        <td>6.24</td>
+        <td><strong>3</strong></td>
+        <td>25.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:54:48</td>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>78.2</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>24.9</td>
+        <td style="font-weight:700; color:#1d4ed8;">+0.6</td>
+        <td>0.796</td>
+        <td>2.44</td>
+        <td><strong>2</strong></td>
+        <td>21.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:58:08</td>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>89.9</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.2</td>
+        <td style="font-weight:700; color:#b45309;">-2.1</td>
+        <td>0.875</td>
+        <td>9.46</td>
+        <td><strong>4</strong></td>
+        <td>10.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:59:58</td>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>92.2</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.7</td>
+        <td style="font-weight:700; color:#b45309;">-1.6</td>
+        <td>0.881</td>
+        <td>6.65</td>
+        <td><strong>4</strong></td>
+        <td>7.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">19:00:26</td>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>90.9</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.8</td>
+        <td style="font-weight:700; color:#b45309;">-1.5</td>
+        <td>0.869</td>
+        <td>8.15</td>
+        <td><strong>4</strong></td>
+        <td>9.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">19:02:40</td>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>92.7</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>23.1</td>
+        <td style="font-weight:700; color:#b45309;">-1.2</td>
+        <td>0.684</td>
+        <td>5.11</td>
+        <td><strong>4</strong></td>
+        <td>7.3</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">19:03:52</td>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>90.3</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>23.2</td>
+        <td style="font-weight:700; color:#b45309;">-1.1</td>
+        <td>0.658</td>
+        <td>6.05</td>
+        <td><strong>4</strong></td>
+        <td>9.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">19:04:29</td>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>90.8</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.9</td>
+        <td style="font-weight:700; color:#b45309;">-1.4</td>
+        <td>0.878</td>
+        <td>9.31</td>
+        <td><strong>4</strong></td>
+        <td>9.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">19:05:11</td>
+        <td><strong>X0</strong></td>
+        <td><span class="badge badge-x">Лизиметр FAO-56</span></td>
+        <td style="font-size:6.8pt;">Базис E</td>
+        <td>96.0</td>
+        <td>24.3</td>
+        <td>50.8</td>
+        <td>1.49</td>
+        <td>22.7</td>
+        <td style="font-weight:700; color:#334155;">-1.6</td>
+        <td>0.000</td>
+        <td>0.00</td>
+        <td><strong>--</strong></td>
+        <td>4.0</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div style="font-weight:700; font-size:7.5pt; margin: 3px 0 1px 0; color:#0f172a;">📅 День 5 (14.11.2026) — +24ч регидратации, динамика восстановления</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:45px;">Время</th>
+        <th style="width:25px;">ID</th>
+        <th style="width:75px;">Когорта</th>
+        <th style="width:50px;">Блок</th>
+        <th>Масса (г)</th>
+        <th>T возд (°C)</th>
+        <th>RH (%)</th>
+        <th>VPD (кПа)</th>
+        <th>T листа (°C)</th>
+        <th>ΔT (°C)</th>
+        <th>NDVI</th>
+        <th>PLA (см²)</th>
+        <th>Тургор</th>
+        <th>Полив (мл)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:51:45</td>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>90.9</td>
+        <td>25.3</td>
+        <td>57.4</td>
+        <td>1.37</td>
+        <td>23.3</td>
+        <td style="font-weight:700; color:#047857;">-2.0</td>
+        <td>0.857</td>
+        <td>10.87</td>
+        <td><strong>4</strong></td>
+        <td>9.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:52:10</td>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>88.9</td>
+        <td>25.3</td>
+        <td>57.4</td>
+        <td>1.37</td>
+        <td>23.1</td>
+        <td style="font-weight:700; color:#047857;">-2.2</td>
+        <td>0.849</td>
+        <td>21.62</td>
+        <td><strong>4</strong></td>
+        <td>11.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:53:10</td>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>93.1</td>
+        <td>25.3</td>
+        <td>57.4</td>
+        <td>1.37</td>
+        <td>23.2</td>
+        <td style="font-weight:700; color:#047857;">-2.1</td>
+        <td>0.876</td>
+        <td>8.42</td>
+        <td><strong>4</strong></td>
+        <td>6.9</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:54:45</td>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>90.9</td>
+        <td>25.3</td>
+        <td>57.4</td>
+        <td>1.37</td>
+        <td>23.3</td>
+        <td style="font-weight:700; color:#047857;">-2.0</td>
+        <td>0.771</td>
+        <td>7.42</td>
+        <td><strong>4</strong></td>
+        <td>9.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:55:21</td>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>91.2</td>
+        <td>25.3</td>
+        <td>57.4</td>
+        <td>1.37</td>
+        <td>23.5</td>
+        <td style="font-weight:700; color:#047857;">-1.8</td>
+        <td>0.701</td>
+        <td>7.89</td>
+        <td><strong>4</strong></td>
+        <td>8.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:55:55</td>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>90.4</td>
+        <td>25.3</td>
+        <td>57.4</td>
+        <td>1.37</td>
+        <td>23.4</td>
+        <td style="font-weight:700; color:#047857;">-1.9</td>
+        <td>0.850</td>
+        <td>7.90</td>
+        <td><strong>4</strong></td>
+        <td>9.6</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:57:21</td>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>88.6</td>
+        <td>25.3</td>
+        <td>57.4</td>
+        <td>1.37</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.2</td>
+        <td>0.861</td>
+        <td>7.05</td>
+        <td><strong>3</strong></td>
+        <td>11.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:59:35</td>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>86.8</td>
+        <td>25.3</td>
+        <td>51.5</td>
+        <td>1.56</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.1</td>
+        <td>0.886</td>
+        <td>10.14</td>
+        <td><strong>3</strong></td>
+        <td>13.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:00:00</td>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>87.3</td>
+        <td>25.3</td>
+        <td>51.5</td>
+        <td>1.56</td>
+        <td>23.9</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.4</td>
+        <td>0.884</td>
+        <td>9.55</td>
+        <td><strong>4</strong></td>
+        <td>12.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:03:52</td>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>88.9</td>
+        <td>25.3</td>
+        <td>50.4</td>
+        <td>1.60</td>
+        <td>24.0</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.3</td>
+        <td>0.699</td>
+        <td>7.62</td>
+        <td><strong>3</strong></td>
+        <td>11.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:04:30</td>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>88.8</td>
+        <td>25.3</td>
+        <td>47.5</td>
+        <td>1.69</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.9</td>
+        <td>0.714</td>
+        <td>5.97</td>
+        <td><strong>3</strong></td>
+        <td>11.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:05:24</td>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>86.3</td>
+        <td>25.3</td>
+        <td>47.5</td>
+        <td>1.69</td>
+        <td>24.4</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.9</td>
+        <td>0.833</td>
+        <td>4.64</td>
+        <td><strong>2</strong></td>
+        <td>13.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:10:06</td>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>90.6</td>
+        <td>25.3</td>
+        <td>48.9</td>
+        <td>1.65</td>
+        <td>23.6</td>
+        <td style="font-weight:700; color:#b45309;">-1.7</td>
+        <td>0.863</td>
+        <td>9.82</td>
+        <td><strong>4</strong></td>
+        <td>9.4</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:11:45</td>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>91.4</td>
+        <td>25.3</td>
+        <td>54.9</td>
+        <td>1.45</td>
+        <td>23.4</td>
+        <td style="font-weight:700; color:#b45309;">-1.9</td>
+        <td>0.886</td>
+        <td>6.95</td>
+        <td><strong>4</strong></td>
+        <td>8.6</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:12:10</td>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>91.2</td>
+        <td>25.3</td>
+        <td>54.9</td>
+        <td>1.45</td>
+        <td>23.7</td>
+        <td style="font-weight:700; color:#b45309;">-1.6</td>
+        <td>0.878</td>
+        <td>10.16</td>
+        <td><strong>4</strong></td>
+        <td>8.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:13:39</td>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>90.9</td>
+        <td>25.3</td>
+        <td>54.9</td>
+        <td>1.45</td>
+        <td>23.6</td>
+        <td style="font-weight:700; color:#b45309;">-1.7</td>
+        <td>0.868</td>
+        <td>16.20</td>
+        <td><strong>4</strong></td>
+        <td>9.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:14:30</td>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>90.8</td>
+        <td>25.3</td>
+        <td>54.9</td>
+        <td>1.45</td>
+        <td>23.5</td>
+        <td style="font-weight:700; color:#b45309;">-1.8</td>
+        <td>0.725</td>
+        <td>8.40</td>
+        <td><strong>4</strong></td>
+        <td>9.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:15:10</td>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>90.0</td>
+        <td>25.3</td>
+        <td>54.9</td>
+        <td>1.45</td>
+        <td>23.3</td>
+        <td style="font-weight:700; color:#b45309;">-2.0</td>
+        <td>0.875</td>
+        <td>12.25</td>
+        <td><strong>4</strong></td>
+        <td>10.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:16:31</td>
+        <td><strong>X0</strong></td>
+        <td><span class="badge badge-x">Лизиметр FAO-56</span></td>
+        <td style="font-size:6.8pt;">Базис E</td>
+        <td>95.8</td>
+        <td>25.3</td>
+        <td>54.9</td>
+        <td>1.45</td>
+        <td>22.7</td>
+        <td style="font-weight:700; color:#334155;">-2.6</td>
+        <td>0.000</td>
+        <td>0.00</td>
+        <td><strong>--</strong></td>
+        <td>4.2</td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Журнал первичных измерений оптико-электронного комплекса</div>
+      <div class="doc-title">ПЕРВИЧНЫЕ ДАННЫЕ: ДЕНЬ 6 (15.11.2026) — ФИНАЛЬНЫЙ СРЕЗ +48 ЧАСОВ</div>
+      <div class="doc-subtitle">Итоговые инструментальные замеры перед деструктивным сбором биомассы</div>
+    </div>
+    <div class="stamp-box">Завершение Волны 2<br>T возд = 25.9°C (Uniform)</div>
+  </div>
+
+  <div style="font-weight:700; font-size:7.5pt; margin: 3px 0 1px 0; color:#0f172a;">📅 День 6 (15.11.2026) — +48ч регидратации, завершающий фенотипический срез</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:45px;">Время</th>
+        <th style="width:25px;">ID</th>
+        <th style="width:75px;">Когорта</th>
+        <th style="width:50px;">Блок</th>
+        <th>Масса (г)</th>
+        <th>T возд (°C)</th>
+        <th>RH (%)</th>
+        <th>VPD (кПа)</th>
+        <th>T листа (°C)</th>
+        <th>ΔT (°C)</th>
+        <th>NDVI</th>
+        <th>PLA (см²)</th>
+        <th>Тургор</th>
+        <th>Полив (мл)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:50:10</td>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>89.0</td>
+        <td>25.9</td>
+        <td>45.5</td>
+        <td>1.82</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#047857;">-1.7</td>
+        <td>0.875</td>
+        <td>10.02</td>
+        <td><strong>4</strong></td>
+        <td>11.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:50:58</td>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>87.3</td>
+        <td>25.9</td>
+        <td>45.5</td>
+        <td>1.82</td>
+        <td>23.8</td>
+        <td style="font-weight:700; color:#047857;">-2.1</td>
+        <td>0.856</td>
+        <td>21.93</td>
+        <td><strong>4</strong></td>
+        <td>12.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:51:40</td>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>90.9</td>
+        <td>25.9</td>
+        <td>45.5</td>
+        <td>1.82</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#047857;">-1.6</td>
+        <td>0.876</td>
+        <td>6.92</td>
+        <td><strong>4</strong></td>
+        <td>9.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:52:35</td>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>89.2</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>23.9</td>
+        <td style="font-weight:700; color:#047857;">-2.0</td>
+        <td>0.778</td>
+        <td>8.63</td>
+        <td><strong>4</strong></td>
+        <td>10.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:53:20</td>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>90.1</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#047857;">-1.8</td>
+        <td>0.681</td>
+        <td>6.62</td>
+        <td><strong>4</strong></td>
+        <td>9.9</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:54:00</td>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>89.4</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>23.9</td>
+        <td style="font-weight:700; color:#047857;">-2.0</td>
+        <td>0.850</td>
+        <td>6.72</td>
+        <td><strong>4</strong></td>
+        <td>10.6</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:55:35</td>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>90.3</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.9</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.0</td>
+        <td>0.881</td>
+        <td>9.65</td>
+        <td><strong>4</strong></td>
+        <td>9.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:56:27</td>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>87.2</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.7</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.2</td>
+        <td>0.850</td>
+        <td>10.63</td>
+        <td><strong>4</strong></td>
+        <td>12.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:57:17</td>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>89.2</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.7</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.2</td>
+        <td>0.891</td>
+        <td>13.62</td>
+        <td><strong>4</strong></td>
+        <td>10.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">17:59:07</td>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>90.8</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.9</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.0</td>
+        <td>0.703</td>
+        <td>9.98</td>
+        <td><strong>4</strong></td>
+        <td>9.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:00:05</td>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>89.8</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.7</td>
+        <td style="font-weight:700; color:#1d4ed8;">-1.2</td>
+        <td>0.762</td>
+        <td>10.36</td>
+        <td><strong>4</strong></td>
+        <td>10.2</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:00:57</td>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>91.2</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>25.2</td>
+        <td style="font-weight:700; color:#1d4ed8;">-0.7</td>
+        <td>0.815</td>
+        <td>4.21</td>
+        <td><strong>3</strong></td>
+        <td>8.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:04:02</td>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>90.2</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#b45309;">-1.6</td>
+        <td>0.878</td>
+        <td>12.41</td>
+        <td><strong>4</strong></td>
+        <td>9.8</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:05:30</td>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 1</td>
+        <td>89.1</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.2</td>
+        <td style="font-weight:700; color:#b45309;">-1.7</td>
+        <td>0.886</td>
+        <td>9.99</td>
+        <td><strong>4</strong></td>
+        <td>10.9</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:06:35</td>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>89.0</td>
+        <td>25.9</td>
+        <td>42.6</td>
+        <td>1.92</td>
+        <td>24.1</td>
+        <td style="font-weight:700; color:#b45309;">-1.8</td>
+        <td>0.880</td>
+        <td>10.32</td>
+        <td><strong>4</strong></td>
+        <td>11.0</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:08:55</td>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 2</td>
+        <td>89.9</td>
+        <td>25.9</td>
+        <td>42.1</td>
+        <td>1.93</td>
+        <td>24.5</td>
+        <td style="font-weight:700; color:#b45309;">-1.4</td>
+        <td>0.856</td>
+        <td>10.12</td>
+        <td><strong>4</strong></td>
+        <td>10.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:10:13</td>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>90.3</td>
+        <td>25.9</td>
+        <td>42.1</td>
+        <td>1.93</td>
+        <td>24.3</td>
+        <td style="font-weight:700; color:#b45309;">-1.6</td>
+        <td>0.785</td>
+        <td>13.11</td>
+        <td><strong>4</strong></td>
+        <td>9.7</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:11:48</td>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td style="font-size:6.8pt;">Блок 3</td>
+        <td>88.9</td>
+        <td>25.9</td>
+        <td>42.1</td>
+        <td>1.93</td>
+        <td>24.6</td>
+        <td style="font-weight:700; color:#b45309;">-1.3</td>
+        <td>0.889</td>
+        <td>14.88</td>
+        <td><strong>4</strong></td>
+        <td>11.1</td>
+      </tr>
+
+      <tr>
+        <td style="font-family:monospace; font-size:6.8pt;">18:13:25</td>
+        <td><strong>X0</strong></td>
+        <td><span class="badge badge-x">Лизиметр FAO-56</span></td>
+        <td style="font-size:6.8pt;">Базис E</td>
+        <td>94.9</td>
+        <td>25.9</td>
+        <td>42.1</td>
+        <td>1.93</td>
+        <td>23.7</td>
+        <td style="font-weight:700; color:#334155;">-2.2</td>
+        <td>0.000</td>
+        <td>0.00</td>
+        <td><strong>--</strong></td>
+        <td>5.1</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div class="grid-2" style="margin-top:4px;">
+    <div class="card">
+      <div class="card-title">ИТОГОВЫЙ СТАТУС КОГОРТ НА ДЕНЬ 6 (+48Ч ПОСЛЕ ПОЛИВА РЕАКЦИИ)</div>
+      <ul style="padding-left:14px; margin:2px 0; font-size:7.2pt; line-height:1.35;">
+        <li><strong>Контроль (K1..K6):</strong> Средняя ΔT = -1.87 ± 0.08 °C, PLA = 10.14 ± 2.45 см², средний NDVI = 0.821 ± 0.033. Растения стабильны, turgor = 4.0.</li>
+        <li><strong>Превенция (P1..P6):</strong> Средняя ΔT = -1.57 ± 0.08 °C, PLA = 11.80 ± 0.75 см², средний NDVI = 0.862 ± 0.021. Максимальная площадь и фотосинтетическая активность.</li>
+        <li><strong>Реакция (R1..R6):</strong> Средняя ΔT = -1.05 ± 0.08 °C, PLA = 9.84 ± 1.25 см², средний NDVI = 0.817 ± 0.028. Растение R6 сохранило следы глубокого стресса (turgor=3, PLA=4.21 см²).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">МЕТРОЛОГИЧЕСКИЙ ПРОТОКОЛ СЕССИИ 15.11.2026</div>
+      <p style="font-size:7.2pt; line-height:1.35;">
+        • Интервал измерений: строго с <strong>17:50:10</strong> (K1) по <strong>18:13:25</strong> (X0).<br>
+        • Базовые условия климатической камеры: температура воздуха выровнена до <strong>25.9 °C</strong>.<br>
+        • Относительная влажность: 42.1–45.5 %, дефицит давления пара VPD: 1.82–1.93 кПа.<br>
+        • Лизиметр X0 зафиксировал суточный расход на испарение почвы <strong>5.1 мл</strong>.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Статистический анализ биологической эффективности (ДЕНЬ 6, 15.11.2026)</div>
+      <div class="doc-title">ДВУХФАКТОРНЫЙ ДИСПЕРСИОННЫЙ АНАЛИЗ (TWO-WAY ANOVA ПО ДОСПЕХОВУ Б.А.)</div>
+      <div class="doc-subtitle">Комплекс GRCBD 3×3×2 (N=18). Фактор А: Когорта водного режима | Фактор В: Пространственный блок</div>
+    </div>
+    <div class="stamp-box">
+      α = 0.05 | F-тест Фишера<br>
+      Критерий Краскела–Уоллиса<br>
+      НСР₀₅ = 0.30 °C
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-box" style="border-top:3px solid #059669;">
+      <div class="stat-val" style="color:#059669;">-1.87 ± 0.08 °C</div>
+      <div class="stat-lbl">Контроль (К) ΔT листа</div>
+    </div>
+    <div class="stat-box" style="border-top:3px solid #d97706;">
+      <div class="stat-val" style="color:#d97706;">-1.57 ± 0.08 °C</div>
+      <div class="stat-lbl">Превенция (P) ΔT листа</div>
+    </div>
+    <div class="stat-box" style="border-top:3px solid #2563eb;">
+      <div class="stat-val" style="color:#2563eb;">-1.05 ± 0.08 °C</div>
+      <div class="stat-lbl">Реакция (R) ΔT листа</div>
+    </div>
+    <div class="stat-box" style="border-top:3px solid #7c3aed;">
+      <div class="stat-val" style="color:#7c3aed;">0.30 °C</div>
+      <div class="stat-lbl">НСР 05 (LSD) по Доспехову</div>
+    </div>
+    <div class="stat-box" style="border-top:3px solid #dc2626;">
+      <div class="stat-val" style="color:#dc2626;">p = 0.0005</div>
+      <div class="stat-lbl">Фактор А (F = 19.40)</div>
+    </div>
+  </div>
+
+  <h2>1. ПОЛНАЯ ДИСПЕРСИОННАЯ ТАБЛИЦА С УЧЕТОМ ВЗАИМОДЕЙСТВИЯ «КОГОРТА × БЛОК»</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="text-align:left;">Источник варьирования</th>
+        <th>Сумма квадратов (SS)</th>
+        <th>Степени свободы (df)</th>
+        <th>Средний квадрат (MS)</th>
+        <th>F факт (Фишера)</th>
+        <th>F крит (α=0.05)</th>
+        <th>p-значение (p-value)</th>
+        <th>Доля влияния (η², %)</th>
+        <th>Вывод о статистической значимости</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="font-weight:700; background-color:#eff6ff;">
+        <td style="text-align:left;">Фактор А: Когорта (Водный режим)</td>
+        <td>2.0478</td>
+        <td>2</td>
+        <td>1.0239</td>
+        <td style="color:#dc2626;">19.400</td>
+        <td>4.256</td>
+        <td style="color:#dc2626;">0.0005</td>
+        <td>78.48 %</td>
+        <td style="color:#166534;">Эффект высокодостоверен (p &lt; 0.001)</td>
+      </tr>
+      <tr>
+        <td style="text-align:left;">Фактор В: Блок (Пространственный)</td>
+        <td>0.0411</td>
+        <td>2</td>
+        <td>0.0206</td>
+        <td>0.389</td>
+        <td>4.256</td>
+        <td>0.6883</td>
+        <td>1.57 %</td>
+        <td style="color:#64748b;">Незначимо (блокировка однородна)</td>
+      </tr>
+      <tr style="background-color:#f8fafc;">
+        <td style="text-align:left;">Взаимодействие А × В (Когорта × Блок)</td>
+        <td>0.0456</td>
+        <td>4</td>
+        <td>0.0114</td>
+        <td>0.216</td>
+        <td>3.633</td>
+        <td>0.9230</td>
+        <td>1.75 %</td>
+        <td style="color:#64748b;">Незначимо (реакция устойчива во всех блоках)</td>
+      </tr>
+      <tr>
+        <td style="text-align:left;">Случайная ошибка (E, внутриячеечная)</td>
+        <td>0.4750</td>
+        <td>9</td>
+        <td>0.0528</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td>18.20 %</td>
+        <td>—</td>
+      </tr>
+      <tr style="font-weight:800; background-color:#f1f5f9;">
+        <td style="text-align:left;">ОБЩЕЕ ВАРЬИРОВАНИЕ (Total)</td>
+        <td>2.6094</td>
+        <td>17</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td>100.00 %</td>
+        <td>Комплекс полностью сбалансирован</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>2. МНОЖЕСТВЕННЫЕ СРАВНЕНИЯ И ОЦЕНКА ОМНИБУСНОГО КРИТЕРИЯ КРАСКЕЛА — УОЛЛИСА</h2>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">СРАВНЕНИЕ СРЕДНИХ С НСР₀₅ = 0.30 °C (ДУНКАН / ТЬЮКИ)</div>
+      <table style="width:100%; font-size:7.2pt; line-height:1.35;">
+        <tr style="font-weight:700; background:#e2e8f0;">
+          <td>Пара сравнения</td><td>Разность (d)</td><td>НСР 05</td><td>Достоверность</td>
+        </tr>
+        <tr>
+          <td>Реакция (R) vs Контроль (K)</td>
+          <td style="font-weight:700; color:#dc2626;">+0.82 °C</td>
+          <td>0.30 °C</td>
+          <td style="color:#166534; font-weight:700;">d &gt; НСР₀₅ (Достоверно, p &lt; 0.001)</td>
+        </tr>
+        <tr>
+          <td>Реакция (R) vs Превенция (P)</td>
+          <td style="font-weight:700; color:#dc2626;">+0.52 °C</td>
+          <td>0.30 °C</td>
+          <td style="color:#166534; font-weight:700;">d &gt; НСР₀₅ (Достоверно, p &lt; 0.01)</td>
+        </tr>
+        <tr>
+          <td>Превенция (P) vs Контроль (K)</td>
+          <td>+0.30 °C</td>
+          <td>0.30 °C</td>
+          <td style="color:#475569;">Граничное значение (d = НСР₀₅, p ≈ 0.05)</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">РОБАСТНЫЙ КРИТЕРИЙ КРАСКЕЛА — УОЛЛИСА (H-TEST)</div>
+      <p style="font-size:7.2pt; line-height:1.35;">
+        <strong>Общий непараметрический омнибусный критерий:</strong><br>
+        <em>H = 13.49, df = 2, p = 0.0012</em>.<br>
+        <span style="color:#64748b;">Примечание: Данное значение p = 0.0012 относится ко всей совокупности трех когорт в целом (omnibus rank sum), а не к попарным сравнениям. Отвергает нулевую гипотезу о равенстве медианных рангов транспирационного охлаждения во всей выборке.</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="note-alert" style="background:#fffbeb; border-left-color:#d97706; margin-top:5px;">
+    <strong>Биологическая и физиологическая интерпретация (Stomatal Sluggishness):</strong><br>
+    Высокодостоверное превышение температуры листа в когорте Реакции на <strong>+0.82 °C</strong> относительно Контроля через <strong>48 часов</strong> после обильного восстановительного полива (23.1 мл) при полном восстановлении визуального тургора (до 4.0 баллов у R1..R5) объясняется <em>устьичным лагом (гистерезисом)</em>. Избыточный стрессовый пул эндогенной абсцизовой кислоты (АБК), накопленный в замыкающих клетках за период глубокой десикации (День 4), и медленное восстановление ионных каналов $K^+ / Cl^-$ лимитируют максимальную устьичную проводимость ($g_s$). В отличие от Реакции, растения когорты Превенции поливались до падения тургора, поэтому не испытали глубокого метаболического шока и полностью сохранили аппарат транспирации.
+  </div>
+</div>
+
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Оценка продуктивности и эффективности использования влаги</div>
+      <div class="doc-title">ПРОГНОЗ НАКОПЛЕНИЯ БИОМАССЫ НА УБОРКУ (ДЕНЬ 6, 15.11.2026)</div>
+      <div class="doc-subtitle">Индивидуальный прогноз по 18 растениям и сравнительная эффективность когорт (WUE)</div>
+    </div>
+    <div class="stamp-box">Финальный срез: +48ч<br>Точность: ±5%<br>Огурец «Каскад»</div>
+  </div>
+
+  <h2>1. ИНДИВИДУАЛЬНАЯ ВЕДОМОСТЬ РАСТЕНИЙ ПО ДАННЫМ ФЕНОТИПИРОВАНИЯ</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Когорта</th>
+        <th>Блок</th>
+        <th>PLA (см²)</th>
+        <th>Тургор</th>
+        <th>FW листьев (г)</th>
+        <th>FW стебля (г)</th>
+        <th>Сумма FW (г)</th>
+        <th>Сухое в-во (%)</th>
+        <th>Сухая масса DW (г)</th>
+        <th>DW (мг)</th>
+        <th>Суммарный полив (мл)</th>
+        <th>WUE (мг/мл)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td>Блок 1</td>
+        <td>10.02</td>
+        <td><strong>4</strong></td>
+        <td>0.601</td>
+        <td>0.440</td>
+        <td style="font-weight:700;">1.04</td>
+        <td>8.4%</td>
+        <td>0.087</td>
+        <td style="font-weight:700;">87.5</td>
+        <td>52.5</td>
+        <td style="font-weight:700; color:#047857;">1.67</td>
+      </tr>
+
+      <tr>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td>Блок 1</td>
+        <td>21.93</td>
+        <td><strong>4</strong></td>
+        <td>1.316</td>
+        <td>0.655</td>
+        <td style="font-weight:700;">1.97</td>
+        <td>8.4%</td>
+        <td>0.166</td>
+        <td style="font-weight:700;">165.5</td>
+        <td>57.4</td>
+        <td style="font-weight:700; color:#047857;">2.88</td>
+      </tr>
+
+      <tr>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td>Блок 2</td>
+        <td>6.92</td>
+        <td><strong>4</strong></td>
+        <td>0.415</td>
+        <td>0.385</td>
+        <td style="font-weight:700;">0.80</td>
+        <td>8.4%</td>
+        <td>0.067</td>
+        <td style="font-weight:700;">67.2</td>
+        <td>43.1</td>
+        <td style="font-weight:700; color:#047857;">1.56</td>
+      </tr>
+
+      <tr>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td>Блок 2</td>
+        <td>8.63</td>
+        <td><strong>4</strong></td>
+        <td>0.518</td>
+        <td>0.415</td>
+        <td style="font-weight:700;">0.93</td>
+        <td>8.4%</td>
+        <td>0.078</td>
+        <td style="font-weight:700;">78.4</td>
+        <td>46.5</td>
+        <td style="font-weight:700; color:#047857;">1.69</td>
+      </tr>
+
+      <tr>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td>Блок 3</td>
+        <td>6.62</td>
+        <td><strong>4</strong></td>
+        <td>0.397</td>
+        <td>0.379</td>
+        <td style="font-weight:700;">0.78</td>
+        <td>8.4%</td>
+        <td>0.065</td>
+        <td style="font-weight:700;">65.2</td>
+        <td>45.0</td>
+        <td style="font-weight:700; color:#047857;">1.45</td>
+      </tr>
+
+      <tr>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td>Блок 3</td>
+        <td>6.72</td>
+        <td><strong>4</strong></td>
+        <td>0.403</td>
+        <td>0.381</td>
+        <td style="font-weight:700;">0.78</td>
+        <td>8.4%</td>
+        <td>0.066</td>
+        <td style="font-weight:700;">65.9</td>
+        <td>44.5</td>
+        <td style="font-weight:700; color:#047857;">1.48</td>
+      </tr>
+
+      <tr>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td>Блок 1</td>
+        <td>9.65</td>
+        <td><strong>4</strong></td>
+        <td>0.579</td>
+        <td>0.434</td>
+        <td style="font-weight:700;">1.01</td>
+        <td>9.4%</td>
+        <td>0.095</td>
+        <td style="font-weight:700;">95.2</td>
+        <td>42.3</td>
+        <td style="font-weight:700; color:#1d4ed8;">2.25</td>
+      </tr>
+
+      <tr>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td>Блок 1</td>
+        <td>10.63</td>
+        <td><strong>4</strong></td>
+        <td>0.638</td>
+        <td>0.451</td>
+        <td style="font-weight:700;">1.09</td>
+        <td>9.4%</td>
+        <td>0.102</td>
+        <td style="font-weight:700;">102.4</td>
+        <td>49.8</td>
+        <td style="font-weight:700; color:#1d4ed8;">2.06</td>
+      </tr>
+
+      <tr>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td>Блок 2</td>
+        <td>13.62</td>
+        <td><strong>4</strong></td>
+        <td>0.817</td>
+        <td>0.505</td>
+        <td style="font-weight:700;">1.32</td>
+        <td>9.4%</td>
+        <td>0.124</td>
+        <td style="font-weight:700;">124.3</td>
+        <td>45.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">2.76</td>
+      </tr>
+
+      <tr>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td>Блок 2</td>
+        <td>9.98</td>
+        <td><strong>4</strong></td>
+        <td>0.599</td>
+        <td>0.440</td>
+        <td style="font-weight:700;">1.04</td>
+        <td>9.4%</td>
+        <td>0.098</td>
+        <td style="font-weight:700;">97.6</td>
+        <td>45.1</td>
+        <td style="font-weight:700; color:#1d4ed8;">2.16</td>
+      </tr>
+
+      <tr>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td>Блок 3</td>
+        <td>10.36</td>
+        <td><strong>4</strong></td>
+        <td>0.622</td>
+        <td>0.446</td>
+        <td style="font-weight:700;">1.07</td>
+        <td>9.4%</td>
+        <td>0.100</td>
+        <td style="font-weight:700;">100.4</td>
+        <td>46.8</td>
+        <td style="font-weight:700; color:#1d4ed8;">2.15</td>
+      </tr>
+
+      <tr>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td>Блок 3</td>
+        <td>4.21</td>
+        <td><strong>3</strong></td>
+        <td>0.253</td>
+        <td>0.336</td>
+        <td style="font-weight:700;">0.54</td>
+        <td>9.4%</td>
+        <td>0.051</td>
+        <td style="font-weight:700;">50.9</td>
+        <td>44.3</td>
+        <td style="font-weight:700; color:#1d4ed8;">1.15</td>
+      </tr>
+
+      <tr>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td>Блок 1</td>
+        <td>12.41</td>
+        <td><strong>4</strong></td>
+        <td>0.745</td>
+        <td>0.483</td>
+        <td style="font-weight:700;">1.23</td>
+        <td>8.8%</td>
+        <td>0.108</td>
+        <td style="font-weight:700;">108.1</td>
+        <td>44.7</td>
+        <td style="font-weight:700; color:#b45309;">2.42</td>
+      </tr>
+
+      <tr>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td>Блок 1</td>
+        <td>9.99</td>
+        <td><strong>4</strong></td>
+        <td>0.599</td>
+        <td>0.440</td>
+        <td style="font-weight:700;">1.04</td>
+        <td>8.8%</td>
+        <td>0.091</td>
+        <td style="font-weight:700;">91.5</td>
+        <td>46.0</td>
+        <td style="font-weight:700; color:#b45309;">1.99</td>
+      </tr>
+
+      <tr>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td>Блок 2</td>
+        <td>10.32</td>
+        <td><strong>4</strong></td>
+        <td>0.619</td>
+        <td>0.446</td>
+        <td style="font-weight:700;">1.06</td>
+        <td>8.8%</td>
+        <td>0.094</td>
+        <td style="font-weight:700;">93.7</td>
+        <td>45.8</td>
+        <td style="font-weight:700; color:#b45309;">2.05</td>
+      </tr>
+
+      <tr>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td>Блок 2</td>
+        <td>10.12</td>
+        <td><strong>4</strong></td>
+        <td>0.607</td>
+        <td>0.442</td>
+        <td style="font-weight:700;">1.05</td>
+        <td>8.8%</td>
+        <td>0.092</td>
+        <td style="font-weight:700;">92.3</td>
+        <td>43.3</td>
+        <td style="font-weight:700; color:#b45309;">2.13</td>
+      </tr>
+
+      <tr>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td>Блок 3</td>
+        <td>13.11</td>
+        <td><strong>4</strong></td>
+        <td>0.787</td>
+        <td>0.496</td>
+        <td style="font-weight:700;">1.28</td>
+        <td>8.8%</td>
+        <td>0.113</td>
+        <td style="font-weight:700;">112.9</td>
+        <td>45.0</td>
+        <td style="font-weight:700; color:#b45309;">2.51</td>
+      </tr>
+
+      <tr>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td>Блок 3</td>
+        <td>14.88</td>
+        <td><strong>4</strong></td>
+        <td>0.893</td>
+        <td>0.528</td>
+        <td style="font-weight:700;">1.42</td>
+        <td>8.8%</td>
+        <td>0.125</td>
+        <td style="font-weight:700;">125.0</td>
+        <td>47.3</td>
+        <td style="font-weight:700; color:#b45309;">2.64</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <h2>2. СВОДНАЯ СРАВНИТЕЛЬНАЯ ПРОДУКТИВНОСТЬ КОГОРТ (СРЕДНЕЕ ± СТАНДАРТНАЯ ОШИБКА)</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="text-align:left;">Когорта опыта</th>
+        <th>Средняя PLA (см²)</th>
+        <th>Сырая масса FW (г)</th>
+        <th>Сухая масса DW (мг)</th>
+        <th>Сухое в-во (%)</th>
+        <th>Расход воды (мл/раст)</th>
+        <th>WUE (мг DW / мл воды)</th>
+        <th>Отклонение WUE к Контролю</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="text-align:left;"><strong>🟢 Контроль (K1..K6)</strong></td>
+        <td>10.14 ± 2.42</td>
+        <td><strong>1.05 ± 0.19</strong></td>
+        <td><strong>88.3 ± 15.9</strong></td>
+        <td>8.4 %</td>
+        <td>48.2 ± 2.3</td>
+        <td style="font-weight:700; color:#047857;">1.79 ± 0.22</td>
+        <td>Базис (100.0 %)</td>
+      </tr>
+      <tr>
+        <td style="text-align:left;"><strong>🟡 Превенция (P1..P6)</strong></td>
+        <td>11.80 ± 0.81</td>
+        <td><strong>1.18 ± 0.06</strong></td>
+        <td><strong>103.9 ± 5.6</strong></td>
+        <td>8.8 %</td>
+        <td>45.4 ± 0.6</td>
+        <td style="font-weight:700; color:#b45309;">2.29 ± 0.11</td>
+        <td style="color:#166534; font-weight:700;">+27.9 % (Превосходство)</td>
+      </tr>
+      <tr>
+        <td style="text-align:left;"><strong>🔵 Реакция (R1..R6)</strong></td>
+        <td>9.74 ± 1.25</td>
+        <td><strong>1.01 ± 0.10</strong></td>
+        <td><strong>95.1 ± 9.8</strong></td>
+        <td>9.4 %</td>
+        <td>45.6 ± 1.0</td>
+        <td style="font-weight:700; color:#1d4ed8;">2.09 ± 0.21</td>
+        <td style="color:#475569;">+8.9 % (Снижение PLA и FW)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note-alert">
+    <strong>Агрономическое резюме:</strong> Стратегия <strong>Превенции</strong> обеспечила абсолютное лидерство по биомассе ($DW = 96.1$ мг) и показала наивысшую эффективность использования воды ($WUE = 2.29$ мг/мл, <strong>+28% к контролю</strong>). Сохранение клеточного тургора позволило сократить непроизводительную транспирацию при сохранении максимальной скорости ассимиляции $CO_2$.
+  </div>
+</div>
+
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Стандартная операционная процедура (СОП) / Регламент</div>
+      <div class="doc-title">МЕТОДОЛОГИЯ ДЕСТРУКТИВНОГО СБОРА И СУШКИ БИОМАССЫ</div>
+      <div class="doc-subtitle">Нормативная база: ГОСТ 28561-90, ГОСТ 12038-84, международный протокол IPPN / EMPHASIS</div>
+    </div>
+    <div class="stamp-box">СОП-ФЕНО-04/2026<br>Точность весов: 0.001 г<br>Т сушки: 105 ± 2 °C</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">1. ОБОРУДОВАНИЕ, ПРИБОРЫ И МАТЕРИАЛЫ</div>
+      <ul style="padding-left:12px; margin:2px 0; font-size:7.2pt; line-height:1.35;">
+        <li><strong>Весы аналитические:</strong> 1-го класса точности с дискретностью 0.001 г (1 мг).</li>
+        <li><strong>Сушильный шкаф:</strong> с принудительной конвекцией и термостатированием 105 ± 2 °C.</li>
+        <li><strong>Бюксы металлические:</strong> предварительно высушенные до постоянной массы ($M_0$).</li>
+        <li><strong>Эксикатор:</strong> стеклянный со свежепрокаленным силикагелем (индикатор влажности).</li>
+        <li><strong>Хирургический скальпель:</strong> для моментального отсечения на линии корневой шейки.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">2. ВРЕМЕННОЙ РЕГЛАМЕНТ И СРОКИ ОТБОРА</div>
+      <ul style="padding-left:12px; margin:2px 0; font-size:7.2pt; line-height:1.35;">
+        <li><strong>Срок среза:</strong> Строго в точке <strong>+48 часов</strong> после регидратации когорты Реакция.</li>
+        <li><strong>Изохронность:</strong> Срезку производить блоками (Блок 1, затем Блок 2, затем Блок 3).</li>
+        <li><strong>Критический интервал взвешивания FW:</strong> Не более <strong>60 секунд</strong> от момента отсечения стебля до закрытия бюкса на весах (предотвращение испарения влаги).</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>3. ПОШАГОВЫЙ ПРОТОКОЛ ПРОВЕДЕНИЯ УБОРОЧНЫХ РАБОТ</h2>
+  <div style="font-size:7.2pt; line-height:1.35;">
+    <p><strong>Шаг 1. Препарирование тары:</strong> Пронумеровать алюминиевые бюксы по числу растений (18 шт). Просушить при 105°C (2 ч), охладить в эксикаторе (30 мин), зафиксировать массу пустой тары ($M_0 \pm 0.001$ г).</p>
+    <p><strong>Шаг 2. Деструктивный отбор пробы (Excision):</strong> Скальпелем одним движением отсечь надземную часть растения строго на уровне поверхности субстрата (линия корневой шейки).</p>
+    <p><strong>Шаг 3. Определение сырой массы (Fresh Weight, FW):</strong> Немедленно поместить срезанную массу в бюкс, закрыть крышкой и взвесить с точностью до 1 мг ($M_1$). Рассчитать сырую массу: $FW = M_1 - M_0$.</p>
+    <p><strong>Шаг 4. Ферментативная фиксация и сушка (ГОСТ 28561-90):</strong> Поместить открытые бюксы в разогретый до <strong>105 ± 2 °C</strong> сушильный шкаф. Выдержать 30 минут для инактивации ферментов, затем продолжать высушивание при температуре <strong>80 ± 2 °C</strong> в течение 16–24 часов до постоянной массы.</p>
+    <p><strong>Шаг 5. Охлаждение и сухое взвешивание (DW):</strong> Закрыть бюксы крышками, выдержать в эксикаторе 25–30 минут, взвесить на аналитических весах ($M_2$). Сухая масса: $DW = M_2 - M_0$.</p>
+  </div>
+
+  <h2>4. РАСЧЕТНЫЕ АГРОНОМИЧЕСКИЕ ФОРМУЛЫ</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:25%;">Показатель</th>
+        <th style="width:30%;">Расчетная формула</th>
+        <th>Биологический и агрономический смысл</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Содержание сухого вещества (DM, %)</strong></td>
+        <td style="font-family:monospace;">DM = (DW / FW) × 100 %</td>
+        <td>Характеризует плотность клеточных стенок и степень гидрофильности тканей.</td>
+      </tr>
+      <tr>
+        <td><strong>Оводненность тканей (WC, %)</strong></td>
+        <td style="font-family:monospace;">WC = 100 % - DM</td>
+        <td>Показывает фактическое влагонасыщение побега в момент среза.</td>
+      </tr>
+      <tr>
+        <td><strong>Эффективность воды (WUE, мг/мл)</strong></td>
+        <td style="font-family:monospace;">WUE = (DW, мг) / (Σ Water, мл)</td>
+        <td>Количество сухого вещества, синтезированное на 1 мл суммарно израсходованной влаги.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer-sig">
+    <div><strong>Оператор феном. комплекса:</strong> <span class="sig-line"></span> / Инж. исследовательской группы /</div>
+    <div><strong>Ведущий агроном-исследователь:</strong> <span class="sig-line"></span> / Канд. с.-х. наук /</div>
+    <div><strong>Зав. лабораторией:</strong> <span class="sig-line"></span> / Д-р с.-х. наук, Профессор /</div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Лист журнала сбора биомассы — Волна 2 (Лицевая сторона и Оборот)</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 7mm 9mm 7mm 9mm;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #0f172a;
+    background-color: #ffffff;
+    font-size: 7.8pt;
+    line-height: 1.25;
+    margin: 0;
+    padding: 0;
+  }
+  .page {
+    page-break-after: always;
+    page-break-inside: avoid;
+    height: 196mm;
+    max-height: 196mm;
+    overflow: hidden;
+    position: relative;
+    clear: both;
+  }
+  .page:last-child {
+    page-break-after: avoid;
+  }
+  .header-box {
+    border-bottom: 2px solid #0f172a;
+    padding-bottom: 2px;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .org-title {
+    font-size: 7pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #475569;
+    font-weight: 700;
+  }
+  .doc-title {
+    font-size: 13pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 1px 0;
+    line-height: 1.15;
+  }
+  .doc-subtitle {
+    font-size: 8.5pt;
+    color: #0284c7;
+    font-weight: 600;
+  }
+  .stamp-box {
+    text-align: right;
+    font-size: 7pt;
+    color: #334155;
+    border: 1px dashed #64748b;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: #f8fafc;
+    line-height: 1.25;
+  }
+  .meta-grid {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .meta-card {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 4px 6px;
+    flex: 1;
+    font-size: 7.2pt;
+    line-height: 1.35;
+  }
+  .meta-title {
+    font-weight: 700;
+    color: #0f172a;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 2px;
+    padding-bottom: 1px;
+    text-transform: uppercase;
+    font-size: 6.8pt;
+  }
+  
+  /* Таблица ориентиров на Лицевой стороне */
+  table.ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.2pt;
+    margin-top: 3px;
+    margin-bottom: 5px;
+  }
+  table.ref-table th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 600;
+    text-align: center;
+    padding: 3px 2px;
+    border: 1px solid #334155;
+    font-size: 6.8pt;
+    text-transform: uppercase;
+    line-height: 1.15;
+  }
+  table.ref-table td {
+    padding: 2px 3px;
+    border: 1px solid #cbd5e1;
+    text-align: center;
+    height: 16px;
+  }
+  table.ref-table tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+  table.ref-table tr.block-sep {
+    border-top: 2px solid #0f172a;
+  }
+
+  /* Полноразмерная таблица для письма на Обороте */
+  table.blank-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.5pt;
+    margin-top: 3px;
+    margin-bottom: 4px;
+  }
+  table.blank-table th {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: center;
+    padding: 4px 2px;
+    border: 1px solid #1e293b;
+    font-size: 6.8pt;
+    text-transform: uppercase;
+    line-height: 1.15;
+  }
+  table.blank-table td {
+    padding: 1px 3px;
+    border: 1px solid #94a3b8;
+    text-align: center;
+    height: 25px; /* Просторная высота для рукописной записи цифр */
+    vertical-align: middle;
+  }
+  table.blank-table tr:nth-child(even) {
+    background-color: #fafafa;
+  }
+  table.blank-table tr.block-sep {
+    border-top: 2.5px solid #0f172a;
+  }
+  .blank-cell {
+    border-bottom: 1px dotted #94a3b8;
+    height: 19px;
+    width: 100%;
+    display: block;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .badge-k { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  .badge-p { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+  .badge-r { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  
+  .note-alert {
+    background-color: #eff6ff;
+    border-left: 3px solid #3b82f6;
+    padding: 4px 6px;
+    font-size: 7.2pt;
+    margin: 3px 0;
+    border-radius: 0 3px 3px 0;
+    line-height: 1.3;
+  }
+  .footer-sig {
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.2pt;
+    border-top: 1px solid #94a3b8;
+    padding-top: 3px;
+  }
+  .sig-line {
+    border-bottom: 1px solid #475569;
+    width: 130px;
+    display: inline-block;
+    margin: 0 3px;
+  }
+  .checklist {
+    font-size: 7pt;
+    line-height: 1.3;
+    margin-top: 3px;
+  }
+  .checklist-item {
+    display: inline-block;
+    width: 49%;
+    vertical-align: top;
+  }
+  .checkbox-box {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border: 1px solid #0f172a;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Министерство науки и высшего образования РФ | Тимирязевский научно-испытательный центр</div>
+      <div class="doc-title">ЛИСТ СБОРА БИОМАССЫ (ЛИЦЕВАЯ СТОРОНА: ОРИЕНТИРЫ И СОП)</div>
+      <div class="doc-subtitle">Опыт «Волна 2» (Огурец «Каскад», Cucumis sativus L., GRCBD 3×3×2, ID: exp_1792918800)</div>
+    </div>
+    <div class="stamp-box">
+      <strong>ЛИСТ 1: СПРАВОЧНЫЙ</strong><br>
+      Срез: +48ч регидратации<br>
+      Норматив: ГОСТ 28561-90
+    </div>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-card">
+      <div class="meta-title">1. РЕГЛАМЕНТ СРЕЗКИ И ПРАВИЛО 60 СЕКУНД</div>
+      • Срезка производится <strong>строго по блокам GRCBD</strong> (Блок 1 → Блок 2 → Блок 3) для исключения дневного дрейфа.<br>
+      • Инструмент: острый скальпель, срез строго на уровне границы субстрата (корневая шейка).<br>
+      • ⏱ <strong>КРИТИЧЕСКИЙ ЛИМИТ:</strong> Не более <strong>60 секунд</strong> от среза до закрытия крышки бюкса на аналитических весах!
+    </div>
+    <div class="meta-card">
+      <div class="meta-title">2. РЕГЛАМЕНТ ТЕРМОСТАТИРОВАНИЯ И СУШКИ</div>
+      • <strong>Фаза 1 (Инактивация ферментов):</strong> Шкаф <strong>105 ± 2 °C</strong> ровно 30 минут с открытыми крышками.<br>
+      • <strong>Фаза 2 (Высушивание до const массы):</strong> Шкаф <strong>80 ± 2 °C</strong> в течение 20–24 часов.<br>
+      • <strong>Охлаждение:</strong> Эксикатор с сухим силикагелем строго <strong>25–30 минут</strong> с закрытыми крышками перед взвешиванием.
+    </div>
+    <div class="meta-card" style="background:#f0fdf4; border-color:#86efac;">
+      <div class="meta-title" style="color:#166534;">3. РАСЧЕТНЫЕ АГРОНОМИЧЕСКИЕ ФОРМУЛЫ</div>
+      • Сырая масса побега: <strong>FW = M₁ - M₀</strong> (г)<br>
+      • Сухая масса побега: <strong>DW = M₂ - M₀</strong> (г или мг = г × 1000)<br>
+      • Содержание сухого вещества: <strong>DM (%) = (DW / FW) × 100 %</strong><br>
+      • Эффективность использования воды: <strong>WUE = DW (мг) / Σ Полив (мл)</strong>
+    </div>
+  </div>
+
+  <table class="ref-table">
+    <thead>
+      <tr>
+        <th style="width:25px;">№</th>
+        <th style="width:50px;">Блок GRCBD</th>
+        <th style="width:30px;">ID</th>
+        <th style="width:75px;">Когорта</th>
+        <th style="width:40px;">Тургор</th>
+        <th style="width:55px;">PLA феном<br>(см²)</th>
+        <th style="width:65px; background:#1e293b;">FW пред.<br>(г, феном)</th>
+        <th style="width:55px;">FW лист<br>(г, пред.)</th>
+        <th style="width:55px;">FW стебель<br>(г, пред.)</th>
+        <th style="width:65px; background:#1e293b;">DW пред.<br>(мг, феном)</th>
+        <th style="width:55px; background:#1e293b;">DM пред.<br>(%, феном)</th>
+        <th style="width:55px;">Σ Полив<br>(мл, факт)</th>
+        <th style="width:65px; background:#047857;">WUE пред.<br>(мг/мл)</th>
+        <th>Агрономические примечания к растению</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr class="">
+        <td><strong>1</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong>K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><strong>4</strong></td>
+        <td>10.02</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.04</td>
+        <td>0.601</td>
+        <td>0.440</td>
+        <td style="font-weight:700; background:#f1f5f9;">87.5</td>
+        <td style="background:#f1f5f9;">8.4%</td>
+        <td style="font-family:monospace;">52.5</td>
+        <td style="font-weight:700; color:#047857; background:#f0fdf4;">1.67</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>2</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong>K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><strong>4</strong></td>
+        <td>21.93</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.97</td>
+        <td>1.316</td>
+        <td>0.655</td>
+        <td style="font-weight:700; background:#f1f5f9;">165.5</td>
+        <td style="background:#f1f5f9;">8.4%</td>
+        <td style="font-family:monospace;">57.4</td>
+        <td style="font-weight:700; color:#047857; background:#f0fdf4;">2.88</td>
+        <td style="text-align:left; font-size:6.8pt;">Мощное развитие, высокая биомасса</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>3</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong>P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><strong>4</strong></td>
+        <td>12.41</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.23</td>
+        <td>0.745</td>
+        <td>0.483</td>
+        <td style="font-weight:700; background:#f1f5f9;">108.1</td>
+        <td style="background:#f1f5f9;">8.8%</td>
+        <td style="font-family:monospace;">44.7</td>
+        <td style="font-weight:700; color:#b45309; background:#f0fdf4;">2.42</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>4</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong>P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><strong>4</strong></td>
+        <td>9.99</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.04</td>
+        <td>0.599</td>
+        <td>0.440</td>
+        <td style="font-weight:700; background:#f1f5f9;">91.5</td>
+        <td style="background:#f1f5f9;">8.8%</td>
+        <td style="font-family:monospace;">46.0</td>
+        <td style="font-weight:700; color:#b45309; background:#f0fdf4;">1.99</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>5</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong>R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><strong>4</strong></td>
+        <td>9.65</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.01</td>
+        <td>0.579</td>
+        <td>0.434</td>
+        <td style="font-weight:700; background:#f1f5f9;">95.2</td>
+        <td style="background:#f1f5f9;">9.4%</td>
+        <td style="font-family:monospace;">42.3</td>
+        <td style="font-weight:700; color:#1d4ed8; background:#f0fdf4;">2.25</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>6</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong>R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><strong>4</strong></td>
+        <td>10.63</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.09</td>
+        <td>0.638</td>
+        <td>0.451</td>
+        <td style="font-weight:700; background:#f1f5f9;">102.4</td>
+        <td style="background:#f1f5f9;">9.4%</td>
+        <td style="font-family:monospace;">49.8</td>
+        <td style="font-weight:700; color:#1d4ed8; background:#f0fdf4;">2.06</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="block-sep">
+        <td><strong>7</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong>K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><strong>4</strong></td>
+        <td>6.92</td>
+        <td style="font-weight:700; background:#f1f5f9;">0.80</td>
+        <td>0.415</td>
+        <td>0.385</td>
+        <td style="font-weight:700; background:#f1f5f9;">67.2</td>
+        <td style="background:#f1f5f9;">8.4%</td>
+        <td style="font-family:monospace;">43.1</td>
+        <td style="font-weight:700; color:#047857; background:#f0fdf4;">1.56</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>8</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong>K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><strong>4</strong></td>
+        <td>8.63</td>
+        <td style="font-weight:700; background:#f1f5f9;">0.93</td>
+        <td>0.518</td>
+        <td>0.415</td>
+        <td style="font-weight:700; background:#f1f5f9;">78.4</td>
+        <td style="background:#f1f5f9;">8.4%</td>
+        <td style="font-family:monospace;">46.5</td>
+        <td style="font-weight:700; color:#047857; background:#f0fdf4;">1.69</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>9</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong>P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><strong>4</strong></td>
+        <td>10.32</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.06</td>
+        <td>0.619</td>
+        <td>0.446</td>
+        <td style="font-weight:700; background:#f1f5f9;">93.7</td>
+        <td style="background:#f1f5f9;">8.8%</td>
+        <td style="font-family:monospace;">45.8</td>
+        <td style="font-weight:700; color:#b45309; background:#f0fdf4;">2.05</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>10</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong>P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><strong>4</strong></td>
+        <td>10.12</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.05</td>
+        <td>0.607</td>
+        <td>0.442</td>
+        <td style="font-weight:700; background:#f1f5f9;">92.3</td>
+        <td style="background:#f1f5f9;">8.8%</td>
+        <td style="font-family:monospace;">43.3</td>
+        <td style="font-weight:700; color:#b45309; background:#f0fdf4;">2.13</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>11</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong>R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><strong>4</strong></td>
+        <td>13.62</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.32</td>
+        <td>0.817</td>
+        <td>0.505</td>
+        <td style="font-weight:700; background:#f1f5f9;">124.3</td>
+        <td style="background:#f1f5f9;">9.4%</td>
+        <td style="font-family:monospace;">45.1</td>
+        <td style="font-weight:700; color:#1d4ed8; background:#f0fdf4;">2.76</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>12</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong>R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><strong>4</strong></td>
+        <td>9.98</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.04</td>
+        <td>0.599</td>
+        <td>0.440</td>
+        <td style="font-weight:700; background:#f1f5f9;">97.6</td>
+        <td style="background:#f1f5f9;">9.4%</td>
+        <td style="font-family:monospace;">45.1</td>
+        <td style="font-weight:700; color:#1d4ed8; background:#f0fdf4;">2.16</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="block-sep">
+        <td><strong>13</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong>K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><strong>4</strong></td>
+        <td>6.62</td>
+        <td style="font-weight:700; background:#f1f5f9;">0.78</td>
+        <td>0.397</td>
+        <td>0.379</td>
+        <td style="font-weight:700; background:#f1f5f9;">65.2</td>
+        <td style="background:#f1f5f9;">8.4%</td>
+        <td style="font-family:monospace;">45.0</td>
+        <td style="font-weight:700; color:#047857; background:#f0fdf4;">1.45</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>14</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong>K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><strong>4</strong></td>
+        <td>6.72</td>
+        <td style="font-weight:700; background:#f1f5f9;">0.78</td>
+        <td>0.403</td>
+        <td>0.381</td>
+        <td style="font-weight:700; background:#f1f5f9;">65.9</td>
+        <td style="background:#f1f5f9;">8.4%</td>
+        <td style="font-family:monospace;">44.5</td>
+        <td style="font-weight:700; color:#047857; background:#f0fdf4;">1.48</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>15</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong>P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><strong>4</strong></td>
+        <td>13.11</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.28</td>
+        <td>0.787</td>
+        <td>0.496</td>
+        <td style="font-weight:700; background:#f1f5f9;">112.9</td>
+        <td style="background:#f1f5f9;">8.8%</td>
+        <td style="font-family:monospace;">45.0</td>
+        <td style="font-weight:700; color:#b45309; background:#f0fdf4;">2.51</td>
+        <td style="text-align:left; font-size:6.8pt;">Максимальная WUE, развитый листовой полог</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>16</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong>P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><strong>4</strong></td>
+        <td>14.88</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.42</td>
+        <td>0.893</td>
+        <td>0.528</td>
+        <td style="font-weight:700; background:#f1f5f9;">125.0</td>
+        <td style="background:#f1f5f9;">8.8%</td>
+        <td style="font-family:monospace;">47.3</td>
+        <td style="font-weight:700; color:#b45309; background:#f0fdf4;">2.64</td>
+        <td style="text-align:left; font-size:6.8pt;">Максимальная WUE, развитый листовой полог</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>17</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong>R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><strong>4</strong></td>
+        <td>10.36</td>
+        <td style="font-weight:700; background:#f1f5f9;">1.07</td>
+        <td>0.622</td>
+        <td>0.446</td>
+        <td style="font-weight:700; background:#f1f5f9;">100.4</td>
+        <td style="background:#f1f5f9;">9.4%</td>
+        <td style="font-family:monospace;">46.8</td>
+        <td style="font-weight:700; color:#1d4ed8; background:#f0fdf4;">2.15</td>
+        <td style="text-align:left; font-size:6.8pt;">Нормативное развитие</td>
+      </tr>
+
+      <tr class="">
+        <td><strong>18</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong>R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><strong>3</strong></td>
+        <td>4.21</td>
+        <td style="font-weight:700; background:#f1f5f9;">0.54</td>
+        <td>0.253</td>
+        <td>0.336</td>
+        <td style="font-weight:700; background:#f1f5f9;">50.9</td>
+        <td style="background:#f1f5f9;">9.4%</td>
+        <td style="font-family:monospace;">44.3</td>
+        <td style="font-weight:700; color:#1d4ed8; background:#f0fdf4;">1.15</td>
+        <td style="text-align:left; font-size:6.8pt;">Глубокий стресс, тургор 3, замедленный рост</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div class="note-alert" style="background:#fffbeb; border-left-color:#d97706;">
+    <strong>ВНИМАНИЕ ОПЕРАТОРУ:</strong> На обороте данного листа расположен полноразмерный рукописный протокол со свободными разлинованными строками для заполнения фактических измерений при срезке и сушке. Сравнивайте получаемые результаты взвешивания $FW$ и $DW$ со справочными ориентирами данной таблицы.
+  </div>
+
+  <div class="footer-sig">
+    <div><strong>Ответственный за калибровку комплекса:</strong> <span class="sig-line"></span> / ___________________ /</div>
+    <div><strong>Ведущий агроном-исследователь:</strong> <span class="sig-line"></span> / ___________________ /</div>
+    <div><strong>Дата формирования бланка:</strong> 15.11.2026</div>
+  </div>
+</div>
+
+<div class="page">
+  <div class="header-box">
+    <div>
+      <div class="org-title">Министерство науки и высшего образования РФ | Тимирязевский научно-испытательный центр</div>
+      <div class="doc-title">РАБОЧИЙ ЖУРНАЛ СБОРА И СУШКИ БИОМАССЫ (ДЛЯ ЗАПОЛНЕНИЯ ОТ РУКИ)</div>
+      <div class="doc-subtitle">Оборотная сторона листа | Опыт «Волна 2» (Cucumis sativus L., Огурец «Каскад», GRCBD 3×3×2)</div>
+    </div>
+    <div class="stamp-box">
+      <strong>ОБОРОТ: РАБОЧИЙ</strong><br>
+      Заполняется шариковой ручкой<br>
+      Точность весов: 0.001 г
+    </div>
+  </div>
+
+  <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px; padding:3px 8px; margin-bottom:4px; font-size:7.2pt; display:flex; justify-content:space-between; align-items:center;">
+    <div><strong>Дата срезки:</strong> «_____» ____________ 2026 г. &nbsp;|&nbsp; <strong>Время:</strong> с _____ : _____ по _____ : _____</div>
+    <div><strong>Условия в лаб.:</strong> T возд = _______ °C, &nbsp; Влажность RH = _______ %</div>
+    <div><strong>Аналит. весы (инв. №):</strong> ______________________ &nbsp;|&nbsp; <strong>Суш. шкаф:</strong> ______________________</div>
+  </div>
+
+  <table class="blank-table">
+    <thead>
+      <tr>
+        <th style="width:22px;">№</th>
+        <th style="width:45px;">Блок</th>
+        <th style="width:30px;">ID</th>
+        <th style="width:65px;">Когорта</th>
+        <th style="width:48px;">№ бюкса<br>(тары)</th>
+        <th style="width:48px;">Время<br>срезки</th>
+        <th style="width:72px;">M₀ пустой тары<br>(г, ±0.001)</th>
+        <th style="width:72px;">M₁ тара + FW<br>(сырая, г)</th>
+        <th style="width:68px; background:#047857;">FW факт.<br>(M₁ - M₀, г)</th>
+        <th style="width:55px;">FW листа<br>(г, опция)</th>
+        <th style="width:55px;">FW стебля<br>(г, опция)</th>
+        <th style="width:72px;">M₂ тара + DW<br>(сухая, г)</th>
+        <th style="width:68px; background:#047857;">DW факт.<br>(M₂ - M₀, мг)</th>
+        <th style="width:55px; background:#b45309;">DM факт.<br>(DW/FW, %)</th>
+        <th>Примечания и особые отметки<br>(дефекты, тургор, краевой ожог)</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr class="">
+        <td><strong>1</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong style="font-size:8.5pt;">K1</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>2</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong style="font-size:8.5pt;">K2</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>3</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong style="font-size:8.5pt;">P1</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>4</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong style="font-size:8.5pt;">P2</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>5</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong style="font-size:8.5pt;">R1</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>6</strong></td>
+        <td><strong>Блок 1</strong></td>
+        <td><strong style="font-size:8.5pt;">R2</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="block-sep">
+        <td><strong>7</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong style="font-size:8.5pt;">K3</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>8</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong style="font-size:8.5pt;">K4</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>9</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong style="font-size:8.5pt;">P3</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>10</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong style="font-size:8.5pt;">P4</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>11</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong style="font-size:8.5pt;">R3</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>12</strong></td>
+        <td><strong>Блок 2</strong></td>
+        <td><strong style="font-size:8.5pt;">R4</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="block-sep">
+        <td><strong>13</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong style="font-size:8.5pt;">K5</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>14</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong style="font-size:8.5pt;">K6</strong></td>
+        <td><span class="badge badge-k">Контроль</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>15</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong style="font-size:8.5pt;">P5</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>16</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong style="font-size:8.5pt;">P6</strong></td>
+        <td><span class="badge badge-p">Превенция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>17</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong style="font-size:8.5pt;">R5</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr class="">
+        <td><strong>18</strong></td>
+        <td><strong>Блок 3</strong></td>
+        <td><strong style="font-size:8.5pt;">R6</strong></td>
+        <td><span class="badge badge-r">Реакция</span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="background:#f0fdf4;"><span class="blank-cell" style="border-bottom-color:#166534;"></span></td>
+        <td style="background:#fffbeb;"><span class="blank-cell" style="border-bottom-color:#b45309;"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr style="background:#fff7ed;">
+        <td><strong>Р1</strong></td>
+        <td style="font-size:6.8pt; color:#c2410c;"><strong>Резерв</strong></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="font-size:6.8pt; color:#c2410c;">Контроль / Х0</td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+      <tr style="background:#fff7ed;">
+        <td><strong>Р2</strong></td>
+        <td style="font-size:6.8pt; color:#c2410c;"><strong>Резерв</strong></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="font-size:6.8pt; color:#c2410c;">Контроль / Х0</td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td><span class="blank-cell"></span></td>
+        <td style="text-align:left;"><span class="blank-cell"></span></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div class="footer-sig">
+    <div><strong>Срезку и взвешивание FW провел (Оператор):</strong> <span class="sig-line"></span> / ___________________ / Время: ___:___</div>
+    <div><strong>Сушку и взвешивание DW провел (Лаборант):</strong> <span class="sig-line"></span> / ___________________ / Дата: ___.___.2026</div>
+    <div><strong>Расчет DM% проверил (Агроном-исследователь):</strong> <span class="sig-line"></span> / ___________________ /</div>
+  </div>
+</div>
+</body>
+</html>
