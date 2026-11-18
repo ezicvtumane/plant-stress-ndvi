@@ -28,6 +28,14 @@ smbus2>=0.4.0; sys_platform == "linux"
 # - imageio-ffmpeg (scripts/create_soldering_montage.py)
 # - micloud (tools/fetch_xiaomi_cloud.py)
 
+# Architecture Note on Machine Learning:
+# The edge station runtime deliberately relies on deterministic biophysical models
+# (Idso-Jackson CWSI empirical baseline and Dalton-law VPD kinetics) and classical
+# parametric statistics (Dospekhov GRCBD Two-Way ANOVA with Tukey HSD).
+# Black-box non-parametric ML frameworks (e.g. LightGBM, CatBoost, XGBoost, deep NNs)
+# are intentionally excluded from the production control loop to prevent overfitting
+# on small biological sample cohorts (N=18..55) and ensure 100% decision explainability.
+
 # Testing and verification
 pytest>=7.0.0
 httpx>=0.24.0

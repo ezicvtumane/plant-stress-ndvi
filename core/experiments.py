@@ -4,6 +4,12 @@ import csv
 import shutil
 import time
 import zipfile
+import tempfile
+import threading
+import logging
+
+logger = logging.getLogger("core.experiments")
+_REGISTRY_LOCK = threading.RLock()
 
 CSV_HEADER = [
     'ID', 'Timestamp', 'Group', 'Weight_g', 'T_Air_C', 'RH_Air_Pct',
@@ -70,15 +76,61 @@ class ExperimentManager:
             writer.writerow(CSV_HEADER)
 
     def _load_registry(self) -> dict:
-        try:
-            with open(self.registry_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
+        with _REGISTRY_LOCK:
+            if not os.path.exists(self.registry_file):
+                return {'active_id': 'exp_1', 'experiments': []}
+            try:
+                with open(self.registry_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict) and 'experiments' in data:
+                        return data
+                    logger.warning(f"[ExperimentManager] Registry format unexpected in {self.registry_file}")
+            except Exception as e:
+                logger.error(f"[ExperimentManager] Failed to read registry {self.registry_file}: {e}")
+                bak_path = self.registry_file + ".bak"
+                if os.path.exists(bak_path):
+                    try:
+                        with open(bak_path, 'r', encoding='utf-8') as bf:
+                            data = json.load(bf)
+                            if isinstance(data, dict) and 'experiments' in data:
+                                logger.warning(f"[ExperimentManager] Restored registry from backup {bak_path}")
+                                return data
+                    except Exception as be:
+                        logger.error(f"[ExperimentManager] Backup {bak_path} also unreadable: {be}")
             return {'active_id': 'exp_1', 'experiments': []}
 
     def _save_registry(self, data: dict):
-        with open(self.registry_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        with _REGISTRY_LOCK:
+            dir_name = os.path.dirname(self.registry_file)
+            os.makedirs(dir_name, exist_ok=True)
+            # Атомарная запись через временный файл в том же каталоге (гарантирует атомарность os.replace)
+            temp_fd, temp_path = tempfile.mkstemp(
+                dir=dir_name,
+                prefix="experiments_",
+                suffix=".tmp"
+            )
+            try:
+                with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+
+                os.replace(temp_path, self.registry_file)
+
+                # Синхронизируем проверенный резервный файл .bak с актуальным состоянием
+                bak_path = self.registry_file + ".bak"
+                try:
+                    shutil.copy2(self.registry_file, bak_path)
+                except Exception as e:
+                    logger.warning(f"[ExperimentManager] Backup creation warning: {e}")
+            except Exception as e:
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception:
+                        pass
+                logger.error(f"[ExperimentManager] Failed atomic write to {self.registry_file}: {e}")
+                raise
 
     @staticmethod
     def _count_csv_rows(csv_path: str) -> int:
@@ -92,61 +144,65 @@ class ExperimentManager:
             return 0
 
     def get_experiments(self) -> list:
-        reg = self._load_registry()
-        active_id = reg.get('active_id', 'exp_1')
-        res = []
-        for exp in reg.get('experiments', []):
-            exp_copy = dict(exp)
-            exp_dir = os.path.join(self.exp_base_dir, exp['folder'])
-            wave2_csv = os.path.join(exp_dir, 'measurements_wave2.csv')
-            std_csv = os.path.join(exp_dir, 'measurements.csv')
-            count = self._count_csv_rows(wave2_csv) or self._count_csv_rows(std_csv)
-            exp_copy['count'] = count
-            exp_copy['is_active'] = (exp['id'] == active_id)
-            exp_copy['abs_path'] = exp_dir
-            res.append(exp_copy)
-        return res
+        with _REGISTRY_LOCK:
+            reg = self._load_registry()
+            active_id = reg.get('active_id', 'exp_1')
+            res = []
+            for exp in reg.get('experiments', []):
+                exp_copy = dict(exp)
+                exp_dir = os.path.join(self.exp_base_dir, exp['folder'])
+                wave2_csv = os.path.join(exp_dir, 'measurements_wave2.csv')
+                std_csv = os.path.join(exp_dir, 'measurements.csv')
+                count = self._count_csv_rows(wave2_csv) or self._count_csv_rows(std_csv)
+                exp_copy['count'] = count
+                exp_copy['is_active'] = (exp['id'] == active_id)
+                exp_copy['abs_path'] = exp_dir
+                res.append(exp_copy)
+            return res
 
     def get_active_experiment(self) -> dict:
-        reg = self._load_registry()
-        active_id = reg.get('active_id', 'exp_1')
-        for exp in self.get_experiments():
-            if exp['id'] == active_id:
-                return exp
-        exps = self.get_experiments()
-        return exps[0] if exps else {}
+        with _REGISTRY_LOCK:
+            reg = self._load_registry()
+            active_id = reg.get('active_id', 'exp_1')
+            for exp in self.get_experiments():
+                if exp['id'] == active_id:
+                    return exp
+            exps = self.get_experiments()
+            return exps[0] if exps else {}
 
     def set_active_experiment(self, exp_id: str) -> bool:
-        reg = self._load_registry()
-        found = any(e['id'] == exp_id for e in reg.get('experiments', []))
-        if found:
-            reg['active_id'] = exp_id
-            self._save_registry(reg)
-            return True
-        return False
+        with _REGISTRY_LOCK:
+            reg = self._load_registry()
+            found = any(e['id'] == exp_id for e in reg.get('experiments', []))
+            if found:
+                reg['active_id'] = exp_id
+                self._save_registry(reg)
+                return True
+            return False
 
     def create_experiment(self, name: str, plant: str = '', description: str = '') -> dict:
-        reg = self._load_registry()
-        exp_id = f"exp_{int(time.time())}"
-        folder_name = exp_id
-        exp_dir = os.path.join(self.exp_base_dir, folder_name)
-        os.makedirs(os.path.join(exp_dir, 'images'), exist_ok=True)
-        csv_path = os.path.join(exp_dir, 'measurements.csv')
-        self._write_csv_header(csv_path)
+        with _REGISTRY_LOCK:
+            reg = self._load_registry()
+            exp_id = f"exp_{int(time.time())}"
+            folder_name = exp_id
+            exp_dir = os.path.join(self.exp_base_dir, folder_name)
+            os.makedirs(os.path.join(exp_dir, 'images'), exist_ok=True)
+            csv_path = os.path.join(exp_dir, 'measurements.csv')
+            self._write_csv_header(csv_path)
 
-        now_str = time.strftime('%Y-%m-%d %H:%M')
-        new_exp = {
-            'id': exp_id,
-            'name': name.strip() or f'Серия {len(reg.get("experiments", [])) + 1}',
-            'plant': plant.strip() or 'Культура',
-            'created_at': now_str,
-            'description': description.strip(),
-            'folder': folder_name
-        }
-        reg.setdefault('experiments', []).append(new_exp)
-        reg['active_id'] = exp_id
-        self._save_registry(reg)
-        return new_exp
+            now_str = time.strftime('%Y-%m-%d %H:%M')
+            new_exp = {
+                'id': exp_id,
+                'name': name.strip() or f'Серия {len(reg.get("experiments", [])) + 1}',
+                'plant': plant.strip() or 'Культура',
+                'created_at': now_str,
+                'description': description.strip(),
+                'folder': folder_name
+            }
+            reg.setdefault('experiments', []).append(new_exp)
+            reg['active_id'] = exp_id
+            self._save_registry(reg)
+            return new_exp
 
     def get_active_csv_path(self) -> str:
         active = self.get_active_experiment()
@@ -168,29 +224,31 @@ class ExperimentManager:
         return img_dir
 
     def save_measurement_row(self, row: list):
-        # 1. Save to active experiment's CSV
-        active_csv = self.get_active_csv_path()
-        with open(active_csv, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(row)
-
-        # 2. Also keep global legacy CSV updated for safety/compatibility
-        try:
-            with open(self.legacy_csv, 'a', newline='', encoding='utf-8') as f:
+        with _REGISTRY_LOCK:
+            # 1. Save to active experiment's CSV
+            active_csv = self.get_active_csv_path()
+            with open(active_csv, 'a', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
                 writer.writerow(row)
-        except Exception:
-            pass
+
+            # 2. Also keep global legacy CSV updated for safety/compatibility
+            try:
+                with open(self.legacy_csv, 'a', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(row)
+            except Exception as e:
+                logger.debug(f"[ExperimentManager] Legacy CSV mirror write notice: {e}")
 
     def copy_file_to_active(self, src_path: str):
         if not src_path or not os.path.exists(src_path):
             return
         try:
-            dst_dir = self.get_active_images_dir()
+            with _REGISTRY_LOCK:
+                dst_dir = self.get_active_images_dir()
             fname = os.path.basename(src_path)
             shutil.copy2(src_path, os.path.join(dst_dir, fname))
         except Exception as e:
-            print(f"[ExperimentManager] Copy image error: {e}")
+            logger.warning(f"[ExperimentManager] Copy image error: {e}")
 
     def generate_zip(self, exp_id: str, out_zip_path: str) -> str:
         reg = self._load_registry()

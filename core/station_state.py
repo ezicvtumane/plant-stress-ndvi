@@ -4,6 +4,13 @@
 """
 
 from typing import Optional, Dict, Any, List
+import threading
+
+# Потокобезопасная блокировка глобального состояния сессий и пакетов
+_STATE_LOCK = threading.RLock()
+
+def get_state_lock() -> threading.RLock:
+    return _STATE_LOCK
 
 # Каталог 5 ключевых когорт единого эксперимента (+ калибровочный стенд №0)
 # Цвета строго синхронизированы с цветной рамкой ArUco-маркеров на кассетах:
@@ -47,27 +54,37 @@ BATCH_STATE: Dict[str, Any] = {
 PENDING_SESSION: Optional[Dict[str, Any]] = None
 
 def get_pending_session() -> Optional[Dict[str, Any]]:
-    global PENDING_SESSION
-    return PENDING_SESSION
+    with _STATE_LOCK:
+        global PENDING_SESSION
+        return dict(PENDING_SESSION) if PENDING_SESSION is not None else None
 
 def set_pending_session(session: Optional[Dict[str, Any]]):
-    global PENDING_SESSION
-    PENDING_SESSION = session
+    with _STATE_LOCK:
+        global PENDING_SESSION
+        PENDING_SESSION = dict(session) if session is not None else None
 
 def clear_pending_session():
-    global PENDING_SESSION
-    PENDING_SESSION = None
+    with _STATE_LOCK:
+        global PENDING_SESSION
+        PENDING_SESSION = None
 
 def get_batch_state() -> Dict[str, Any]:
-    return BATCH_STATE
+    with _STATE_LOCK:
+        return BATCH_STATE
 
 def reset_batch_state(stage_key: str = 'batch5'):
-    global BATCH_STATE
-    BATCH_STATE.clear()
-    BATCH_STATE.update({
-        'active': False,
-        'stage_key': stage_key,
-        'current_step': 0,
-        'sessions': [],
-        'verified_data': None
-    })
+    with _STATE_LOCK:
+        global BATCH_STATE
+        BATCH_STATE.clear()
+        BATCH_STATE.update({
+            'active': False,
+            'stage_key': stage_key,
+            'current_step': 0,
+            'sessions': [],
+            'verified_data': None
+        })
+
+def update_batch_state(**kwargs):
+    with _STATE_LOCK:
+        global BATCH_STATE
+        BATCH_STATE.update(kwargs)

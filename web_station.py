@@ -14,9 +14,12 @@
 
 import asyncio
 import threading
+import logging
 from typing import Optional, Dict, Any
 from concurrent.futures import ThreadPoolExecutor
 from hardware.hal import get_climate_sensor, get_soil_sensor, get_relay_controller
+
+logger = logging.getLogger("web_station")
 
 import numexpr as ne
 
@@ -139,8 +142,8 @@ for _ph_name, _ph_label in [
             _ph_img = np.zeros((180, 240, 3), dtype=np.uint8)
             cv2.putText(_ph_img, _ph_label, (10, 95), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (120, 120, 120), 1)
             cv2.imwrite(_p_path, _ph_img)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not generate placeholder {_ph_name}: {e}")
 
 def get_calibrated_k_bal() -> float:
     try:
@@ -149,8 +152,8 @@ def get_calibrated_k_bal() -> float:
                 val = float(f.read().strip())
                 if 0.5 <= val <= 10.0:
                     return round(val, 3)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Could not read calibration file {CALIBRATION_FILE}: {e}")
     return 1.150
 
 def save_calibrated_k_bal(val: float):
@@ -235,47 +238,52 @@ BATCH_CONFIG = {
     }
 }
 
-from core.station_state import BATCH_STATE
+from core.station_state import (
+    BATCH_STATE, get_state_lock, reset_batch_state, update_batch_state,
+    clear_pending_session, set_pending_session, get_pending_session
+)
 
+_CLIMATE_LOCK = threading.Lock()
 LAST_VALID_CLIMATE = None
+
+def get_last_valid_climate():
+    with _CLIMATE_LOCK:
+        return LAST_VALID_CLIMATE
+
+def set_last_valid_climate(t, rh, v_rail):
+    global LAST_VALID_CLIMATE
+    with _CLIMATE_LOCK:
+        LAST_VALID_CLIMATE = (t, rh, v_rail)
 
 def _read_climate_sync():
     """
     Синхронный опрос климата:
     1. Приоритет: Беспроводной датчик Xiaomi Mijia на подоконнике (зона растений),
        так как датчик SHT30 внутри закрытого оптического бокса нагревается от ламп/драйверов (~29°C).
-    2. Fallback: Локальный I2C SHT30 в боксе (если шлюз Xiaomi временно недоступен).
+    2. Fallback: Локальный I2C SHT30 в боксе через унифицированный драйвер src.climate_sht30.
     При недоступности обоих датчиков возвращает `(None, None, None)` без синтетических подстановок.
     """
-    global LAST_VALID_CLIMATE
     try:
         win_c = get_windowsill_climate()
         if win_c and win_c.get('is_live') and win_c.get('t_c') is not None:
             t = round(float(win_c['t_c']), 1)
             rh = round(float(win_c['rh_pct']), 1) if win_c.get('rh_pct') is not None else None
             v_rail = round(float(win_c.get('battery_v', 3.15)), 2)
-            LAST_VALID_CLIMATE = (t, rh, v_rail)
+            set_last_valid_climate(t, rh, v_rail)
             return t, rh, v_rail
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[Climate Windowsill Reading]: {e}")
 
+    # Fallback: Локальный SHT30 по I2C с авто-восстановлением шины (драйвер src/climate_sht30.py)
     try:
-        import smbus2
-        with smbus2.SMBus(0) as bus:
-            bus.write_i2c_block_data(0x44, 0x2C, [0x06])
-            import time
-            time.sleep(0.05)
-            d = bus.read_i2c_block_data(0x44, 0x00, 6)
-            t_c = -45.0 + (175.0 * ((d[0] << 8) | d[1]) / 65535.0)
-            rh = 100.0 * (((d[3] << 8) | d[4]) / 65535.0)
-            if -20.0 <= t_c <= 70.0 and 0.0 <= rh <= 100.0:
-                t = round(float(t_c), 1)
-                rh = round(float(rh), 1)
-                v_rail = 3.30
-                LAST_VALID_CLIMATE = (t, rh, v_rail)
-                return t, rh, v_rail
-    except Exception:
-        pass
+        from src.climate_sht30 import read_climate_i2c_sync
+        t, rh, v_rail = read_climate_i2c_sync()
+        if t is not None and rh is not None:
+            set_last_valid_climate(t, rh, v_rail)
+            return t, rh, v_rail
+    except Exception as e:
+        logger.warning(f"[Climate SHT30 I2C Error]: {e}")
+
     return None, None, None
 
 async def read_climate_async():
@@ -422,8 +430,8 @@ def release_shared_camera():
             try:
                 if _shared_camera.isOpened():
                     _shared_camera.release()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Error releasing shared camera: {e}")
             _shared_camera = None
 
 def init_relay():
@@ -432,7 +440,8 @@ def init_relay():
         from hardware.hal import get_relay_controller
         controller = get_relay_controller()
         RELAY_REQ = getattr(controller, 'request', None)
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Relay controller initialization notice: {e}")
         RELAY_REQ = None
 
 def cleanup_gpio():
@@ -565,14 +574,14 @@ def detect_aruco_in_image(img_bgr):
         try:
             _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             images_to_try.append(otsu)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"ArUco Otsu thresholding notice: {e}")
 
         try:
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
             images_to_try.append(clahe.apply(gray))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"ArUco CLAHE notice: {e}")
 
         for d_type in dict_candidates:
             aruco_dict = (
@@ -611,7 +620,8 @@ def auto_mount_uti():
     try:
         if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
             return True
-    except Exception:
+    except Exception as e:
+        logger.debug(f"[UTi120S] Pre-mount check warning: {e}")
         subprocess.run(['sudo','umount','-l','/media/uti120s'], capture_output=True)  # OPT
 
     uti_devs = glob.glob('/dev/disk/by-id/usb-STM_UTi120S_*-part1')
@@ -626,8 +636,8 @@ def auto_mount_uti():
                 if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
                     print(f'[UTi120S] Successfully mounted {dev}, images: {len(os.listdir(UTI_DIR))}')
                     return True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[UTi120S] Candidate mount {dev} check warning: {e}")
     return False
 
 def get_uti_sorted_files():
@@ -668,8 +678,8 @@ def get_file_info_at_index(index: int = 0):
         try:
             im = Image.open(fp)
             im.save(thumb_path)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to generate thumbnail for {fp}: {e}")
 
     # Быстрое OCR-распознавание
     t_ocr, ocr_valid = extract_temperature_from_thermal(thumb_path) if os.path.exists(thumb_path) else (None, False)
@@ -705,8 +715,8 @@ def do_hardware_spectral_capture(group_name: str):
             subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 
                             f'auto_exposure=1,exposure_time_absolute={exp_val},gain={gain_val},white_balance_automatic=0,focus_automatic_continuous=0'], 
                            check=False)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"v4l2-ctl set_exposure notice: {e}")
 
     cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
@@ -761,8 +771,8 @@ def do_hardware_spectral_capture(group_name: str):
     # Возвращаем камеру в штатный режим
     try:
         subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=3'], check=False)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"v4l2-ctl reset auto_exposure notice: {e}")
 
     frame_flash = frame_red
 
@@ -793,8 +803,8 @@ def do_hardware_spectral_capture(group_name: str):
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
     try:
         np.savez(os.path.join(DATA_DIR, 'last_raw_channels.npz'), red=red_channel, nir=nir_channel)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to cache last raw channels: {e}")
 
     # Радиометрическая калибровка по белому диффузному эталону (White Reference Target)
     h_f, w_f, _ = frame_flash.shape
@@ -1116,8 +1126,8 @@ def handle_save_final(
             ps_val = float(pct_soil.strip().replace(',', '.'))
             s['pct_soil'] = round(max(0.0, min(100.0, ps_val)), 1)
             s['v_soil'] = round(V_DRY - (s['pct_soil'] / 100.0) * (V_DRY - V_WET), 3)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Soil moisture parse notice: {e}")
 
     # Расчет Delta_T
     delta_t_val = ''
@@ -1125,8 +1135,8 @@ def handle_save_final(
         try:
             dt = round(float(t_leaf_val) - float(s['t_air']), 1)
             delta_t_val = str(dt)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Delta_T calc notice: {e}")
 
     # Копирование термограммы в постоянное хранилище
     jpg_stored_name = ''
@@ -1158,40 +1168,24 @@ def handle_save_final(
 @app.get('/api/cancel_session')
 def handle_cancel_session():
     """Сброс текущего одиночного замера."""
-    global PENDING_SESSION
-    PENDING_SESSION = None
+    clear_pending_session()
     return RedirectResponse(url='/?msg=cancelled', status_code=303)
 
 # ----------------- ЭНДПОИНТЫ ПАКЕТНОГО ЗАМЕРА (3-В-1) -----------------
 @app.get('/api/start_batch')
 def handle_start_batch(stage: str = 'stage1'):
     """Старт пакетной сессии для выбранного этапа (stage1 или stage2)."""
-    global BATCH_STATE, PENDING_SESSION
-    PENDING_SESSION = None
+    clear_pending_session()
     if stage not in BATCH_CONFIG:
         stage = 'stage1'
-    BATCH_STATE.clear()
-    BATCH_STATE.update({
-        'active': True,
-        'stage_key': stage,
-        'current_step': 0,
-        'sessions': [],
-        'verified_data': None
-    })
+    reset_batch_state(stage)
+    update_batch_state(active=True)
     return RedirectResponse(url='/?stage=batch_shoot', status_code=303)
 
 @app.get('/api/cancel_batch')
 def handle_cancel_batch():
     """Отмена текущей пакетной сессии."""
-    global BATCH_STATE
-    BATCH_STATE.clear()
-    BATCH_STATE.update({
-        'active': False,
-        'stage_key': 'stage1',
-        'current_step': 0,
-        'sessions': [],
-        'verified_data': None
-    })
+    reset_batch_state('stage1')
     return RedirectResponse(url='/?msg=cancelled', status_code=303)
 
 @app.post('/api/batch_capture_next')
@@ -1256,12 +1250,13 @@ def handle_batch_capture_next(
         session['user_weight'] = weight_g.strip().replace(',', '.') if weight_g.strip() else ''
         session['user_t_leaf'] = t_leaf.strip().replace(',', '.') if t_leaf.strip() else ''
         session['user_pct_soil'] = pct_soil.strip().replace(',', '.') if pct_soil.strip() else '64.0'
-        session['shot_order'] = len(BATCH_STATE['sessions']) + 1
+        with get_state_lock():
+            session['shot_order'] = len(BATCH_STATE['sessions']) + 1
+            BATCH_STATE['sessions'].append(session)
+            BATCH_STATE['current_step'] = len(BATCH_STATE['sessions'])
+            sessions_count = len(BATCH_STATE['sessions'])
 
-        BATCH_STATE['sessions'].append(session)
-        BATCH_STATE['current_step'] = len(BATCH_STATE['sessions'])
-
-        if len(BATCH_STATE['sessions']) >= len(cassettes):
+        if sessions_count >= len(cassettes):
             next_stage = 'batch_await_thermal'
         else:
             next_stage = 'batch_shoot'
@@ -1338,7 +1333,8 @@ def handle_batch_link_thermal():
             item['assigned_id'] = remaining_ids.pop(0) if remaining_ids else stage_ids[0]
     
     paired_items.sort(key=lambda x: x['assigned_id'])
-    BATCH_STATE['verified_data'] = paired_items
+    with get_state_lock():
+        BATCH_STATE['verified_data'] = paired_items
     return RedirectResponse(url='/?stage=batch_verify', status_code=303)
 
 @app.post('/api/batch_save_manual')
@@ -1379,8 +1375,8 @@ async def handle_batch_save_manual(request: Request):
                 ps = float(str(pct_raw).strip().replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
                 s['v_soil'] = round(V_DRY - (s['pct_soil'] / 100.0) * (V_DRY - V_WET), 3)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Soil moisture parse notice: {e}")
         elif group_name in ['Превенция', 'Реакция']:
             s['pct_soil'] = ''
             s['v_soil'] = ''
@@ -1392,8 +1388,8 @@ async def handle_batch_save_manual(request: Request):
             try:
                 dt = round(float(t_l_val) - base_air_t, 1)
                 delta_t_val = str(dt)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Delta_T calc notice: {e}")
 
         records_to_save.append({
             'cid': cid,
@@ -1418,13 +1414,7 @@ async def handle_batch_save_manual(request: Request):
             exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, opt_f))
 
     stage_name = BATCH_CONFIG.get(stage_key, {}).get('title', 'Серия 5 кассет (5-в-1)')
-    BATCH_STATE = {
-        'active': False,
-        'stage_key': 'batch5',
-        'current_step': 0,
-        'sessions': [],
-        'verified_data': None
-    }
+    reset_batch_state('batch5')
     return RedirectResponse(url=f'/?msg=batch_saved&stage_name={stage_name}', status_code=303)
 
 @app.post('/api/batch_skip_thermal')
@@ -1463,8 +1453,8 @@ async def handle_batch_save_final(request: Request):
                 ps = float(str(pct_raw).strip().replace(',', '.'))
                 s['pct_soil'] = round(max(0.0, min(100.0, ps)), 1)
                 s['v_soil'] = round(V_DRY - (s['pct_soil'] / 100.0) * (V_DRY - V_WET), 3)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Soil moisture parse notice: {e}")
         elif group_name in ['Превенция', 'Реакция']:
             s['pct_soil'] = ''
             s['v_soil'] = ''
@@ -1476,8 +1466,8 @@ async def handle_batch_save_final(request: Request):
             try:
                 dt = round(float(t_l_val) - base_air_t, 1)
                 delta_t_val = str(dt)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Delta_T calc notice: {e}")
 
         jpg_stored_name = ''
         src_thumb = os.path.join(STATIC_DIR, 'uti_cache', item['thermal_thumb'])
@@ -1513,13 +1503,7 @@ async def handle_batch_save_final(request: Request):
             exp_mgr.copy_file_to_active(os.path.join(STATIC_DIR, th_f))
 
     stage_name = BATCH_CONFIG.get(BATCH_STATE.get('stage_key', 'batch5'), {}).get('title', 'Пакетная серия')
-    BATCH_STATE = {
-        'active': False,
-        'stage_key': 'batch5',
-        'current_step': 0,
-        'sessions': [],
-        'verified_data': None
-    }
+    reset_batch_state('batch5')
     return RedirectResponse(url=f'/?msg=batch_saved&stage_name={stage_name}', status_code=303)
 
 
@@ -1559,8 +1543,8 @@ def do_delete_measurement(meas_id: str):
                         if len(r) > th_idx and r[th_idx] and r[th_idx] != '--':
                             th_p = os.path.join(STATIC_DIR, r[th_idx])
                             if os.path.exists(th_p): os.remove(th_p)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Error removing image files during delete {meas_id}: {e}")
                 else:
                     new_data.append(r)
             with open(csv_file, 'w', newline='', encoding='utf-8') as f:
@@ -2890,8 +2874,8 @@ async def index(
                 if os.path.exists(act_opt):
                     try:
                         shutil.copyfile(act_opt, opt_path)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Static sync notice for {opt_f}: {e}")
             if os.path.exists(opt_path):
                 ndvi_cell = f'<a href="/static/{opt_f}" target="_blank" title="Открыть карту NDVI #{m_id}" style="color:var(--sirius-teal-dark);text-decoration:none;font-weight:600;"><span style="white-space:nowrap;font-family:monospace;font-size:11px;">{ndvi_txt}</span> 🔍</a>'
             else:
@@ -2908,8 +2892,8 @@ async def index(
                 if os.path.exists(act_th):
                     try:
                         shutil.copyfile(act_th, th_file_path)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Static sync notice for {th_name}: {e}")
             if os.path.exists(th_file_path):
                 th_stat = f'<a href="/static/{th_name}" target="_blank" title="Открыть термограмму #{m_id}" style="color:#059669;font-weight:bold;font-size:11px;white-space:nowrap;text-decoration:none;">✓ {clean_th} 🔍</a>'
             else:
@@ -3165,8 +3149,8 @@ def do_hardware_capture_wave2(pot_id: str):
                  f'exposure_time_absolute={exp_val},gain={gain_val},gamma=300,white_balance_automatic=0,focus_automatic_continuous=0'],
                 check=False,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"v4l2-ctl exposure command notice: {e}")
 
     def extract_band(frame_bgr: np.ndarray, is_nir: bool) -> np.ndarray:
         if is_nir:
@@ -3239,12 +3223,12 @@ def do_hardware_capture_wave2(pot_id: str):
             try:
                 rc.set_nir(False)
                 rc.set_red(False)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Error resetting relays: {e}")
             try:
                 subprocess.run(['v4l2-ctl', '-d', '/dev/video0', '-c', 'auto_exposure=3'], check=False)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"v4l2-ctl reset auto_exposure notice: {e}")
 
     # Разделение каналов и вычитание фонового света с согласованием формы
     fallback_shape = (720, 1280)
@@ -3269,8 +3253,8 @@ def do_hardware_capture_wave2(pot_id: str):
     nir_channel = np.maximum(0.0, nir_raw - amb_nir)
     try:
         np.savez(os.path.join(DATA_DIR, 'last_raw_channels.npz'), red=red_channel, nir=nir_channel)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to cache last raw channels: {e}")
 
     # Локальный архив сырых каналов без потерь (npz float32) для возможности повторного анализа
     raw_channels_dir = os.path.join(DATA_DIR, 'raw_channels')
@@ -3498,8 +3482,8 @@ def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: st
         t_val, t_ok = extract_temperature_from_thermal(src_path)
         if t_ok and t_val is not None:
             ocr_temp = t_val
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Direct OCR extraction notice: {e}")
 
     if ext in ('.bmp', '.dib'):
         try:
@@ -3510,16 +3494,16 @@ def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: st
             try:
                 shutil.copyfile(jpg_path, os.path.join(STATIC_DIR, jpg_name))
                 shutil.copyfile(jpg_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Static sync notice for converted thermal: {e}")
             # Если первый OCR не сработал на BMP, пробуем на сконвертированном JPG
             if ocr_temp is None:
                 try:
                     t_val, t_ok = extract_temperature_from_thermal(jpg_path)
                     if t_ok and t_val is not None:
                         ocr_temp = t_val
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Fallback JPG OCR extraction notice: {e}")
             return (jpg_name, ocr_temp)
         except Exception as e:
             print(f"[BMP Convert Error]: {e}")
@@ -3527,8 +3511,8 @@ def process_and_convert_thermal_image(src_path: str, pot_id: str, images_dir: st
     else:
         try:
             shutil.copyfile(src_path, os.path.join(STATIC_DIR, 'last_thermal.jpg'))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Static sync notice for last_thermal.jpg: {e}")
         return (base_name, ocr_temp)
 
 
@@ -3733,8 +3717,8 @@ async def handle_wave2_update_record(
                 shutil.copyfileobj(thermal_file.file, buf)
             try:
                 shutil.copyfile(th_save_path, os.path.join(STATIC_DIR, saved_th_name))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Static sync notice for {saved_th_name}: {e}")
             display_th, ocr_th = process_and_convert_thermal_image(th_save_path, pot_id, wave2_storage.images_dir)
             saved_th_name = display_th
             update_dict['Thermal_File'] = display_th
@@ -3871,10 +3855,10 @@ def auto_mount_uti_rw() -> bool:
                     f.write('1')
                 os.remove(test_file)
                 return True
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as e:
+                logger.debug(f"UTi rw test write notice: {e}")
+    except Exception as e:
+        logger.debug(f"UTi dir check notice: {e}")
 
     uti_devs = glob.glob('/dev/disk/by-id/usb-STM_UTi120S_*-part1')
     candidate_devs = uti_devs + ['/dev/sdb1', '/dev/sda1', '/dev/sdc1', '/dev/sdd1']
@@ -3888,8 +3872,8 @@ def auto_mount_uti_rw() -> bool:
             try:
                 if os.path.exists(UTI_DIR) and len(os.listdir(UTI_DIR)) > 0:
                     return True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Candidate rw mount {dev} check notice: {e}")
     return False
 
 
@@ -3985,8 +3969,8 @@ def load_uti_ocr_cache() -> dict:
         try:
             with open(UTI_OCR_CACHE_PATH, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Error reading UTi OCR cache {UTI_OCR_CACHE_PATH}: {e}")
     return {}
 
 def save_uti_ocr_cache(cache: dict):
@@ -4092,8 +4076,8 @@ async def handle_wave2_uti_images_list():
                         'mtime': stat.st_mtime,
                         'mtime_str': mtime_dt.strftime('%d.%m.%Y %H:%M:%S')
                     })
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Error inspecting UTi file {fp}: {e}")
 
     def sort_key(f):
         m = re.search(r'(\d+)', f['name'])
@@ -4189,8 +4173,8 @@ async def handle_wave2_uti_import_file(
                 if safe_name in cache:
                     del cache[safe_name]
                     save_uti_ocr_cache(cache)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Error updating UTi OCR cache upon deletion: {e}")
         else:
             erase_msg = f"Предупреждение: {del_detail}"
             print(f"[UTi Clean Warning]: {erase_msg}")
@@ -4270,8 +4254,8 @@ async def handle_wave2_upload_thermal(
 
         try:
             shutil.copyfile(th_save_path, os.path.join(STATIC_DIR, thermal_saved_name))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Static sync notice for uploaded thermal: {e}")
 
         # Конвертация BMP в универсальный JPEG + OCR температуры
         display_name, ocr_temp = process_and_convert_thermal_image(th_save_path, pot_id, wave2_storage.images_dir)
@@ -4303,14 +4287,26 @@ async def handle_wave2_image_view(filename: str):
     safe_name = os.path.basename(filename)
     wave2_storage = Wave2Storage(DATA_DIR)
     
-    # Список директорий для поиска файла
+    # Список директорий для поиска файла (с динамическим разрешением по всем зарегистрированным сериям)
     search_dirs = [
         wave2_storage.images_dir,
         STATIC_DIR,
         os.path.join(STATIC_DIR, 'uti_cache'),
         UTI_DIR,
-        '/home/pi/plant-stress-ndvi/data/experiments/exp_1791463544/images/raw_original_thermals'
     ]
+    try:
+        exp_mgr = get_experiment_manager(DATA_DIR)
+        for exp in exp_mgr.get_experiments():
+            edir = exp.get('abs_path')
+            if edir:
+                img_dir = os.path.join(edir, 'images')
+                if img_dir not in search_dirs and os.path.isdir(img_dir):
+                    search_dirs.append(img_dir)
+                raw_therm = os.path.join(img_dir, 'raw_original_thermals')
+                if os.path.isdir(raw_therm) and raw_therm not in search_dirs:
+                    search_dirs.append(raw_therm)
+    except Exception as e:
+        logger.warning(f"Error enumerating experiment search dirs: {e}")
 
     base_no_ext, ext = os.path.splitext(safe_name)
     if ext.lower() in ('.bmp', '.dib'):
@@ -4332,7 +4328,8 @@ async def handle_wave2_image_view(filename: str):
                         with Image.open(p) as im:
                             im.convert('RGB').save(cached_jpg, 'JPEG', quality=95)
                     return FileResponse(cached_jpg, media_type='image/jpeg')
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"On-the-fly BMP conversion notice for {p}: {e}")
                     return FileResponse(p, media_type='image/bmp')
             elif ext.lower() in ('.jpg', '.jpeg'):
                 return FileResponse(p, media_type='image/jpeg')
