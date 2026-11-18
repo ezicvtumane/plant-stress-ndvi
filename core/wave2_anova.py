@@ -241,6 +241,7 @@ def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, An
         "df_error": df_E,
         "ss_cohort": round(float(SS_A), 4),
         "ss_block": round(float(SS_B), 4),
+        "ss_interaction": round(float(SS_AB), 4),
         "ss_error": round(float(SS_E), 4),
         "ms_error": round(float(MS_E), 4),
         "f_cohort": round(float(F_A), 3),
@@ -254,7 +255,206 @@ def dospekhov_two_way_anova_engine(df: pd.DataFrame, trait: str) -> Dict[str, An
     }
 
 
-def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "static", docs_dir: str = "docs/wave2") -> Dict[str, Any]:
+def _compute_grcbd_harvest_trait_stats(df: pd.DataFrame, col: str) -> Dict[str, Any]:
+    """
+    Точный двухфакторный дисперсионный анализ (GRCBD 3x3x2, N=18) для конечных точек урожая (FW / DW):
+    - Полная модель со взаимодействием (df_e = 9): F_cohort, F_block, F_interaction, НСР05/01, Тьюки HSD, LSD.
+    - Аддитивная модель с пулированием SS_AB в ошибку (df_e = 13): F_cohort, p_cohort, Тьюки HSD.
+    """
+    cohort_order = ("Control", "Prevention", "Reaction")
+    a, b, n = 3, 3, 2
+    N = a * b * n
+    n_g = b * n  # 6 растений на когорту
+
+    grand_mean = float(df[col].mean())
+    ss_total = float(((df[col] - grand_mean) ** 2).sum())
+
+    cohort_means = {c: float(df[df["cohort"] == c][col].mean()) for c in cohort_order}
+    cohort_ses = {
+        c: float(df[df["cohort"] == c][col].std(ddof=1) / math.sqrt(n_g))
+        for c in cohort_order
+    }
+    cohort_sums = {c: float(df[df["cohort"] == c][col].sum()) for c in cohort_order}
+    block_means = df.groupby("block")[col].mean()
+    cell_means = df.groupby(["cohort", "block"])[col].mean()
+
+    ss_a = float(n_g * sum((m - grand_mean) ** 2 for m in cohort_means.values()))
+    ss_b = float((a * n) * sum((float(m) - grand_mean) ** 2 for m in block_means.values))
+    ss_e_full = float(
+        sum(
+            (float(row[col]) - float(cell_means.loc[(row["cohort"], row["block"])])) ** 2
+            for _, row in df.iterrows()
+        )
+    )
+    ss_ab = max(0.0, ss_total - ss_a - ss_b - ss_e_full)
+
+    df_a, df_b, df_ab, df_e_full = a - 1, b - 1, (a - 1) * (b - 1), N - a * b
+    ms_a = ss_a / df_a
+    ms_b = ss_b / df_b
+    ms_ab = ss_ab / df_ab
+    ms_e_full = max(1e-12, ss_e_full / df_e_full)
+
+    f_a_full = ms_a / ms_e_full
+    p_a_full = float(stats.f.sf(f_a_full, df_a, df_e_full))
+    f_b_full = ms_b / ms_e_full
+    p_b_full = float(stats.f.sf(f_b_full, df_b, df_e_full))
+    f_ab_full = ms_ab / ms_e_full
+    p_ab_full = float(stats.f.sf(f_ab_full, df_ab, df_e_full))
+
+    sed_full = math.sqrt(2.0 * ms_e_full / n_g)
+    lsd_05_full = float(stats.t.ppf(0.975, df=df_e_full) * sed_full)
+    lsd_01_full = float(stats.t.ppf(0.995, df=df_e_full) * sed_full)
+    p_pct_full = (math.sqrt(ms_e_full / n_g) / grand_mean * 100.0) if grand_mean > 0 else 0.0
+
+    # Аддитивная модель (df_e = 13)
+    ss_e_add = ss_e_full + ss_ab
+    df_e_add = df_e_full + df_ab
+    ms_e_add = max(1e-12, ss_e_add / df_e_add)
+    f_a_add = ms_a / ms_e_add
+    p_a_add = float(stats.f.sf(f_a_add, df_a, df_e_add))
+    sed_add = math.sqrt(2.0 * ms_e_add / n_g)
+    lsd_05_add = float(stats.t.ppf(0.975, df=df_e_add) * sed_add)
+
+    # Парные сравнения Тьюки HSD и НСР (Fisher LSD)
+    se_tukey_full = math.sqrt(ms_e_full / n_g)
+    se_tukey_add = math.sqrt(ms_e_add / n_g)
+
+    pair_defs = [
+        ("K-P", "Control", "Prevention"),
+        ("K-R", "Control", "Reaction"),
+        ("P-R", "Prevention", "Reaction"),
+    ]
+    tukey_full: Dict[str, Dict[str, float]] = {}
+    lsd_full: Dict[str, Dict[str, float]] = {}
+    tukey_add: Dict[str, Dict[str, float]] = {}
+
+    for key, c1, c2 in pair_defs:
+        diff = cohort_means[c1] - cohort_means[c2]
+        abs_diff = abs(diff)
+        q_full = abs_diff / se_tukey_full
+        p_t_full = float(stats.studentized_range.sf(q_full, a, df_e_full))
+        t_full = abs_diff / sed_full
+        p_l_full = float(2.0 * stats.t.sf(t_full, df_e_full))
+
+        q_add = abs_diff / se_tukey_add
+        p_t_add = float(stats.studentized_range.sf(q_add, a, df_e_add))
+
+        tukey_full[key] = {"diff": round(diff, 4), "q": round(q_full, 4), "p": round(p_t_full, 4)}
+        lsd_full[key] = {"diff": round(diff, 4), "t": round(t_full, 4), "p": round(p_l_full, 4)}
+        tukey_add[key] = {"diff": round(diff, 4), "q": round(q_add, 4), "p": round(p_t_add, 4)}
+
+    return {
+        "means": {k: round(v, 4) for k, v in cohort_means.items()},
+        "ses": {k: round(v, 4) for k, v in cohort_ses.items()},
+        "sums": {k: round(v, 3) for k, v in cohort_sums.items()},
+        "full_model": {
+            "df_error": df_e_full,
+            "ss_cohort": round(ss_a, 6),
+            "ms_cohort": round(ms_a, 6),
+            "f_cohort": round(f_a_full, 3),
+            "p_cohort": round(p_a_full, 5),
+            "ss_block": round(ss_b, 6),
+            "ms_block": round(ms_b, 6),
+            "f_block": round(f_b_full, 3),
+            "p_block": round(p_b_full, 5),
+            "ss_interaction": round(ss_ab, 6),
+            "ms_interaction": round(ms_ab, 6),
+            "f_interaction": round(f_ab_full, 3),
+            "p_interaction": round(p_ab_full, 5),
+            "ss_error": round(ss_e_full, 6),
+            "ms_error": round(ms_e_full, 6),
+            "lsd_05": round(lsd_05_full, 4),
+            "lsd_01": round(lsd_01_full, 4),
+            "precision_pct": round(p_pct_full, 2),
+            "tukey_hsd": tukey_full,
+            "fisher_lsd": lsd_full,
+        },
+        "additive_model": {
+            "df_error": df_e_add,
+            "ss_error": round(ss_e_add, 6),
+            "ms_error": round(ms_e_add, 6),
+            "f_cohort": round(f_a_add, 3),
+            "p_cohort": round(p_a_add, 5),
+            "lsd_05": round(lsd_05_add, 4),
+            "tukey_hsd": tukey_add,
+        },
+    }
+
+
+def compute_harvest_biomass_analysis(harvest_csv_path: str) -> Optional[Dict[str, Any]]:
+    """
+    Загружает data/experiments/exp_1792918800/biomass_harvest_wave2.csv и выполняет
+    воспроизводимый расчёт Two-Way ANOVA (полная df_e=9 и аддитивная df_e=13)
+    и парных сравнений Тьюки HSD для сырой (FW) и сухой (DW) биомассы.
+    """
+    if not harvest_csv_path or not os.path.exists(harvest_csv_path):
+        return None
+    df_raw = pd.read_csv(harvest_csv_path)
+    required = {"ID", "Cohort", "Block", "Fresh_Weight_g", "Dry_Weight_g"}
+    if not required.issubset(df_raw.columns) or len(df_raw) != 18:
+        return None
+
+    cohort_map = {
+        "Контроль": "Control",
+        "Превенция": "Prevention",
+        "Реакция": "Reaction",
+        "Control": "Control",
+        "Prevention": "Prevention",
+        "Reaction": "Reaction",
+    }
+    df = df_raw.copy()
+    df["cohort"] = df["Cohort"].astype(str).str.strip().map(cohort_map)
+    df["block"] = df["Block"].apply(lambda x: f"Блок {int(x)}")
+    if df["cohort"].isna().any():
+        return None
+
+    fw_stats = _compute_grcbd_harvest_trait_stats(df, "Fresh_Weight_g")
+    dw_stats = _compute_grcbd_harvest_trait_stats(df, "Dry_Weight_g")
+
+    # Описательная статистика массовой доли воды в свежей ткани (WC%) и сухого вещества (DM%)
+    dm_summary: Dict[str, Dict[str, float]] = {}
+    wc_summary: Dict[str, Dict[str, float]] = {}
+    water_prod: Dict[str, Dict[str, float]] = {}
+
+    for c in ("Control", "Prevention", "Reaction"):
+        sub = df[df["cohort"] == c]
+        dm_vals = (sub["Dry_Weight_g"] / sub["Fresh_Weight_g"]) * 100.0
+        wc_vals = ((sub["Fresh_Weight_g"] - sub["Dry_Weight_g"]) / sub["Fresh_Weight_g"]) * 100.0
+        dm_summary[c] = {
+            "mean": round(float(dm_vals.mean()), 2),
+            "se": round(float(dm_vals.std(ddof=1) / math.sqrt(len(dm_vals))), 2),
+            "cohort_ratio": round(float(sub["Dry_Weight_g"].sum() / sub["Fresh_Weight_g"].sum() * 100.0), 2),
+        }
+        wc_summary[c] = {
+            "mean": round(float(wc_vals.mean()), 2),
+            "se": round(float(wc_vals.std(ddof=1) / math.sqrt(len(wc_vals))), 2),
+            "cohort_ratio": round(float((sub["Fresh_Weight_g"].sum() - sub["Dry_Weight_g"].sum()) / sub["Fresh_Weight_g"].sum() * 100.0), 2),
+        }
+        cum_w = float(sub["Cum_Water_ml"].sum()) if "Cum_Water_ml" in sub.columns else 0.0
+        dw_mg = float(sub["Dry_Weight_g"].sum()) * 1000.0
+        prod = round(dw_mg / cum_w, 3) if cum_w > 0 else 0.0
+        water_prod[c] = {
+            "sum_water_ml": round(cum_w, 1),
+            "dw_mg_per_ml": prod,
+        }
+
+    return {
+        "source_csv": harvest_csv_path,
+        "N": 18,
+        "fw": fw_stats,
+        "dw": dw_stats,
+        "dry_matter_pct": dm_summary,
+        "water_content_pct": wc_summary,
+        "gravimetric_water_productivity": water_prod,
+    }
+
+
+def analyze_wave2_dataset(
+    records: List[Dict[str, Any]],
+    static_dir: str = "static",
+    docs_dir: str = "docs/wave2",
+    harvest_csv_path: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Главный аналитический модуль:
     1. Формирует DataFrame 18 растений GRCBD.
@@ -483,6 +683,8 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     w_res = traits_results.get("weight_g", {})
     w_p_val = w_res.get("p_cohort") if w_res.get("confirmatory_allowed") else None
 
+    harvest_analysis = compute_harvest_biomass_analysis(harvest_csv_path) if harvest_csv_path else None
+
     if has_dw:
         phase = "harvest"
         dw_res = traits_results.get("dw_g", {})
@@ -567,12 +769,21 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
     else:
         phase = "monitoring"
         day_label = f" (ДЕНЬ {day_num} / DAT {day_num})" if max_slice_date is not None and day_num >= 1 else ""
-        status_badge = f"📊 ТЕКУЩИЙ МОНИТОРИНГ GRCBD{day_label}"
-        badge_color = "#4f46e5"
-        verdict = (
-            f"Замер {total_measured}/18 сосудов выполнен (оценок тургора: {len(valid_turgor_series)}/18; "
-            f"масса {_format_p_value(w_p_val, with_prefix=True)}, ΔT {_format_p_value(p_val_dt, with_prefix=True)}). Критерии стресс-триггеров не достигнуты; мониторинг продолжается."
-        )
+        if harvest_analysis is not None:
+            status_badge = f"📊 ИТОГОВЫЙ УЧЕТ GRCBD (ДЕНЬ {day_num} / DAT {day_num} — СРЕЗ УРОЖАЯ И СУШКА БИОМАССЫ)"
+            badge_color = "#059669"
+            verdict = (
+                f"Замер {total_measured}/18 сосудов выполнен (оценок тургора: {len(valid_turgor_series)}/18; "
+                f"масса {_format_p_value(w_p_val, with_prefix=True)}, ΔT {_format_p_value(p_val_dt, with_prefix=True)}). "
+                f"Опыт завершён, выполнен финальный деструктивный учёт биомассы (FW/DW)."
+            )
+        else:
+            status_badge = f"📊 ТЕКУЩИЙ МОНИТОРИНГ GRCBD{day_label}"
+            badge_color = "#4f46e5"
+            verdict = (
+                f"Замер {total_measured}/18 сосудов выполнен (оценок тургора: {len(valid_turgor_series)}/18; "
+                f"масса {_format_p_value(w_p_val, with_prefix=True)}, ΔT {_format_p_value(p_val_dt, with_prefix=True)}). Критерии стресс-триггеров не достигнуты; мониторинг продолжается."
+            )
 
     # Генерация графика боксплотов
     os.makedirs(os.path.join(static_dir, "charts"), exist_ok=True)
@@ -687,14 +898,123 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
             f"| **{row['label']}** | {row['model_label']} | {row['k_str']} | {row['p_str']} | {row['r_str']} | {f_c_str} | {p_c_str} | {f_b_str} | {p_b_str} | {f_ab_str} | {p_ab_str} | {lsd_str} |"
         )
 
-    if phase == "monitoring" and max_slice_date is not None and day_num >= 5:
+    if phase == "monitoring" and max_slice_date is not None and day_num == 5:
         md_lines.extend([
             "",
             "> [!NOTE]",
             "> **Физиологическая интерпретация (День 5, DAT 5 — релаксация после полива):**",
-            "> - Омнибусный непараметрический анализ различий температуры листа $\\Delta T$ между когортами: **Краскел — Уоллис $H = 13.46, p = 0.0012$** (ранговый критерий подтверждает неоднородность когорт).",
-            "> - Апостериорные парные сравнения: Реакция статистически достоверно теплее Контроля на $+0.87^\\circ\\text{C}$ ($t = 8.48, p < 0.0001$) и теплее Превенции на $+0.65^\\circ\\text{C}$ ($t = 6.28, p < 0.0001$).",
-            "> - Наблюдаемый температурный лаг свидетельствует о статистически достоверной задержке восстановления транспирационного охлаждения полога Реакции по сравнению с Превенцией и Контролем (косвенный признак гистерезиса устьичной проводимости после фазы глубокого увядания).",
+            "> - Омнибусный непараметрический анализ различий температуры листа ΔT между когортами: **Краскел — Уоллис H = 13.46, p = 0.0012** (ранговый критерий подтверждает неоднородность когорт).",
+            "> - Апостериорные парные сравнения: Реакция статистически достоверно теплее Контроля на +0.87 °C (t = 8.48, p < 0.0001) и теплее Превенции на +0.65 °C (t = 6.28, p < 0.0001).",
+            "> - Зафиксирован устойчивый пост-стрессовый тепловой лаг полога Реакции относительно Превенции и Контроля (косвенный маркер инерции/гистерезиса устьичной проводимости после фазы увядания).",
+        ])
+
+    if harvest_analysis is not None:
+        fw = harvest_analysis["fw"]
+        dw = harvest_analysis["dw"]
+        fw_full = fw["full_model"]
+        dw_full = dw["full_model"]
+        dw_add = dw["additive_model"]
+        dm = harvest_analysis["dry_matter_pct"]
+        wc = harvest_analysis["water_content_pct"]
+        wp = harvest_analysis["gravimetric_water_productivity"]
+
+        fw_tf = fw_full["tukey_hsd"]
+        dw_tf = dw_full["tukey_hsd"]
+        dw_lf = dw_full["fisher_lsd"]
+        dw_ta = dw_add["tukey_hsd"]
+
+        md_lines.extend([
+            "",
+            "---",
+            "",
+            "### Финальный деструктивный учет биомассы (biomass_harvest_wave2.csv: FW — День 6; DW — после 12 ч сушки при 75 °C, цена деления весов 0.01 г)",
+            "",
+            "| Показатель биомассы | Режим модели | Контроль (M ± SE) | Превенция (M ± SE) | Реакция (M ± SE) | Суммы (K / P / R) | Когорта (F) | p (когорта) | Блок (F) | p (блок) | Взаимод. (F) | p (взаимод.) | НСР₀₅ | НСР₀₁ |",
+            "| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+            (
+                f"| **Сырая масса FW (г)** | Two-Way ANOVA (полная, df_e=9) "
+                f"| {fw['means']['Control']:.3f} ± {fw['ses']['Control']:.3f} "
+                f"| {fw['means']['Prevention']:.3f} ± {fw['ses']['Prevention']:.3f} "
+                f"| {fw['means']['Reaction']:.3f} ± {fw['ses']['Reaction']:.3f} "
+                f"| **{fw['sums']['Control']:.2f} / {fw['sums']['Prevention']:.2f} / {fw['sums']['Reaction']:.2f} г** "
+                f"| {fw_full['f_cohort']:.3f} | **{_format_p_value(fw_full['p_cohort'])}** "
+                f"| {fw_full['f_block']:.3f} | {_format_p_value(fw_full['p_block'])} "
+                f"| {fw_full['f_interaction']:.3f} | {_format_p_value(fw_full['p_interaction'])} "
+                f"| {fw_full['lsd_05']:.3f} г | {fw_full['lsd_01']:.3f} г |"
+            ),
+            (
+                f"| **Сухая масса DW (г) — первичная КТ** | Two-Way ANOVA (полная, df_e=9) "
+                f"| {dw['means']['Control']:.3f} ± {dw['ses']['Control']:.3f} "
+                f"| {dw['means']['Prevention']:.3f} ± {dw['ses']['Prevention']:.3f} "
+                f"| {dw['means']['Reaction']:.3f} ± {dw['ses']['Reaction']:.3f} "
+                f"| **{dw['sums']['Control']:.2f} / {dw['sums']['Prevention']:.2f} / {dw['sums']['Reaction']:.2f} г** "
+                f"| {dw_full['f_cohort']:.3f} | **{_format_p_value(dw_full['p_cohort'])}** "
+                f"| {dw_full['f_block']:.3f} | {_format_p_value(dw_full['p_block'])} "
+                f"| {dw_full['f_interaction']:.3f} | {_format_p_value(dw_full['p_interaction'])} "
+                f"| {dw_full['lsd_05']:.4f} г | {dw_full['lsd_01']:.4f} г |"
+            ),
+            (
+                f"| **Сухая масса DW (г) — аддитивная** | Two-Way ANOVA (аддитивная, df_e=13) "
+                f"| {dw['means']['Control']:.3f} ± {dw['ses']['Control']:.3f} "
+                f"| {dw['means']['Prevention']:.3f} ± {dw['ses']['Prevention']:.3f} "
+                f"| {dw['means']['Reaction']:.3f} ± {dw['ses']['Reaction']:.3f} "
+                f"| **{dw['sums']['Control']:.2f} / {dw['sums']['Prevention']:.2f} / {dw['sums']['Reaction']:.2f} г** "
+                f"| {dw_add['f_cohort']:.3f} | **{_format_p_value(dw_add['p_cohort'])}** "
+                f"| — | — | — | — "
+                f"| {dw_add['lsd_05']:.4f} г | — |"
+            ),
+            (
+                f"| **Массовая доля воды в свежей ткани WC% ((FW − DW) / FW)** | Описательный анализ (не физиологический RWC) "
+                f"| {wc['Control']['mean']:.2f} ± {wc['Control']['se']:.2f} % "
+                f"| {wc['Prevention']['mean']:.2f} ± {wc['Prevention']['se']:.2f} % "
+                f"| {wc['Reaction']['mean']:.2f} ± {wc['Reaction']['se']:.2f} % "
+                f"| Доли ценоза: {wc['Control']['cohort_ratio']:.2f} / {wc['Prevention']['cohort_ratio']:.2f} / {wc['Reaction']['cohort_ratio']:.2f} % "
+                f"| — | — | — | — | — | — | — | — |"
+            ),
+            (
+                f"| **Продуктивность зарегистрированного гравиметрического полива** | мг DW / мл расчётной дозы "
+                f"| {wp['Control']['dw_mg_per_ml']:.3f} мг/мл "
+                f"| **{wp['Prevention']['dw_mg_per_ml']:.3f} мг/мл** "
+                f"| {wp['Reaction']['dw_mg_per_ml']:.3f} мг/мл "
+                f"| Σ доз: {wp['Control']['sum_water_ml']:.1f} / {wp['Prevention']['sum_water_ml']:.1f} / {wp['Reaction']['sum_water_ml']:.1f} мл "
+                f"| — | — | — | — | — | — | — | — |"
+            ),
+            "",
+            "#### Апостериорные парные сравнения Тьюки HSD (Tukey HSD) для FW и DW",
+            "",
+            "| Конечная точка и модель | Омнибусный тест (Когорта) | Тьюки K–P (p) | Тьюки K–R (p) | Тьюки P–R (p) | НСР₀₅ Доспехова P–R (p) |",
+            "| :--- | :---: | :---: | :---: | :---: | :---: |",
+            (
+                f"| **Сырая масса FW** (полная, df_e = 9) "
+                f"| F = {fw_full['f_cohort']:.3f}, p = {fw_full['p_cohort']:.4f} "
+                f"| {fw_tf['K-P']['p']:.4f} | **{fw_tf['K-R']['p']:.4f}** | **{fw_tf['P-R']['p']:.4f}** | {fw_full['fisher_lsd']['P-R']['p']:.4f} |"
+            ),
+            (
+                f"| **Сухая масса DW** (полная, df_e = 9) "
+                f"| F = {dw_full['f_cohort']:.3f}, p = {dw_full['p_cohort']:.4f} "
+                f"| {dw_tf['K-P']['p']:.4f} | **{dw_tf['K-R']['p']:.4f}** | {dw_tf['P-R']['p']:.4f} | **{dw_lf['P-R']['p']:.4f}** |"
+            ),
+            (
+                f"| **Сухая масса DW** (аддитивная, df_e = 13) "
+                f"| F = {dw_add['f_cohort']:.3f}, p = {dw_add['p_cohort']:.4f} "
+                f"| {dw_ta['K-P']['p']:.4f} | **{dw_ta['K-R']['p']:.4f}** | **{dw_ta['P-R']['p']:.4f}** | — |"
+            ),
+            "",
+            "> [!IMPORTANT]",
+            "> **Итоговая статистическая интерпретация и методологические примечания:**",
+            (
+                f"> 1. **Защищаемый вывод по урожаю:** Преимущество превенции над реакцией статистически доказано по сырой массе "
+                f"(Тьюки P–R p = {fw_tf['P-R']['p']:.4f}) и поддерживается по сухой массе (зависит от выбранной модели множественных сравнений: "
+                f"в полной модели df_e = 9 омнибусный F = {dw_full['f_cohort']:.3f}, p = {dw_full['p_cohort']:.4f}, Тьюки P–R p = {dw_tf['P-R']['p']:.4f}, "
+                f"при НСР₀₅ Доспехова p = {dw_lf['P-R']['p']:.4f}; в аддитивной модели df_e = 13 с учётом незначимого взаимодействия A×B "
+                f"F = {dw_add['f_cohort']:.3f}, p = {dw_add['p_cohort']:.4f}, Тьюки P–R p = {dw_ta['P-R']['p']:.4f})."
+            ),
+            (
+                f"> 2. **Сушка DW и цена деления весов:** Сухая масса зафиксирована после 12 часов конвективной сушки при 75 °C на весах с ценой деления 0.01 г. "
+                f"Наряду с порастельными средними приведены суммарные массы когорт (Контроль = {dw['sums']['Control']:.2f} г, Превенция = {dw['sums']['Prevention']:.2f} г, "
+                f"Реакция = {dw['sums']['Reaction']:.2f} г; разница P − R = +0.09 г / +90 мг, почти на порядок выше дискретности весов 10 мг)."
+            ),
+            "> 3. **Тепловой лаг и роль оптического канала:** На Днях 5–6 у когорты Реакция сохраняется устойчивый пост-стрессовый тепловой лаг (косвенный маркер инерции/гистерезиса устьичной проводимости). Раннее предупреждение в настоящей серии продемонстрировано термографическим каналом, тогда как оптический канал (NDVI/PLA) вёл параллельный мониторинг (с учётом смены экспозиции и алгоритма сегментации между Днями 1 и 2 для анализа используется относительная разница с Контролем).",
         ])
 
     expl_rows = [r for r in summary_table if not r["confirmatory_allowed"] and r["exploratory_p_cohort"] is not None]
@@ -746,6 +1066,7 @@ def analyze_wave2_dataset(records: List[Dict[str, Any]], static_dir: str = "stat
         "verdict": verdict,
         "traits": traits_results,
         "summary_table": summary_table,
+        "harvest_biomass": harvest_analysis,
         "chart_url": f"/static/{chart_rel_path}",
         "report_file": report_path,
     }

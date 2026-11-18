@@ -518,11 +518,11 @@ def test_prevention_recovery_phase_persistence_on_next_day():
 
     # Эмулируем замер Дня 4, когда листья остыли (DeltaDelta T = 0.0)
     mock_records_day4 = [
-        {"ID": f"K{i}", "Delta_T": -1.5, "Timestamp": "2026-11-13", "Turgor": 4} for i in range(1, 7)
+        {"ID": f"K{i}", "Delta_T_C": -1.5, "Timestamp": "2026-11-13", "Turgor_Score": 4} for i in range(1, 7)
     ] + [
-        {"ID": f"P{i}", "Delta_T": -1.5, "Timestamp": "2026-11-13", "Turgor": 4} for i in range(1, 7)
+        {"ID": f"P{i}", "Delta_T_C": -1.5, "Timestamp": "2026-11-13", "Turgor_Score": 4} for i in range(1, 7)
     ] + [
-        {"ID": f"R{i}", "Delta_T": -0.5, "Timestamp": "2026-11-13", "Turgor": 3} for i in range(1, 7)
+        {"ID": f"R{i}", "Delta_T_C": -0.5, "Timestamp": "2026-11-13", "Turgor_Score": 3} for i in range(1, 7)
     ]
 
     cluster_status = evaluate_cohort_cluster_status(mock_records_day4, all_records=all_records)
@@ -577,3 +577,74 @@ def test_download_csv_serves_wave2_measurements():
     assert len(lines) >= 77, f"Expected >= 77 lines in active CSV, got {len(lines)}"
     assert lines[0].startswith("ID,Timestamp,Group,Weight_g")
     assert "K1," in lines[1]
+
+
+def test_reaction_recovery_phase_persistence_on_next_day():
+    """Сценарий восстановления когорты Reaction: день увядания (Turgor_Score <= 2) -> следующий день с Turgor_Score = 4."""
+    # День увядания (2026-11-13): кворум >= 4/6 растений R с Turgor_Score <= 2 (даже без опоры на Water_Dose_ml)
+    history_wilting_day = (
+        [{"ID": f"K{i}", "Timestamp": "2026-11-13 18:45:00", "Delta_T_C": -1.9, "Turgor_Score": 4, "Water_Dose_ml": 7.5} for i in range(1, 7)]
+        + [{"ID": f"P{i}", "Timestamp": "2026-11-13 18:50:00", "Delta_T_C": -1.5, "Turgor_Score": 4, "Water_Dose_ml": 8.0} for i in range(1, 7)]
+        + [
+            {"ID": "R1", "Timestamp": "2026-11-13 18:55:00", "Delta_T_C": 0.2, "Turgor_Score": 2, "Water_Dose_ml": 0.0},
+            {"ID": "R2", "Timestamp": "2026-11-13 18:56:00", "Delta_T_C": 0.3, "Turgor_Score": 2, "Water_Dose_ml": 0.0},
+            {"ID": "R3", "Timestamp": "2026-11-13 18:57:00", "Delta_T_C": 0.1, "Turgor_Score": 2, "Water_Dose_ml": 0.0},
+            {"ID": "R4", "Timestamp": "2026-11-13 18:58:00", "Delta_T_C": 0.2, "Turgor_Score": 2, "Water_Dose_ml": 0.0},
+            {"ID": "R5", "Timestamp": "2026-11-13 18:59:00", "Delta_T_C": -0.1, "Turgor_Score": 3, "Water_Dose_ml": 0.0},
+            {"ID": "R6", "Timestamp": "2026-11-13 19:00:00", "Delta_T_C": 0.4, "Turgor_Score": 2, "Water_Dose_ml": 0.0},
+        ]
+    )
+
+    assert detect_prior_cohort_trigger("Reaction", history_wilting_day, current_date="2026-11-14") is True
+
+    # Следующий день (2026-11-14): тургор полностью нормализовался до Turgor_Score = 4
+    next_day_normalized = (
+        [{"ID": f"K{i}", "Timestamp": "2026-11-14 18:00:00", "Delta_T_C": -2.0, "Turgor_Score": 4} for i in range(1, 7)]
+        + [{"ID": f"P{i}", "Timestamp": "2026-11-14 18:05:00", "Delta_T_C": -1.8, "Turgor_Score": 4} for i in range(1, 7)]
+        + [{"ID": f"R{i}", "Timestamp": "2026-11-14 18:10:00", "Delta_T_C": -1.1, "Turgor_Score": 4} for i in range(1, 7)]
+    )
+
+    cluster_status = evaluate_cohort_cluster_status(
+        next_day_normalized,
+        all_records=history_wilting_day + next_day_normalized,
+    )
+    r_status = cluster_status["reaction"]
+    assert r_status["is_recovery"] is True
+    assert r_status["triggered"] is True
+    assert r_status["state"] == "recovery"
+    assert "РЕЖИМ ВОССТАНОВЛЕНИЯ" in r_status["status_text"]
+
+    r1_decision = resolve_cohort_watering_decision(
+        pot_id="R1",
+        raw_deficit_ml=11.5,
+        cluster_status=cluster_status,
+    )
+    assert r1_decision["watering_allowed"] is True
+    assert r1_decision["effective_dose"] == 11.5
+    assert r1_decision["reason"] == "recovery"
+
+
+def test_download_csv_resolves_production_wave2_path(monkeypatch):
+    """Проверка резолва боевого пути /download/csv -> data/experiments/exp_1792918800/measurements_wave2.csv."""
+    from fastapi.testclient import TestClient
+    import core.experiments as core_experiments
+
+    prod_data_dir = os.path.join(PROJECT_ROOT, "data")
+    expected_csv = os.path.normpath(
+        os.path.join(prod_data_dir, "experiments", "exp_1792918800", "measurements_wave2.csv")
+    )
+    assert os.path.exists(expected_csv)
+
+    monkeypatch.setattr(core_experiments, "_exp_manager", None)
+    monkeypatch.setattr(web_station, "DATA_DIR", prod_data_dir)
+    exp_mgr = core_experiments.get_experiment_manager(prod_data_dir)
+    resolved_csv = os.path.normpath(exp_mgr.get_active_csv_path())
+    assert resolved_csv == expected_csv, f"Expected {expected_csv}, got {resolved_csv}"
+
+    client = TestClient(web_station.app)
+    response = client.get("/download/csv")
+    assert response.status_code == 200
+    assert "_wave2.csv" in response.headers.get("content-disposition", "")
+    lines = [line for line in response.text.splitlines() if line.strip()]
+    assert len(lines) == 134, f"Expected 134 lines (header + 133 rows), got {len(lines)}"
+    assert "2026-11-15" in lines[-1]

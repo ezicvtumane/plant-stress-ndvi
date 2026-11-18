@@ -3843,10 +3843,17 @@ async def api_wave2_anova_report():
             else:
                 records = all_recs
 
+        harvest_csv_candidate = os.path.join(
+            os.path.dirname(wave2_storage.csv_path),
+            "biomass_harvest_wave2.csv",
+        )
+        harvest_csv_path = harvest_csv_candidate if os.path.exists(harvest_csv_candidate) else None
+
         res = analyze_wave2_dataset(
             records,
             static_dir=STATIC_DIR,
-            docs_dir=WAVE2_DOCS_DIR
+            docs_dir=WAVE2_DOCS_DIR,
+            harvest_csv_path=harvest_csv_path,
         )
         return JSONResponse(res)
     except Exception as e:

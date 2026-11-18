@@ -137,3 +137,64 @@ def test_biomass_harvest_two_way_anova_dospekhov():
     F_dw, p_dw = run_anova(data_dw)
     assert F_dw > 4.26, f"F-критерий DW {F_dw} должен превышать порог 5% (4.26)"
     assert p_dw < 0.05, f"p-value DW {p_dw} должно быть < 0.05"
+
+
+def test_biomass_harvest_tukey_hsd_and_api_reproducibility(tmp_path):
+    """
+    Проверка точных F_блок / F_взаимод, парных сравнений Тьюки HSD (FW и DW: df_e=9 и df_e=13)
+    по фактическому biomass_harvest_wave2.csv и воспроизводимости /api/wave2/anova_report.
+    """
+    import shutil
+    from fastapi.testclient import TestClient
+    import web_station
+    from core.wave2_anova import compute_harvest_biomass_analysis
+
+    res = compute_harvest_biomass_analysis(CSV_PATH)
+    assert res is not None
+
+    # FW (полная модель, df_e = 9)
+    fw_full = res["fw"]["full_model"]
+    assert fw_full["df_error"] == 9
+    assert fw_full["f_cohort"] == pytest.approx(9.731, abs=0.002)
+    assert fw_full["f_block"] == pytest.approx(31.958, abs=0.002)
+    assert fw_full["f_interaction"] == pytest.approx(1.611, abs=0.002)
+    assert fw_full["tukey_hsd"]["K-P"]["p"] == pytest.approx(0.7772, abs=0.001)
+    assert fw_full["tukey_hsd"]["K-R"]["p"] == pytest.approx(0.0066, abs=0.0005)
+    assert fw_full["tukey_hsd"]["P-R"]["p"] == pytest.approx(0.0185, abs=0.0005)
+
+    # DW (полная модель, df_e = 9)
+    dw_full = res["dw"]["full_model"]
+    assert dw_full["df_error"] == 9
+    assert dw_full["f_cohort"] == pytest.approx(6.158, abs=0.002)
+    assert dw_full["p_cohort"] == pytest.approx(0.0207, abs=0.0005)
+    assert dw_full["tukey_hsd"]["K-P"]["p"] == pytest.approx(0.6873, abs=0.001)
+    assert dw_full["tukey_hsd"]["K-R"]["p"] == pytest.approx(0.0203, abs=0.0005)
+    assert dw_full["tukey_hsd"]["P-R"]["p"] == pytest.approx(0.0753, abs=0.0005)
+    assert dw_full["fisher_lsd"]["P-R"]["p"] == pytest.approx(0.0323, abs=0.0005)
+
+    # DW (аддитивная модель, df_e = 13)
+    dw_add = res["dw"]["additive_model"]
+    assert dw_add["df_error"] == 13
+    assert dw_add["f_cohort"] == pytest.approx(7.567, abs=0.002)
+    assert dw_add["p_cohort"] == pytest.approx(0.0066, abs=0.0005)
+    assert dw_add["tukey_hsd"]["P-R"]["p"] == pytest.approx(0.0372, abs=0.0005)
+
+    # Сквозная проверка /api/wave2/anova_report на изолированном DATA_DIR с реальными CSV
+    exp_dir = os.path.join(web_station.DATA_DIR, "experiments", "exp_1792918800")
+    os.makedirs(exp_dir, exist_ok=True)
+    src_meas = os.path.join(BASE_DIR, "data", "experiments", "exp_1792918800", "measurements_wave2.csv")
+    shutil.copyfile(src_meas, os.path.join(exp_dir, "measurements_wave2.csv"))
+    shutil.copyfile(CSV_PATH, os.path.join(exp_dir, "biomass_harvest_wave2.csv"))
+
+    client = TestClient(web_station.app)
+    resp = client.get("/api/wave2/anova_report")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["ok"] is True
+    assert payload["harvest_biomass"] is not None
+    assert payload["harvest_biomass"]["fw"]["full_model"]["f_block"] == pytest.approx(31.958, abs=0.002)
+    assert payload["harvest_biomass"]["dw"]["additive_model"]["tukey_hsd"]["P-R"]["p"] == pytest.approx(0.0372, abs=0.0005)
+
+    report_md = open(payload["report_file"], encoding="utf-8").read()
+    for token in ("31.958", "1.611", "0.7772", "0.0185", "0.6873", "0.0753", "0.0323", "0.0372"):
+        assert token in report_md, f"Отчёт /api/wave2/anova_report не содержит ожидаемое значение {token}"
